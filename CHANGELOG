@@ -87,3 +87,26 @@
 
 * Fixed 255 CPU limit, finally. Now the limit is based on external software and
   hardware constraints.
+
+0.1
+
+* Busybox, Linux, and QEMU are now grabbed from upstream and distributed as
+  patchsets.
+
+* Added register callbacks
+
+* Added instructon type to instruction callbacks.
+
+* Introduced simplesim simulator back end.
+
+* Re-worked the Linux port.
+
+* Introduced remote/ for distributed operation.
+
+* Introduced qsim-fastforwarder and saved state.
+ 
+* Introduced qsim-io to transfer files to the guest.
+
+* Removed the benchmarks from the main source directory.
+
+* Fixed a ton of minor issues and bugs.
