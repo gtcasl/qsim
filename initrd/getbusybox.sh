@@ -14,8 +14,16 @@ pushd ../linux
 LINUX_DIR=`pwd`/linux-2.6.34
 popd
 
-echo === DOWNLOADING ARCHIVE ===
-wget $BBOX_URL
+# Download the archive if we don't already have it.
+if [ ! -e $BBOX_ARCHIVE ]; then
+  echo === DOWNLOADING ARCHIVE ===
+  wget $BBOX_URL
+fi
+
+# Delete the busybox directory if it already exists.
+if [ -e $BBOX ]; then
+  rm -r $BBOX
+fi
 
 echo === UNPACKING ARCHIVE ===
 $UNPACK $BBOX_ARCHIVE

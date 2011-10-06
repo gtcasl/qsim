@@ -7,8 +7,16 @@ UNPACKAGE="tar -xjf"
 
 INITRD=`pwd`/../initrd/initrd.cpio
 
-echo === DOWNLOADING ARCHIVE ===
-wget $KERNEL_URL
+# Only download the archive if we don't alreay have it.
+if [ ! -e $KERNEL_ARC ]; then
+  echo === DOWNLOADING ARCHIVE ===
+  wget $KERNEL_URL
+fi
+
+# Remove our kernel working directory if we're about to overwrite it.
+if [ -e $KERNEL ]; then
+  rm -rf $KERNEL
+fi
 
 echo === UNPACKING ARCHIVE ===
 $UNPACKAGE $KERNEL_ARC

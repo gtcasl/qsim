@@ -8,8 +8,16 @@ QEMU_PATCH=$QEMU.qsim.patch
 
 UNPACK="tar -xzf"
 
-echo === DOWNLOADING ARCHIVE ===
-#wget $QEMU_URL
+# Only download it if we don't already have it.
+if [ ! -e $QEMU_ARCHIVE ]; then
+  echo === DOWNLOADING ARCHIVE ===
+  wget $QEMU_URL
+fi
+
+# If the directory already exists, remove it and unpack the archive again.
+if [ -e $QEMU ]; then
+  rm -r $QEMU
+fi
 
 echo === UNPACKING ARCHIVE ===
 $UNPACK $QEMU_ARCHIVE
