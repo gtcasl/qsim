@@ -1,0 +1,279 @@
+/*****************************************************************************\
+* Qemu Simulation Framework (qsim)                                            *
+* Qsim is a modified version of the Qemu emulator (www.qemu.org), coupled     *
+* a C++ API, for the use of computer architecture researchers.                *
+*                                                                             *
+* This work is licensed under the terms of the GNU GPL, version 2. See the    *
+* COPYING file in the top-level directory.                                    *
+\*****************************************************************************/
+%{
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <stdint.h>
+
+#include <string>
+
+#include "qdb.h"
+
+using std::string; using std::list;
+
+void show_help(int); /*Prototype for function in help.cpp*/
+
+extern "C" {
+  int yylex(void);
+  int yyerror(char* s);
+};
+%}
+
+%union{
+   uint64_t l;
+   int i;
+   char *s;
+}
+
+%start input 
+
+%token <l> T_LITERAL
+%token T_ON T_OFF
+%token <i> T_REG
+%token <s> T_FILE
+%token T_INTERVAL T_TRACE   T_MEMTR T_RUN  T_TICK T_DUMP   T_DISAS T_LSYMS
+%token T_USYMS    T_CPUSTAT T_SET   T_STEP T_PROF T_REPORT T_WATCH T_BREAK    
+%token T_SYNC     T_QUIT    T_HELP  T_END
+
+/* Special token that means "something unrecognizable" */
+%token T_ERROR
+
+%%
+input:   T_HELP T_END              { show_help(-1);         return 1; }
+         | T_HELP T_INTERVAL T_END { show_help(T_INTERVAL); return 1; }
+         | T_HELP T_SYNC T_END     { show_help(T_SYNC);     return 1; }
+	 | T_HELP T_TRACE T_END    { show_help(T_TRACE);    return 1; }
+         | T_HELP T_MEMTR T_END    { show_help(T_MEMTR);    return 1; }
+         | T_HELP T_RUN T_END      { show_help(T_RUN);      return 1; }
+         | T_HELP T_TICK T_END     { show_help(T_TICK);     return 1; }
+         | T_HELP T_DUMP T_END     { show_help(T_DUMP);     return 1; }
+         | T_HELP T_DISAS T_END    { show_help(T_DISAS);    return 1; }
+         | T_HELP T_LSYMS T_END    { show_help(T_LSYMS);    return 1; }
+         | T_HELP T_USYMS T_END    { show_help(T_USYMS);    return 1; }
+         | T_HELP T_CPUSTAT T_END  { show_help(T_CPUSTAT);  return 1; }
+         | T_HELP T_SET T_END      { show_help(T_SET);      return 1; }
+         | T_HELP T_STEP T_END     { show_help(T_STEP);     return 1; }
+         | T_HELP T_PROF T_END     { show_help(T_PROF);     return 1; }
+         | T_HELP T_REPORT T_END   { show_help(T_REPORT);   return 1; }
+         | T_HELP T_WATCH T_END    { show_help(T_WATCH);    return 1; }
+         | T_HELP T_BREAK T_END    { show_help(T_BREAK);    return 1; }
+         | T_HELP T_QUIT T_END     { show_help(T_QUIT);     return 1; }
+
+         | T_INTERVAL T_LITERAL T_END {
+           for (unsigned i = 0; i < n_cpus; i++) {
+	     thread_objs[i]->set_interval($2);
+           }
+	   return 1;
+         }
+   
+         | T_INTERVAL T_LITERAL T_LITERAL T_END {
+	   thread_objs[$3]->set_interval($2);
+	   return 1;
+         }
+
+         | T_SYNC T_LITERAL T_END {
+	   barriers_per_interrupt = $2;
+	   return 1;
+         }
+
+         | T_TRACE T_LITERAL T_ON T_END {
+	   printf("to-do: Enable inst. tracing on CPU/TID %llu.\n", 
+                  (unsigned long long)$2);
+	   return 1;
+         }
+ 
+         | T_TRACE T_LITERAL T_OFF T_END {
+	   printf("to-do: Disable inst. tracing on CPU/TID %llu.\n",
+	          (unsigned long long)$2);
+	   return 1;
+         }
+  
+         | T_MEMTR T_LITERAL T_ON T_END {
+	   printf("to-do: Enable mem tracing on CPU/TID %llu.\n",
+                  (unsigned long long)$2);
+           return 1;
+         }
+ 
+         | T_MEMTR T_LITERAL T_OFF T_END {
+           printf("to-do: Disable mem tracing on CPU/TID %llu.\n", 
+                  (unsigned long long)$2);
+           return 1;
+         }
+
+         | T_RUN T_END {
+	   for (unsigned i = 0; i < n_cpus; i++) {
+             thread_objs[i]->run((uint64_t)-1l);
+	   }
+           return 1;
+         }
+
+         | T_RUN T_LITERAL T_END {
+	   for (unsigned i = 0; i < n_cpus; i++) {
+             thread_objs[i]->run($2);
+           }
+           return 1;
+         }
+
+         | T_RUN T_LITERAL T_LITERAL T_END {
+           thread_objs[$3]->run($2);
+           return 1;
+         }
+
+         | T_TICK T_END {
+	   cd->timer_interrupt();
+           return 1;
+         }
+
+         | T_TICK T_LITERAL T_END {
+	   for (unsigned i = 0; i < n_cpus; i++) {
+	     cd->interrupt(i, $2);
+           }
+	   return 1;
+         }
+
+         | T_TICK T_LITERAL T_LITERAL T_END {
+	   cd->interrupt($3, $2);
+	   return 1;
+         }
+
+         | T_DUMP T_LITERAL T_LITERAL T_END {
+	   mem_dump($2, $3);
+	   return 1;
+         }
+
+         | T_DISAS T_LITERAL T_LITERAL T_END {
+	   disas($2, $3);
+	   return 1;
+         }
+ 
+         | T_LSYMS T_FILE T_END {
+	   load_symbols($2, true, 0);
+	   free($2);
+	   return 1;
+         }
+
+	 | T_LSYMS T_FILE T_LITERAL T_END {
+           load_symbols($2, false, $3);
+	   free($2);
+           return 1;
+	 } 
+
+         | T_USYMS T_END {
+           clear_symbols(true, 0);
+           printf("Unloaded all global symbols.\n");
+	   return 1;
+         }
+
+         | T_USYMS T_LITERAL T_END {
+	   clear_symbols(false, $2);
+           return 1;
+         }
+
+         | T_CPUSTAT T_END {
+	   for (unsigned i = 0; i < n_cpus; i++) {
+	     printf("CPU %u:\n", i);
+	     cpu_stat(i);
+           }
+           return 1;
+         }
+ 
+         | T_CPUSTAT T_LITERAL T_END {
+           cpu_stat($2);
+	   return 1;
+         }
+
+         | T_SET T_LITERAL T_REG T_LITERAL {
+	   if ($3 == -1) {
+	     printf("Unrecognized register name.\n");
+           } else {
+	     cd->set_reg($2, (enum regs)$3, $4);
+           }
+	   return 1;
+         }
+
+         | T_SET T_LITERAL T_LITERAL {
+	   cd->mem_wr((uint8_t)($3), $2);
+           return 1;
+         }
+
+         | T_STEP T_END {
+	   printf("Singlestep all CPUs and disas. the instruction.\n");
+	   return 1;
+         }
+ 
+         | T_STEP T_LITERAL T_END {
+	   printf("Singlestep CPU %d and disas. the instruction.\n", (int)$2);
+           return 1;
+         }
+
+         | T_PROF T_ON T_END {
+           prof_all();
+	   return 1;
+         }
+ 
+         | T_PROF T_OFF T_END {
+	   prof_off();
+	   return 1;
+         }
+ 
+         | T_PROF T_LITERAL T_ON T_END {
+	   prof_on($2);
+           return 1;
+         }
+ 
+         | T_PROF T_LITERAL T_OFF T_END {
+	   prof_off($2);
+           return 1;
+         }
+ 
+         | T_REPORT T_END {
+           do_report();
+           return 1;
+         }
+ 
+         | T_WATCH T_LITERAL T_END {
+           printf("Set watchpoint at virtual address 0x%08llx.\n", 
+                  (unsigned long long)$2);
+           return 1;
+         }
+
+         | T_WATCH T_LITERAL T_LITERAL T_END {
+           printf("Set watchpoint at virtual address 0x%08llx for TID %d.\n",
+                  (unsigned long long)$2, (int)$3);
+           return 1;
+         }
+ 
+         | T_BREAK T_LITERAL T_END {
+           printf("Set breakpoint at virtual address 0x%08llx.\n", 
+                  (unsigned long long)$2);
+           return 1;
+         }
+ 
+         | T_BREAK T_LITERAL T_LITERAL T_END {
+           printf("Set breakpoint at virtual address 0x%08llx for TID %d.\n",
+                  (unsigned long long)$2, (int)$3);
+           return 1;
+         }
+
+         | T_QUIT T_END {
+           return 0;
+         }
+
+         | T_END {
+           /*Null command. Keep going.*/
+           return 1;
+         };
+%%
+
+int yyerror(char* s) {
+  puts("Invalid command. Type \"help\" for list.");
+  return 1;
+}

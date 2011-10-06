@@ -1,0 +1,65 @@
+SimpleSim Readme
+================
+
+SimpleSim is a simple computer system simulator using the QSim emulation infrastructure. It
+provides a processor pipeline model for the back-end (issue through retirement) of an out-of-
+order x86 core. 
+
+Discrete Event Simulator
+------------------------
+
+Code for the discrete event simulator is in des.h and des.cpp. The SimpleSim DES provides a
+prioritized cycle-based simulation. The interface is primarily through the following:
+
+uint64_t Slide::_now
+
+The current simulation cycle.
+
+bool Slide::_advance(uint64_t)
+
+Advance the simulation to cycle t.
+
+bool Slide::_tick()
+
+Run the next event. Return true if more events remain to process.
+
+void Slide::_terminate()
+
+Stop the simulation before the next event is processed.
+
+template <typename T> void Slide::schedule(uint64_t t, T* o, void (*f)(T*), uint8_t p)
+
+Call member f of object pointed to by o t cycles into the future, with priority p. This can be
+used with t=0 to insert events into the queue to happen within the same simulation cycle as
+called. Events are allowed to create new events with higher priority (smaller p).
+
+Memory System
+-------------
+
+The memory system is made of a hierarchy of MemSysDevice objects, usually a CPU, a collection
+of coherent caches, and a memory controller. Memory system objects (other than the CPU) are
+defined in cache.h and cache.cpp.
+
+CPU
+---
+
+There are several options in SimpleSim for simulated CPU. These options, defined in cpu.h and
+cpu.cpp, including:
+
+SimpleSim::RandomCpu
+
+Connects to a single lower-level memory device and sends sequential requests, randomly
+switching to alternate base addresses. Does not depend on QSim.
+
+SimpleSim::SimpleCpu
+
+Connects to a QSim instance, blocks on stalled memory requests (both load/store and fetch),
+otherwise executes one instruction per cycle. SimpleCpu connects to separate instruction and
+data MemSysDevice objects, which are considered peers on the coherence network.
+
+SimpleSim::SuperscalarCpu
+
+main.cpp
+--------
+
+This file is responsible for wiring up and running the simulation.

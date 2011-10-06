@@ -1,0 +1,489 @@
+/*
+qa.txt
+
+Copyright (C) 2003-2007 Gil Dabah, http://ragestorm.net/distorm/
+This library is licensed under the BSD license. See the file COPYING.
+*/
+
+Beating the decoder?! or trying so :)
+
+This is for testing the disassembler with extreme cases of special
+manually crafted instructions and streams.
+
+Integer opcodes:
+-+--------------
+37 f1 80 17 80 ff 3f 0f 0b 0f d0 0f ba e0 05 0f c7 18 05 c3
+one byte opcode: 37 (AAA)
+invalid one byte opcode: f0
+one byte + reg bits opcode: 80 17 80 (ADC byte [BX], 0x80)
+invalid one byte + reg bits opcode: ff 3f (supposed to be CALL NEAR)
+two byte opcode: 0F 0B (UD2)
+invalid two byte opcode: 0f d0
+two byte + reg bits opcode: 0F BA E0 05 (BT AX, 5)
+invalid two byte + reg bits opcode: 0f c7 18 (supposed to be CMPXCHG8B)
+not-enough bytes opcode (end of data): 05 C3 (ADD AX, <WORD>) --> DB 0x05;RET
+force general-purpose-register mod/rm when memory mode is a must: 0F 01 17 (LGDT [BX])--> 0F 01 c7
+
+FPU opcodes:
+-+----------
+escaped under C0: d8 07
+escaped above C0: d8 c7
+invalid escaped under C0: d9 08
+invalid escaped above c0: d9 d1
+five bits isolation: d9 c0 d9 c8
+two bytes static fpu opcode: da e9
+
+CREGS/SREGS parsing:
+-+------------------
+invalid CR#: 0f 22 e9 (MOV CR5, ECX)
+invalid SREG#: 8e fa (MOV SREG7, DX)
+
+Prefixes:
+-+------
+0xF0,0xF2,0xF3 0x2E,0x36,0x3E,0x26,0x64,0x65 0x66,0x67
+
+REP:
+-+-
+16 bits:
+AD ~ LODSW
+66 AD ~ LODSD
+F3 AC ~ REP LODSB
+F3 66 AD ~ REP LODSD
+F3 3E AC ~ REP LODS BYTE DS:[SI]
+F3 67 AD ~ REP LODS WORD [ESI]
+F3 65 AC ~ REP LODS BYTE GS:[SI]
+
+AD66ADF3ACF366ADF33EACF367ADF365AC
+
+XLAT:
+-+---
+D7 ~ XLATB
+67 D7 ~ XLAT BYTE [BX+AL]
+26 D7 ~ XLAT BYTE ES:[EBX+AL]
+64 D7 ~ XLAT BYTE FS:[RBX+AL]
+
+D767D726D764d7
+
+Prefixes (32 bits decoding):
+-+--------------------------
+f02e6667c3 simple prefixes
+65662e no more bytes to decode after prefixes
+2ef065662e no more bytes to decode after prefixes + extra prefixes
+65666766c3 unused prefixes
+656667b81111 partially unused
+65672e66b81111 partially unused + extra prefixes
+2ef06605 not enough bytes to decode instruction
+662e0fc7c867c3 bad instruction operands
+660f5800 mandatory prefix
+2e67f02e660f5800 mandatory prefix + extra prefixes + partially unused
+660f58 mandatory prefix + not enough bytes to decode instruction
+2ef03e660f588411 partially unused + dropped prefixes + mandatory prefix + not enough bytes to decode instruction
+660ff7b5 mandatory prefix + modrm doesn't decode well
+6667406541424f33c0 extra rex's
+
+Prefixes (64 bits decoding):
+-+--------------------------
+f20f5ac0 mandatory
+f2480f5ac0 mandatory + rex.w dropped
+f24f0f5ac0 mandatory + full rex
+f2420f5ac0 mandatory + rex.x dropped
+660f6ec0 mandatory
+66480f6ec0 mandatory + rex.w
+2ef3664f0f6ec0 mandatory + full rex + dropped prefixes
+f065666747f02e6650 prefixes + rex + prefixes
+f06566674831c0 prefixes + rex
+664833c0 opsize + rex.w
+
+Operand Types:
+-+------------
+OT_IMM8,
+80C155 add cl, 0x55
+
+OT_IMM16,
+C8010012 enter 1, 12
+
+OT_IMM_FULL,
+B801000000 mov eax, 1
+
+OT_IMM32,
+
+OT_IMM_AADM,
+D550 AAD 0x50
+d50a AAD
+D450 AAM 0x50
+d40a AAM
+
+D550d50aD450d40a
+
+OT_SEIMM8,
+83D8EE sbb eax, -12
+
+OT_REG8,
+32DA xor bl, dl
+
+OT_REG_FULL,
+0FC1DA xadd edx, ebx
+
+OT_REG32,
+0FBFC2 movsx eax, dx
+
+OT_REG32_RM,
+0F23C8 mov dr1, eax
+0F23F8 mov dr7, eax
+0f2300 invalid
+
+OT_RM8,
+80D512 adc ch, 0x12
+
+OT_RM16,
+8CD8 mov ax, ds
+8C1F mov [bx], ds
+
+OT_RM_FULL,
+0FA308 bt [eax], ecx
+
+OT_RM32,
+0F6E38 movd MM7, [eax]
+
+OT_FPUM16,
+DE03 fiadd word ptr [ebx]
+
+OT_FPUM32,
+D803 fadd dword ptr [ebx]
+
+OT_FPUM64,
+DC3F fdivr qword ptr [edi]
+
+OT_FPUM80,
+DF21 fbld tbyte [ecx]
+
+OT_R32M16,
+* not clear, check data sheet
+0FC40215 PINSRW MM0, [edx], 15
+
+OT_CREG,
+0F22CE mov cr1, esi (invalid)
+
+OT_DREG,
+0F21DE mov esi, dr3
+
+OT_SREG,
+8C1B mov [ebx], ds
+
+OT_ACC8,
+14AA adc al, 0xaa
+
+OT_ACC_FULL,
+1578563412 adc eax, 0x12345678
+
+OT_MEM1616,
+OT_MEM1632,
+OT_PTR1616,
+
+OT_RELCB,
+7400 jz $+2
+
+OT_RELC_FULL,
+0x400073: 0F8287FFC0FF jc 0x10000
+
+OT_MEM,
+0FC70B cmpxchg8b [ebx]
+
+OT_MEM64,
+0FE700 movntq [eax], MM0
+
+OT_MEM128,
+
+OT_MOFFS,
+A034120000 mov al, [0x1234]
+
+OT_CONST1,
+D0E1 shl cl, 1
+
+OT_REGCL,
+D3E3 shl ebx, cl
+
+OT_IB_RB,
+B155 mov cl, 0x55
+
+OT_IB_R_FULL,
+50 push eax
+
+OT_IB_RD,
+0FC8 bswap eax
+
+OT_REGI_ESI,
+OT_REGI_EDI,
+OT_REGDX,
+
+OT_FPU_SI,
+D8D5 fcom st(5)
+
+OT_FPU_SSI,
+D8E2 fsub st, st(2)
+
+OT_FPU_SIS,
+DEFD fdivp st(5), st
+
+OT_MM,
+0F6300 packsswb mm0, qword [eax]
+
+OT_MM_RM,
+0FD7C7 PMOVMSKB eax, mm7
+
+OT_MM32,
+0F622A PUNPCKLDQ mm5, dword [edx]
+
+OT_MM64,
+0F6F2B movq mm5, [ebx]
+
+OT_XMM,
+OT_XMM_RM,
+OT_XMM32,
+OT_XMM64,
+OT_XMM128,
+
+OT_DUMMY
+004000AA: E8F1FFFFFF call 0x4000a0
+
+Locate_instruction Engine:
+-+------------------------
+Mmandatory Prefix
+OCST_1BYTE - c3 RET
+OCST_13BYTES - 80D155 adc cl, 55
+OCST_1dBYTES - d9d0 fnop
+OCST_2BYTES - 0f08 invd
+OCST_23BYTES - 0F0013 lldt dword [ebx]
+OCST_2dBYTES - 0FAE06 FXSAVE [esi]
+OCST_3BYTES - f30f58ff ADDSS XMM7, XMM7
+OCST_33BYTES - 660f73f055 PSLLQ XMM0, 0x55
+3DNow! - 0f0fffa7 PFRSQIT1 MM7, MM7
+Wait Instruction - 9b90 wait nop ; 9bDBE2 fclex ; DBE2 fnclex
+
+kill 3dnow instruction after modrm
+0f0f db f db f
+0f0fc3 db f db f ret
+
+0f01e30f01f00f01c70f01080f01c80f01c90f0109
+0faee80faef00faef80faef3ac0fae3f
+hexcode = "c3 FE07 DC00 D9C3 DBE3 0f06 0fba2055 0faee80faef00faef80faef3ac0fae3f 9bdbe3"
+660f6800
+
+ModR/M Options:
+-+-------------
+16 bits:
+FF0C dec word [si]
+FF08 dec word [bx+si]
+FF0E3412 dec word [0x1234]
+FF4855 dec word [bx+si+0x55]
+FE8EAA00 dec byte [bp+0xaa]
+FE8D3412 dec byte [di+0x1234]
+
+ff0cff08FF0E3412FF4855FE8EAA00FE8D3412
+
+32 bits:
+FF02 inc dword [edx]
+FF0578563412 inc dword [0x12345678]
+FF4755 inc dword [edi+0x55]
+FE8678563412 inc byte [esi+0x12345678]
+
+FF02FF0578563412FF4755FE8678563412
+
+sib (src op =don't care)
+0fc0042578563412 xadd [0x12345678],
+0fc00401 xadd [eax + ecx],
+0fc04ce1aa xadd [ecx + 0xaa],
+0fc04ce555 xadd [ebp + 0x55],
+0fc0b48278563412 xadd [eax*4 + edx + 0x12345678],
+0fc0b4c478563412 xadd [eax*8 + esp + 0x12345678],
+0fc00420 xadd [eax], al
+
+0fc00425785634120fc004010fc04ce1aa0fc04ce5550fc0b482785634120fc0b4c4785634120fc00420
+
+Block Instructions:
+-+-----------------
+bswap: 0fc8-0fcf
+dec: 48-4f
+inc: 40-47
+pop: 58-5f
+push: 50-57
+mov byte: b012-b712
+mov word: b81234-bf1234
+xchg: 91-97, 90
+
+32 bits:
+0fc80fcf
+16 bits:
+484f4047585f5057b012b712b81234bf1234919790
+
+Seg2Text:
+-+-------
+2efe07 inc byte cs:[bx]
+65fe07 inc byte gs:[bx]
+
+2efe0765fe07
+
+Indirection2Text:
+-+---------------
+801712 adc byte [bx], 0x12
+FF362341 push word [0x121312]
+
+UnusedPrefixes2Text:
+-+------------------
+66b055 mov al, 0x55
+6740 inc ax
+2e0e push cs
+f2ED in ax, dx
+f3E002 loopnz $+2
+
+66b05567402e0ef2EDf3E002
+
+Lock Prefix:
+-+----------
+f0D3E0 shl eax, cl
+f0fe07 lock inc byte [bx]
+
+f0D3E0f0fe07
+
+Double Mnemonics:
+-+---------------
+98 CBW, CWDE
+99 CWD, CDQ
+(67) e3 JCXZ, JECXZ
+
+Natives:
+-+------
+cf IRET
+61 POPA
+9d POPF
+60 PUSHA
+9c PUSHF
+
+cf619d609c
+66cf6661669d6660669c
+
+Invalid Registers:
+-+----------------
+0F21E0 mov eax, dr4
+0F21E8 mov eax, dr5
+0F21F0 mov eax, dr6
+8Cf8 mov ax, <sreg7>
+0F20CB mov ebx, cr1
+8EC8 mov cs, ax
+0f21c0 mov eax, dr0
+
+0f21bf <modrm < 0xc0>
+
+Security:
+-+-------
+
+
+Misc:
+-+---
+67/66 jmp?
+
+64 bit
+-------
+FE4500 inc byte [rbp+0]
+fe01 inc byte [rcx]
+fe44bd05 inc byte [rdi*4+rbp+5]
+fe0501000000 inc byte [rip+1]
+67fe0501000000 inc byte [rip+1]
+ff4704 inc dword [rdi+4]
+ff04c555000000 inc dword [rax*8+55]
+ff442501 inc dword [rbp+1]
+ffc7 inc edi
+
+4fFE4500 inc byte [r13+0]
+41fe01 inc byte [r9]
+43fe44bd05 inc byte [r15*4+r13+5]
+4ffe0501000000 db 0x4f; inc byte [rip+1]
+41ff4704 inc dword [r15+4]
+4aff04c555000000 inc qword [r8*8+55]
+41ff442501 inc dword [r13+1]
+
+41ffc7 inc r15d
+
+modrm
+-----
+
+4633C1 xor r8d, ecx
+4933C1 xor rax, r9
+
+8d01 lea eax, [rcx]
+428d01 db 0x42; lea eax, [rcx]
+418d01 lea eax, [r9]
+4c8d01 lea r8, [rcx]
+
+8d0cf8 lea ecx, [rax+rdi*8]
+678d0cf8 lea ecx, [eax+edi*8]
+418d0cf8 lea ecx, [r8+rdi*8]
+67418d0cf8 lea ecx, [r8d+edi*8]
+428d0cf8 lea ecx, [rax+r15*8]
+448d0cf8 lea r9d, [rax+rdi*8]
+4c8d0cf8 lea r9, [rax+rdi*8]
+
+48 b8 0100000000000000 MOV RAX, 0x01
+b8 01000000 MOV EAX, 0x01
+
+
+8d0461 LEA EAX, [RCX]
+428d0461 LEA EAX, [RCX + R12*2]
+
+418D042500000000 db 0x41; LEA EAX, [0x0]
+418D842500000000 LEA EAX, [R13+0x0]
+8D0420 LEA EAX, [RAX]
+428D0420 LEA EAX, [R12+RAX]
+
+4d33c94533c9664733c9
+
+4d33c9 XOR R9, R9
+4533c9 XOR R9D, R9D
+664733c9 XOR R9W, R9W
+50 push rax
+4e50 db 0x4e; push rax
+6651 push cx
+
+41b801010101 mov r8d, 0x01010101
+65d7 XLAT BYTE GS:[RBX+AL]
+6467d7 XLAT BYTE FS:[EBX+AL]
+
+0FBE03 movsx eax, byte [rbx]
+0FB707 movzx eax, word [rdi]
+480FBE0424 movsx rax, byte [rsp]
+480FBEC0 movsx rax, al
+4c0fb6fe movzx r15, sil
+
+66C1A04523010009 shl word [Rax+12345], 9
+66C1A4C04523010055 shl word [Rax+Rax*8+12345], 55
+C1A4C04523010009 shl dword [Rax+Rax*8+12345], 9
+
+f20f2dc0 CVTSD2SI EAX, XMM0
+f2480f2dc1 CVTSD2SI RAX, XMM1
+
+CVTSD2SI
+CVTTSD2SI
+CVTSS2SI
+CVTTSS2SI
+CVTSI2SD
+CVTSI2SS
+
+OT_IB_R_FULL
+moffset64
+OT_ACC_FULL
+
+66 48 0f2dd9
+66 is mandatory!!
+
+VMX
+-+-
+0f01c10f01c20f01c30f01c4 VMCALL, VMLAUNCH, VMRESUME, VMXOFF
+660fc7f0 // MEM can't use MOD=11
+660fc730 VMCLEAR [EAX]
+0fc730 VMPTRLD [EAX]
+0fc7f0 // MEM again
+0fc738 VMPTRST [RAX]
+f30fc737 VMXON [RDI]
+
+0f78c1 VMREAD ECX, EAX
+0f79c1 VMWRITE RAX, RCX

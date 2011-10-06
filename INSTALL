@@ -1,0 +1,82 @@
+Building Qemu
+-------------
+
+$ ./getqemu.sh
+$ cd qemu-0.12.3
+$ make
+$ cd ..
+
+Downloading the Linux Kernel
+----------------------------
+
+This must be done before busybox is compiled; busybox depends on the linux
+headers.
+
+$ cd linux
+$ ./getkernel.sh
+$ cd ..
+
+Building busybox
+----------------
+
+$ cd initrd
+$ ./getbusybox.sh
+$ cd busybox-1.16.1
+$ make CFLAGS="-m32" LDFLAGS="-m32"
+$ cp busybox ../sbin
+
+Building initrd
+---------------
+
+Change the init script to suit your needs, and put the appropriate benchmark in
+the sbin/ directory.
+
+$ make
+$ cd ..
+
+Building Linux
+--------------
+
+$ cd linux/linux-2.6.34
+$ ARCH=i386 make
+$ cd ../..
+
+Building Distorm
+----------------
+
+This does not require the python dev libraries. Even if it errors out before it
+finishes building, as long as you have built the .a file, that is enough.
+
+$ cd distorm/distorm64/build/linux
+$ make
+$ cd ../../../..
+
+Building Qsim
+-------------
+
+Edit the makefile to change prefix to appropriate directory. "sudo" is only
+required here if this is not a directory normally writeable by your user (the
+default is /usr/local, which is typically not world-writeable).
+
+$ sudo make install
+
+Building QSim Server
+--------------------
+
+Again, the makefile must be changed if the QSim installation prefix is not
+/usr/local. LD_LIBRARY_PATH must also be set, if the installation prefix is not 
+in the usual path, before the server is run.
+
+$ cd remote/server
+$ make
+
+Building Examples
+-----------------
+
+$ cd examples
+$ make
+
+Running Examples
+----------------
+
+$ ./simple 1 TRACE

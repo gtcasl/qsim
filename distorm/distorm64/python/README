@@ -1,0 +1,12 @@
+This is a sample code of how to use diStorm as a dynamic library using Python's ctypes module.
+
+Compile diStorm as a DLL under Windows or as a Shared Object under *nix.
+Make sure the output file can be found by Python.
+
+---------
+from pydistorm import Decode, Decode16Bits, Decode32Bits, Decode64Bits
+for i in Decode(0x100, open("file.com", "rb").read(), Decode16Bits):
+    print "0x%08x (%02x) %-20s %s" % (i.offset, i.size, i.instructionHex, str(i.mnemonic) + " " + str(i.operands))
+
+Victor Stinner, Gil Dabah
+May 2008

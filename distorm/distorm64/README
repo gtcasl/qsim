@@ -1,0 +1,65 @@
+:[diStorm64}: (v1.7.30)
+The ultimate disassembler library (for AMD64, X86-64).
+
+diStorm is licensed under the BSD license.
+
+For documentation and MUCH MORE please refer to doc/distorm.html.
+
+
+Directory Listing:
+-+----------------
+doc/ - Contains documentation files.
+build/win32/ - Solution file for VS03.
+build/linux/ - Make file and installation script for Python.
+build/mac/ - Make file and installation script for Python2.3 (works for Tiger).
+src/ - Full source code.
+linuxproj/ - Raw file disassembler, sample project, shows how to use the C Library.
+win32proj/ - Ditto, but for Win32.
+ddkproj/ - A Windows kernel driver source that disassembles the beginning of KeBugCheck as an example.
+
+distorm.h - Header file for diStorm's C library (Used by win32proj and linuxproj).
+config.h - Compiler specific macros definitions (Endianity support too).
+
+NOTE - See config.h and distorm.h for library configuration (such as exports, size of integers, etc).
+
+Win32 Compilation:
+-+----------------
+The distorm.sln file contains two projects: cdistorm and pydistorm.
+There are three configurations: clib, py24 and py23.
+'clib' configuration will create a distorm.lib file for win32proj used with the
+header file (distorm.h).
+'py25/24/23' configuration will create distorm.pyd in the corresponding directory,
+which should be copied into the Python\Lib\site-packages.
+You might want to change the directories of the Python library/include directories
+which are set in the configurations.
+There is also a 'dyndistorm' project which will create a distorm.dll file which you can use along with 'distorm.h'.
+
+Linux Compilation:
+-+----------------
+The makefile will compile diStorm for clib and py24.
+'make clib' will create a static archive library named 'distorm64.a'
+which is used by linuxproj.
+'make py' will create a shared object file, named 'libdistorm64.so'
+which is installed with the instpython.sh script (have to be root for that).
+
+Mac Compilation:
+-+--------------
+The makefile will compile diStorm for clib and py23.
+You can easily edit it to compile diStorm for py2x.
+See the 'Linux Compilation' above for how to use the makefile.
+You can also use the same sample of linux project.
+
+DDK Compilation (Ring0):
+-+----------------------
+diStorm can also be compiled as a kernel driver,
+there's a sample bundled under ddkproj.
+Follow accurately all the steps in the ddkproj/readme file to accomplish this task.
+
+For updates please visit http://ragestorm.net/distorm/
+Note that there are currently not-known bugs.
+Please contact me for any bugs that are found in the source code
+by reporting to me, so people could enjoy a better product!
+
+If you wish to contact me, use this email: arkon@ragestorm.net
+Gil Dabah
+May 2007

@@ -1,0 +1,490 @@
+<font face="courier new" color=black>
+<pre>
+
+/------------\
+|Introduction|
+\------------/
+When I started this project, I told myself one thing
+"How cool it would be to disassemble 80x86 instructions".
+I started with disassmbling only integer instructions.
+And soon enough later, I said to myself, "Woah, FPU is no less cool",
+and FPU instructions were supported afterwards.
+Then I got to a point where I said to myself, "You can't quit after this, it's getting hot in here",
+and instruction prefixes and all other instruction sets were supported.
+Eventually, not so long back ago, I had a serious piece of code, which was called a disassembler,
+and I was thinking, "Hey, AMD64 is out, let's do it".
+And here I am, one thought brought diStorm.
+Today, I look forward into code analysis tools.
+Guess my tomb stone would say "An assembly freak".
+
+Of course, there are many disassemblers out there,
+it's like there are much fish in the ocean, but not all of them are gold fish. :)
+(warning- this applies on girls too, "Does <i>she</i> know 80x86? OMG" - J/K! honestly).
+If you want to get convinced about why diStorm is a handy tool, read the next 'goals' part.
+
+Anyways, I am a big fan of documentation, and that's why I wrote this whole document.
+This document actually contains two parts:
+80x86 instruction sets and major topics about diStorm.
+I think that the first part is really interesting if you wish to learn about 80x86 bits and its low level
+and therefore it was partly written as a tutorial, though for learning much more, you better read it all.
+
+This document assumes you know something about programming and familiar with the 80x86 family and opcodes.
+So some knowledge is required, but no worry, stay with me.
+
+Before you keep on reading, I just wanted to write a few things about this all project.
+diStorm was fully written from scratch, using the Intel and AMD documents.
+To be honest, the AMD documents are much better, you should rely on them and use them more, and especially for AMD64.
+In the first part of this tutorial I don't claim to be better than the documents,
+I try to shed some light and how I interpret stuff. I thought it might be useful and helpful for beginners
+and advanced assembly coders. I don't cover everything but very much of the important information you should
+know about 80x86. I may have inaccuracies and mistakes, this applies to the second part as well,
+so if you doubt anything, or just know that I am wrong, please let me know!
+
+I tried to seperate the topics as much as possible, but because everything is related to each other,
+it might be a little messy, so I guess sometimes you will have to keep on reading untill something will
+get more clear later. As I stated earlier, even if I wanted, I couldn't cover here everything,
+so if you are not sure about anything or wish to see how it was implemented, simply have a glance in the source code.
+
+I really believe in documentation, that's why I put my efforts on it, instead of rushing and releasing the source code.
+And I believe a good documentation is supposed to be used as a reference for upcoming changes or just for inspections.
+In the hope this document will help people write their own disassembler and give them basics and ideas and of course,
+learn about diStorm's internals, I found it an important task.
+
+By this document I wish to contribute to the community,
+if you are like me, please contact me for errors I have in this document or bugs I have in the source code,
+so people could enjoy a better product!
+
+BTW - I know the DOS style is kinda old and ugly,
+but it's for keeping matters simple and maybe having a good nostalgia.
+
+"A true (dis/)assembly guru respectes Debug.", me
+
+
+<b>Table of contents:</b>
+-+----------------
+<a href="vol1.html">80x86 Machine Code</a>
+<a href="vol2.html">diStorm Internals</a>
+
+The rest of this file is general information about diStorm (API, Compilation, FAQ, etc...)
+
+/-----\
+|Goals|
+\-----/
+I had a few goals in mind while I was writing diStorm.
+I wanted diStorm to be the best 80x86 disassembler out there, not less, not more.
+diStorm became a product which stands a commercial standard.
+This is the small list of goals I wanted to achieve, and managed to.
+The major characteristics of diStorm are:
+diStorm is really fast.
+diStorm supports multi-threading.
+diStorm supports AMD64, and all other 80x86 instruction sets.
+diStorm supports up to date instruction sets, such as VMX and SSE4.
+diStorm handles instruction prefixes in a serious manner.
+
+diStorm is for free, as in open source, under the BSD license.
+diStorm is easy to use, wrapped in Python too.
+diStorm is portable.
+diStorm is platform-independent.
+diStorm is in a mature product status and bugfree.
+
+I hope it will help the community and some people out there on our planet. Cheers.
+
+/-----------\
+|Added Value|
+\-----------/
+I decided it's important you will know what is so special about diStorm.
+By now, if you followed the documentation you should know everything I'm talking about.
+In addition to the most valued 'capabilities' (BSD License and AMD64 disassembler), there are a few low-level features that diStorm supports:
+
+* Unused/extra prefixes are dropped (output as DB'ed).
+* Lock prefix works only on lockable instructions if the first operand is in the form of memory indirection.
+* REPn/z prefix works only on repeatable string instructions as well as I/O instructions.
+* Segment Override prefixes are possible where memory indirection address is being used (and specially treated with string and I/O instructions).
+* Some SSE2 instructions support pseudo opcodes (CMP family).
+* "Native" instructions, those which have the same mnemonic in different decoding modes, unless there's an operand size prefix,
+  which then a suffix letter is concatenated to the mnemonic in order to indicate the operation size (instructions like: PUSHA, IRET, etc.).
+* XLAT instruction is treated specially when prefixed.
+* Drops invalid instructions when their operands are invalid.
+* Won't decode instructions which are longer than 15 bytes.
+* CR8 register is now accessible using the Lock prefix in 32 bits decoding mode.
+* In 64 bits decoding mode the Segment Override prefixes CS, DS, ES and SS are ignored.
+
+I think that the above bullets were self explanatory.
+It's time to focus on a few bullets here, that I haven't explained about before.
+
+* Waitable instructions are supported (FINIT etc.) -
+The FPU wait instruction is kinda tricky,
+it can lead to a 3 bytes long instructions.
+But as you all know, if the last byte of the 3 bytes opcode doesn't lead to the instruction so the whole instruction is dropped.
+When that byte is the wait instruction, it is not dropped and specially output as a normal instruction.
+According to the specs, the wait instruction can precede a limited set of instructions, if the instruction it precedes isn't out of those,
+then the wait instruction should still be treated as a valid wait instruction.
+
+* Some instructions which have two mnemonics according to the decoding modes are supported - 
+Maybe you just read this and you say WTF is he talking about? then I will simply tell you, CWD, CDQ, etc...
+Remember that when CWD is operand size prefixed (in 16 bits) then it becomes CDQ.
+Or when you are in 32 bits there is CDQ from the beginning and only when it's operand size prefix it becomes CWD.
+Then I am talking about these type instruction of instruction, which, by the way, support a third mnemonic for 64 bits...
+
+* Truncates instructions when reaches end of stream -
+This is another irritating subject we could argue about. And not because I want to start a flame war.
+Some people would prefer to see at least the mnemonic of the instruction output instead of dropping the instruction.
+This is only when you have enough info on the instruction that you can get its mnemonic, sometimes you don't even have that.
+I decided that diStorm will drop the whole instruction and skip the first byte of that instruction, because in reality,
+code sections aren't limited in size and can't just be ended.
+Oh and give me a break about 'what if' questions (such as: if it were the end of the segment blah blah)...
+
+
+/------------------\
+|Library Interfaces|
+\------------------/
+As you already know diStorm supports two interfaces.
+diStorm was originally written in C and later on was compiled as a module extension for Python.
+I thought that most of the users would appreciate the Python version, but I was surprised to learn that
+the C version got more downloads. As I see it, the Python version is there only for doing research
+and other small tools. If I were to write a tool which uses diStorm I would use the C library, that's for speed only.
+
+Both interfaces are implemented using the same function, internal_decode.
+This was in order to avoid writing some code twice.
+
+The first releases of diStorm came with the deprecated linked list mechanism for returning the results.
+I think the linked list method was easier to use than the current interface, but when I optimized the code,
+I understood that it is harder to use (side-effects, etc) and it is much slower!
+That is the reason why I decided the user will pass an allocated in advance array of instructions
+which will be filled by the disassembler, this way, the user doesn't have to make extra memcpy's from the linked list to his own
+data structures, and pass right away an array of instructions, which is the most basic form of a disassembled instruction the
+disassembler returns. Once that buffer is filled with data the user can do anything with it, unlike what used to be with the
+linked list method.
+
+<u>C Library</u>:
+// Decodes modes of the disassembler, 16 bits or 32 bits or 64 bits for AMD64, x86-64.
+typedef enum {Decode16Bits = 0, Decode32Bits = 1, Decode64Bits = 2} _DecodeType;
+
+// Static size of strings. Do not change this value.
+#define MAX_TEXT_SIZE (60)
+typedef struct {
+	unsigned int length;
+	unsigned char p[MAX_TEXT_SIZE]; // p is a null terminated string.
+} _WString;
+
+// This structure holds all information the disassembler generates per instruction.
+typedef struct {
+	_WString mnemonic; // Mnemonic of decoded instruction, prefixed if required by REP, LOCK etc.
+	_WString operands; // Operands of the decoded instruction, up to 3 operands, comma-seperated.
+	_WString instructionHex; // Hex dump - little endian, including prefixes.
+	unsigned int size; // Size of decoded instruction.
+	unsigned long offset; // Start offset of the decoded instruction.
+} _DecodedInst;
+
+// Return code of the decoding function.
+typedef enum {DECRES_NONE, DECRES_SUCCESS, DECRES_MEMORYERR, DECRES_INPUTERR} _DecodeResult;
+
+// distorm_decode //////////////////
+// Input:
+//         offset - Origin of the given code (virtual address that is), NOT an offset in code.
+//         code - Pointer to the code buffer to be disassembled.
+//         length - Amount of bytes that should be decoded from the code buffer.
+//         dt - Decoding mode, 16 bits (Decode16Bits), 32 bits (Decode32Bits) or AMD64 (Decode64Bits).
+//         result - Array of type _DecodeInst which will be used by this function in order to return the disassembled instructions.
+//         maxInstructions - The maximum number of entries in the result array that you pass to this function, so it won't exceed its bound.
+//         usedInstructionsCount - Number of the instruction that successfully were disassembled and written to the result array.
+// Output: usedInstructionsCount will hold the number of entries used in the result array
+//         and the result array itself will be filled with the disassembled instructions.
+// Return: DECRES_SUCCESS on success (no more to disassemble), DECRES_INPUTERR on input error (null code buffer, invalid decoding mode, etc...),
+//         DECRES_MEMORYERR when there are not enough entries to use in the result array, BUT YOU STILL have to check for usedInstructionsCount!
+// Side-Effects: Even if the return code is DECRES_MEMORYERR, there might STILL be data in the
+//               array you passed, this function will try to use as much entries as possible!
+// Notes:  1)The minimal size of maxInstructions is 15.
+//         2)You will have to synchronize the offset,code and length by yourself if you pass code fragments and not a complete code block!
+///////////////////////////////////
+_DecodeResult distorm_decode(unsigned long codeOffset, const unsigned char* code, long codeLen, _DecodeType dt,
+                             _DecodedInst result[], unsigned long maxInstructions, unsigned long* usedInstructionsCount);
+
+<u>Python</u>:
+list Decode(long offset, string code, int mode)
+Input:
+offset - Offset of the code in memory(as of origin, virtual address)
+code -   Buffer of the binary code
+mode -      Decode16Bits - 80286 decoding
+            Decode32Bits - IA-32 decoding
+            Decode64Bits - AMD64 decoding
+Return:
+list - List of tuples with the disassembled instructions,
+       each tuple consists of offset, size, mnemonic and hex strings per instruction
+
+The main difference between the two interfaces is that the Python interface returns a complete textual instruction wheareas
+the C library interface returns a mnemonic and an operands strings seperated.
+
+Many people confuse with the 'offset' paramater. It is NOT the offset of where to start disassembling in the code block.
+On the contrary it is the offset of the code in memory, that is the origin (ORG) command you tell the assembler above your actual code.
+The same is here, you have to tell the disassembler where the code is found in memory, so all the addresses and relative
+offsets will be calculated well.
+
+One more thing about the C library interface, the reason the minimum size of array is 15 instructions, is because the way
+diStorm disassembles code. More specifically, because of the way prefixes are decoded, it is possible to drop 15 prefixes at once.
+That is because the maximum instruction size of an instruction is 15 bytes, now imagine to yourself that all 15 bytes are prefixes,
+so they are supposed to be dropped according to how diStorm works. Now you are left with 15 instructions to fill in the result array.
+If you allowed less than 15 instructions then it comes out that you are having two problems,
+you have to decode some of the code twice or so (that's least problematic).
+And it may happen that because you returned only part of the result (filled the whole result array already), you will start disassembling again,
+from the next byte, but this time, you lost synchornization with the offset of that instruction, because you already returned some of its prefixes.
+Now how do you know which prefix doesn't influence the instruction, because you still didn't disassemble the instruction itself.
+So, to make it easier for all of us and prevent such extreme cases, I only ask for 15 instructions at least, which isn't much at all anyways.
+
+/-------------\
+|Licensing-BSD|
+\-------------/
+diStorm originally was released under the LGPL license.
+After a while, listening to advice of a friend, I decided to change the license to BSD.
+Looking at other disassemblers, most of them are GPL'ed, yet another GPL'ed disassembler isn't much of a help.
+That is for a few reasons to say aloud:
+I want the disassembler to be widely spread and used.
+I wanted to contribute to the (both developers and reversers) community.
+I want the community to contribute back by releasing patches/bug fixes or upgrades with source code.
+I think that this community has much more to progress and get better, so this is my share.
+I honestly believe that diStorm is far better than other disassemblers and can be used commercially.
+
+I realized that the licensing isn't a matter for people,
+if they won't want to publish their modification they won't do so no matter what.
+That reason and the understanding that disassemblers aren't hot products,
+after all, caused me to change the license to a more permissive one.
+Anyways, the license is not going to hold people from releasing patches/modificiations.
+I think I only deserve credit where due, so BSD it is.
+I believe in 'open source'.
+Eventually,
+<i>YOU</i> can have diStorm for FREE, as in freedom!
+
+/---------------\
+|Modules Listing|
+\---------------/
+The brief of each module in the source code:
+
+<i>distorm</i> - Where the API for C is implemented.
+<i>pydistorm</i> - Where the API for Python is implemented.
+<i>decoder</i> - The core of the disassembler, the engine which disassembles binary streams.
+<i>prefix</i> - Responsible for the prefixes decoding algorithm.
+<i>instructions</i> - Functionality to get an opcode from a binary stream.
+<i>insts</i> - Defines the 80x86 instruction set talbes.
+<i>operands</i> - Disassembling the operand types of a given instruction.
+
+<i>x86defs</i> - All information regarding the 80x86 processor, registers, specific parameters and more.
+<i>textdefs</i> - Optimized string conversions, numbers to (hex) strings.
+<i>wstring</i> - Pascal style strings, to boost up performance when we know the strings' lengths in advance.
+
+<i>config.h</i> - For porting, used in order to define compiler-specific macros, cross platform - endianity swapping, etc...
+<i>disconfig.h</i> - Disassembler configuration parameters (64 bits offset support).
+
+/-------\
+|Porting|
+\-------/
+diStorm was originally written for Windows.
+I wrote it in pure C, so it would compile on any platform, even embedded processors...
+diStorm is also ported to Linux and available for download.
+
+diStorm can be easily ported to other operating systems.
+There is no code to touch at all, all you have to do is taking a look at the config.h file.
+It defines a few compiler-specific macros, where compilers differ in their behavior.
+After setting your compiler in config.h you are set to go.
+That's it.
+
+/--------------------\
+|Platform-Independent|
+\--------------------/
+diStorm supports both little and big endian systems.
+This means that you can run diStorm on big endian systems which
+will decode 80x86's little endian binary stream and the output will be correct.
+It was tested on PowerPC as well as on 80x86, of course.
+In the config.h file, you will find a macro called BE_SYSTEM,
+this macro should be set automatically when the compiler indicates that it's a big endian system,
+otherwise it should be commented out. If the endianity 'auto-detection' won't work, simply define it manually.
+
+/-----------\
+|Compilation|
+\-----------/
+diStorm was originally written in C under Visual Studio 2003.
+The solution file is bundled in the downloads.
+There is no reason that diStorm couldn't be compiled under VC6 as well as VS03.
+There is one solution and 2 projects: cdistorm and pydistorm.
+In order to distinguish between C library compilation and Python compilation I seperated the projects to clib and py24/py23.
+If you wish to compile for clib choose this solution configuration and vice versa for Python.
+
+The different between the clib and Python compilations are minor,
+for clib there is cdistorm.c which has the exported functions.
+and for Python there are the pydistorm.c and pydistorm.h for the module extension functions.
+Each configuration solution will use what files required to build its project, respectively.
+
+The C library interface has only one function exported, that is distorm_decode.
+The Python module extension interface requires you to export one function also,
+but that function must be named init<dll file name>, therefore it's called initdistorm.
+That initdistorm function initializes the distorm module in python and attaches the methods table to the module.
+It also defines the distorm.info variable which holds version info of the latest build.
+Eventually, the Python interface has only one vital function, distorm.Decode which does the work.
+This function has to be Python-interface compliant, if you are not familiar with Embedded Python and how it works,
+you can have a look at a tutorial I wrote back ago, <a href="http://www.ragestorm.net/tutorial?id=21">here</a>.
+If you want to add more functions to the Python extension module, all you have to do is inserting an entry in
+distormModulebMethods, defined in pydistorm.h.
+
+Notes:
+1)Maybe the Python compilation for Linux needs the '#include' directory changed in pydistorm.h.
+2)Python compilation cannot be in Debug mode, because the Python project doesn't let you download a debug version of the python.lib.
+but you can compile it on your own.
+3)If you wish to debug the code in Debug mode using the C library interface, change that solution configuration to insert debugging info
+(and remove optimizations).
+4)When compiling the Python extension module in VS, you have a resource file defined in order to set the DLL file version info.
+
+After compiling diStorm for Python, you have to copy the file into the Python\Lib\site-packages directory.
+In fact, as long as the file is under the Python directory, Python is supposed to find it.
+I would like to suggest you a tip, setting the command argument to a local Python script and the output directory of the .DLL to Python's,
+lets you actually 'run' diStorm easily.
+
+If you wish to use diStorm as in the C library interface you will have to use the distorm.h file,
+but from the sample directory! This distorm.h file defines the distorm_decode's interface, you better follow the sample code.
+
+-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+
+Under Linux things get a little bit more complicated, but that's because there are several ways you can compile the library into.
+The Linux version of diStorm comes with makefiles which will do the nasty job for you.
+The makefile on default will compile diStorm both for C and Python.
+If you wish to compile only the C library, simply use 'makefile clib',
+and if you wish to compile the Python interface, use 'makefile py'.
+
+As I mentioned before in the Porting part, the config.h as a big role in compiling diStorm for Linux,
+although I already set some macros, maybe you will want to change something.
+
+The Python module extension has to be compiled into a .SO (shared object) file and later installed using ldconfig.
+There is an install script (instpython.sh) bundled with Linux build.
+
+The C library for Python can be compiled in two ways,
+a .SO as well as the Python project and a static library.
+I prefer the static library to the shared object way, because you won't have to bundle that .SO with your project and install that file as well.
+The problem with installing a shared object is that you have to be root, I guess that not all Linux users have root.
+That's a real hit for the Python .SO too. The disasm project only shows how to use the static library way of diStorm.
+In fact, when diStorm is compiled for C library, it creates both the .SO and the static library.
+So you can change the makefile of the disasm project to use the .SO.
+
+/------------\
+|Benchmarking|
+\------------/
+As one of my goals in writing diStorm was speed, I wanted diStorm to disassemble instructions really quick.
+In the beginning I wrote diStorm with no optimization at all, just wanted to see that it operates well.
+After that I had a few optimization-sessions and got an immense boost in performance.
+At last, on my lazy CPU, Athlon 1600xp+, diStorm disassembled (without output - printing to console)
+a randomly generated chunk of 50 megs at (approximately) 10 secs. It makes a ratio of 5 megs to 1 secs on my CPU!
+
+The first interface, using a linked list to return the disassembled instruction was really terrible.
+I couldn't stand that slowness, that's why I came up with the amiable new interface, which is much more faster as well.
+
+I benchmarked diStorm a few times against other public known disassemblers as well, so I would have some proportions
+how fast diStorm operates.
+
+The benchmarking was done in the following way:
+Loading a randomly generated chunk of 50 megs into memory (one malloc, one ReadFile),
+then using those disassemblers' interfaces I disassembled the whole 50 megs chunk.
+I formatted each result into text in the form of: hex dump, instruction.
+And pritned that string to stdout. Then using the OS pipe mechanism I directed the output to a file.
+I started timing the operation immediately after loading the whole chunk into memory (before the first instruction was disassembled).
+And stopped timing just after the last instruction was disassembled.
+
+The results were pretty good (for diStorm, to put it right):
+diStorm: 90 seconds.
+disassembler #2: 129 seconds.
+disassembler #3: 147 seconds.
+
+I wish to not expose the names of the other disassemblers, but trust me you know them for sure.
+
+The benchmarking was done quiet objectively, I know I can't really say that, because I did the bencharmking by myself, but stil...
+The generated size of the file was around 1.1 GB!
+Note that I didn't get down to a resolution of the length of the string of each disassembled instruction in every disassembler.
+I merely wanted to have a gruff results, so the length couldn't make much a difference with the above timings.
+And besides I assure you that the advantage of string's length per instruction wasn't to diStorm at all.
+
+Anyways, I used one more tool to benchmark the performance of the code itself in function resolution using Linux's grpof.
+I compiled the code with debug information and saw where the bottlenecks were and tried to eliminate them...
+
+/-----\
+|F.A.Q|
+\-----/
+I tried to answer a few questions that might come up:
+
+Q.I want to use diStorm comercially
+A.
+To be honest, diStorm was first released under the LGP license, but now,
+diStorm is licensed under the BSD license. It shouldn't stop you from using it comercially at all.
+If you wish to have a proprietary license, please contact me.
+
+Q.I have improvements to apply, will you accept them?
+A.
+If your improvements are useful and I find them appropriate to be included in diStorm, I will certainly apply them.
+
+Q.I want to help you writing some code and tools, what now?
+A.
+If this is true, there is much more work to be done, please contact me.
+
+Q.I have new ideas for diStorm and similar tools, do you want to help me writing them?
+A.
+Well, I would like to hear you ideas, but I don't promise I will help in coding them, in fact,
+I have a sequential project to diStorm.
+
+Q.What about tools for parsing PE, ELF, and a GUI?
+A.
+Because I am a Windows man after all, I will use or implement my own PE library.
+As for ELF, I am not much interested in writing that too, so you are most welcome to help with this,
+maybe in the far future the diStorm team will write that also.
+
+I think that GUI is necessary for diStorm, but it's too early now, there are many GUIed disassemblers out there,
+when diStorm will have some more features to offer (code analysis, ahm ahm), a GUI will be written.
+
+Q.I need AT&T syntax, are you going to do that?
+A.
+The answer is easy, unforetunately, no.
+I wish diStorm would support the AT&T syntax, but I don't have time for that as for now.
+
+Q.diStorm doesn't disassemble prefixes as the processor does, are you going to change it?
+A.
+The current way diStorm analysis prefixes is fine with me so I don't see any reason to change it.
+But if you still insist that it could be better treated,
+please let me know how and I will probably change it if it makes more sense.
+
+Q.What about code analysis?
+A.
+It is the future, not only for diStorm, but for all tools out there.
+This is my next goal, 'coming soon'.
+
+Q.Did you write it all alone?
+A.
+diStorm itself was 100% written by me from scratch.
+Though, the sample project was sent to me by Stefan (who doesn't wish his email appears here) and I did a few touches.
+I also got some help in porting diStorm to Linux, since I am not a Linux dude, Thanks to Izik for help in the 'build environment'.
+
+Q.What do you plan for diStorm in the future?
+A.
+I already told you, code analysis.
+Soon I am going to start working on diStorm3.
+It is a big twist in the plot now, diStorm3 will create expression tree out of a disassembled instruction, no more text.
+With expression trees you possess the power to do everything...code flow graphs, data flow anaylsis, etc...
+
+Q.What is that diStorm team you mentioned earlier?
+A.
+After finished diStorm2, I found two serious partners who will write with me code analysis tools.
+The work will be divided among us, and hopefully, we will have more products out there.
+
+Q.You keep on mentioning code analysis tools, are they going to be open source?
+A.
+To be honest, some of them are going to be developed under Python, so I will plainly upload the scripts.
+And the others are going to be written in a new framework using C++, which for the development phase will be closed source.
+After that, maybe we will open the source for the public, I don't know yet.
+
+/-------------\
+|Closing Words|
+\-------------/
+3 years, was fun, I just begin.
+diStorm3, anyone?
+
+Je Je
+
+Don't hesitate to write me regarding ANYthing, arkon@ragestorm.net.
+Visit <a href="http://ragestorm.net/distorm">diStorm website</a> for updates.
+
+diStorm is copyrighted by Gil Dabah, 2006, http://ragestorm.net
+</pre>
+</font>

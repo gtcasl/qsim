@@ -1,0 +1,89 @@
+0.1 - pre3
+
+* First multicore (fixed dual-core) QSIM library to boot Linux and provide
+  full API with queues and atomic instruction callbacks.
+
+* First draft of documentation.
+
+0.1 - pre4
+
+* Added support for arbitrary numbers of cores.
+
+* Finished documenting the Qsim::QemuCpu class.
+
+* Fixed bug that was causing inter-processor interrupts to be dropped if more
+  than one was sent, or if the timer interrupt was sent before the IPI was 
+  handled.
+
+* Broken multithreaded support. Needs overhaul inside and outside of QEMU to
+  prevent race conditions in simulations with large number of processors.
+
+* Started work on the QSIM Trace Machine, qtm, a multithreaded trace generator
+  for workload analysis.
+
+0.1 - pre5
+
+* Fixed a bug that was causing inocorrect physical addresses to be generated
+  for instruction callbacks.
+
+* Improved stability; boots and runs benchmark without deadlock every time.
+
+* Gave sample applications, 'hacks', a separate build directory, populated with
+  symlinks to allow running directly from this directory.
+
+* Introduced "vistrace.cpp", a program for creating visual representations of
+  memory access patterns.
+
+* Made the temporary file system somewhat more robust. Multiple QSIM instances
+  can now be run simultaneously in the same working directory. There are still
+  unlikely-to-be-encountered race conditions with temporary filenames, though.
+  (see BUGS for details)
+
+0.1 - pre6
+
+* Now successfully boots and runs programs with more than 8 CPUs.
+
+* CPU threads in QTM will now run in parallel. Atomic operations are (must be)
+  protected by a readers/writer lock. (The atomic operation is the "writer",
+  all threads not executing atomic operations are the "readers".)
+
+* Ctrl+C now works as expected.
+
+* Added a preliminary debugger, QDB (with its own laundry list of bugs). This
+  will eventually be spun off as a separate project.
+
+0.1 - pre7
+
+* Fixed a major bug in the initialization of synchronization variables that 
+  caused infrequent lock-ups on start.
+
+* Application start and end magic CPUIDs (0xaaaaaaaa, 0xfa11dead)
+
+* QDB commandline interface started (still *very* alpha).
+
+0.1 - pre8
+
+* Added configurable RAM size.
+
+* Replaced inefficient OS swapcontext with qsim-context.h implementation. This
+  takes the single-stepping speed from 1.5MIPS to a far more tolerable 6.3MIPS.
+
+* Added return value to interrupt callbacks. They can now return nonzero on
+  trap instructions to circumvent the normal interrupt handlers. This can be
+  used to simulate hardware traps in software.
+
+* Added value field to "out" instruction helpers in QEMU. This allows simple
+  emulation of I/O ports using I/O callbacks.
+
+* Load callbacks now happen before the load takes place, and store callbacks
+  following the store. This way, the value being loaded can be modified or the
+  value being stored replaced.
+
+* Added a new callback system to CDomain that allows for chaining of multiple
+  callbacks, each of which can be an arbitrary class member function.
+
+* Renamed CDomain to OSDomain. "Coherence domain" as a name for this structure
+  was somewhere between misleading and just plain wrong.
+
+* Fixed 255 CPU limit, finally. Now the limit is based on external software and
+  hardware constraints.

@@ -1,0 +1,8 @@
+http://ragestorm.net/distorm/
+Gil Dabah Aug 2007
+Support for Tiny C Compiler (DOS/Windows)
+
+Set the path of TCC inside make.bat and then run it.
+Since you cannot compile a library with TCC, you have to build diStorm itself with the linuxproj directly along.
+
+Note that since TCC is buggy and is abandoned by the original author, I changed some code so it will be compiled well with the official version of TCC.

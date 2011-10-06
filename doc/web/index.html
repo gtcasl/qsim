@@ -1,0 +1,198 @@
+<html>
+<head>
+  <title>
+    QSim - QEMU-based Emulation Library for Microarchitecture Simulation
+  </title>
+</head>
+<body>
+  <img src="qsim_splash.png" alt="QSim - QEMU for Simulators" />
+
+  <h2>About QSim</h2>
+  <p>
+    QSim is a project which aims, as part of the Manifold simulation effort at
+    Georgia Tech, to create a thread safe multicore emulation library based on 
+    the QEMU emulator. QSim provides instruction-level control of the emulated
+    environment and detailed information about the executing instruction stream.
+    X86 Linux guests are supported with hundreds of emulated hardware contexts,
+    each of which can run in an independent host thread. Applications of QSim
+    include trace-gathering, multithreaded software development, and its primary
+    target: microarchitecture simulation.
+  </p>
+
+  <center>
+    <p>
+      <img src="qsim_diagram.png" alt="Diagram of QSim software architecture.">
+    </p>
+    <p><i>Diagram of QSim software architecture, showing major components and
+    data flow between them.</i></p>
+  </center>
+
+  <p>
+    QSim requires an x86-64 Linux host to run and currently only supports x86-32
+    Linux guests.
+  </p>
+
+  <h2>Acknowledgements</h2>
+  <p>
+    This work was supported by Sandia National Laboratories and the National
+    Science Foundation.
+  </p>
+
+  <h2>Documentation</h2>
+
+  <h3>User Guide</h3>
+  <p>
+    The <a href="user_guide.pdf">QSim User Guide</a> is the best source of
+    information on the QSim project and includes API documentation, a
+    description of the source directory structure, and a discussion of a simple
+    example program.
+  </p>
+
+  <h3>Presentation Slides</h3>
+  <p>
+    Several presentations have been given on QSim in the years since its
+    inception.
+  </p>
+
+  <dl>
+    <dt>
+      <a href="http://lugatgt.org/content/qemu_internals/downloads/slides.pdf">
+        QEMU Internals
+      </a>
+    </dt>
+    <dd>
+      A set of slides that attempt to explain the inner-workings of QSim.
+    </dd>
+
+    <dt>
+      <a href="https://docs.google.com/leaf?id=17XvSus2Fvqh9hVxRnVMnpcmKdVnrHbPnCLul42twcmpHzZLbyuplhpAcVAgU&hl=en_US">
+        Introduction to QSim
+      </a>
+    </dt>
+    <dd>
+      A good place to start.
+    </dd>
+  </dl>
+
+  <h2>People</h2>
+  <p>
+    The following people are directly involved with the QSim project:
+  </p>
+  <dl>
+    <dt>
+      <a href="http://www.ece.gatech.edu/research/labs/casl/people.html">
+        Chad Kersey
+      </a>
+    </dt>
+    <dd>
+      Primary developer and software architect of QSim.
+    </dd>
+
+    <dt>
+      <a href="http://users.ece.gatech.edu/~sudha/">
+        Sudhakar Yalamanchili
+      </a>
+    </dt>
+    <dd>
+      Chad's advisor and PI of Georgia Tech's Manifold simulation effort.
+    </dd>
+
+    <dt>
+      <a href="mailto:afrodri@sandia.gov">
+        Arun Rodrigues
+      </a>
+    </dt>
+    <dd>
+      Lead on Sandia National Lab's SST simulation effort.
+    </dd>
+  </dl>
+
+  <h2>Getting QSim</h2>
+  <p>
+    Releases can be found <a href="releases/">here</a>. The most recent of these is
+    your best bet for getting a stable QSim system running.
+  </p>
+
+  <p>
+    The most recent code can always be found on the
+    <a href="http://sst.sandia.gov/">SST</a> Google Code repository, and downloaded
+    with:
+  </p>
+
+  <blockquote>
+    <tt>svn checkout https://sst-simulator.googlecode.com/svn/qsim/trunk qsim</tt>
+  </blockquote>
+
+  <p>
+    For instructions on building QSim, see the file <tt>INSTALL</tt> in the root
+    source directory. This is a brief runlog of commands needed to get QSim
+    running.
+  </p>
+
+  <h2>Development</h2>
+  <p>
+    Those interested in QSim development can subscribe to the QSim mailing list
+    <a href="http://lists.cdkersey.com/listinfo.cgi/qsim-dev-cdkersey.com">here</a>.
+    <a href="http://www.cdkersey.com/qsim-trac/">TRAC</a> is intended to be used
+    to manage feature requests and bug reports. To request a login, please
+    contact Chad.
+  </p>
+
+  <h2>Links</h2>
+  <h3>Software Components</h3>
+  <dl>
+    <dt>
+      <a href="http://www.qemu.org">QEMU Homepage</a>
+    </dt>
+    <dd>
+      Open source emulator used, in a modified state, to provide CPU emulation
+      in QSIM.
+    </dd>
+
+    <dt>
+      <a href="http://www.busybox.net/">BusyBox Homepage</a>
+    </dt>
+    <dd>
+      The BusyBox multifunction binary (it's like a Swiss Army knife of common
+      Unix utilities) is distributed with the QSim guest userspace.
+    </dd>
+   </dl>
+
+   <h3>Related Projects</h3>
+   <dl>
+      <dt>
+        <a href="http://sst.sandia.gov">SST</a>
+      </dt>
+      <dd>
+        The SST distributed architectural-level simulator project at Sandia
+        National Labs.
+      </dd>
+
+      <dt>
+        Manifold (link currently not available)
+      </dt>
+      <dd>
+        The Manifold distributed architectural-level simulator project at
+        Georgia Tech.
+      </dd>
+
+      <dt>
+<a href="http://www.cs.washington.edu/research/compiler/papers.d/shade.html">
+      SHADE
+</a>
+      </dt>
+      <dd>An earlier project with a similar implementation and spirit.</dd>
+
+      <dt>
+        <a href="http://sourceforge.net/p/coremu/home/Home/">COREMU</a>
+      </dt>
+      <dd>
+        A QEMU-based multicore emulator with support for up to 255 cores running
+        in parallel. Uses a similar design to QSim, provides emulated PC
+        hardware, but does not provide an instrumentation API with
+        instruction-level execution control.
+      </dd>
+  </dl>
+
+<body>
+</html>

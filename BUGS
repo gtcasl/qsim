@@ -1,0 +1,19 @@
+* Temporary files are not deleted when a QSIM-using program exits unexpectedly.
+
+* The temporary filenames created in mgzd.h are not safe. The tempnam() 
+  function is used for their creation, which leads to a race condition. 
+  Unfortunately, there is no easy way around this in file systems that do not
+  support file locking: dlopen() requires a filename, not just a file 
+  descriptor or pointer to a FILE structure.
+
+* Loads must be performed twice within QEMU in order to maintain proper
+  semantics. This is more a kludge than a bug (no incorrect behavior).
+
+* MMIO memory accesses are reported at the phys. address of the previous
+  access and not the phys. address of the MMIO, if the region is mapped as MMIO
+  within QEMU. The way to resolve this is to ensure that no MMIO is allocated
+  in QEMU.
+
+* There is currently no way to broadcast a translation cache flush. This means
+  that one CPU can overwrite code that another has already cached and this
+  change will not propagate. Luckily this seems to be rare.

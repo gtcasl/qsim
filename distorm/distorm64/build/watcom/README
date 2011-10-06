@@ -1,0 +1,11 @@
+http://ragestorm.net/distorm/
+JvW, Gil Dabah 2007
+
+Support for OpenWatcom
+
+Make sure the watcom variable, which must be set, points to the correct full path of the installed Watcom\ directory.
+The make.bat will create the disasm.exe of the linux project.
+
+I prefered to compile a library since it will make the compilation of the linux project easier. So you only have to link it with the created library. Thus it's a two-steps compilation/linkage.
+
+It can easily be changed to support other platforms but Windows. For now I chose to omit them and try to make the support as easy as possible. If you need further help just let me know.

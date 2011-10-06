@@ -1,0 +1,9 @@
+* Profiler uses statistical sampling with a fixed mean instructions between 
+  samples of 1000000. This should be configurable.
+* Watchpoints and breakpoints not implemented. 
+* Trace and Memtr not implemented.
+* Step not implemented.
+* Dumps, disassemblies, and setting of invalid virtual addressess cause SIGSEGV
+  within QEMU. A gentler warning would be much preferred.
+* Dumps and disassemblies are not paginated, so they scroll off the top of the
+  screen if they are longer than the terminal is high.

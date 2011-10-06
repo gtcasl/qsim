@@ -1,0 +1,62 @@
+Development
+-----------
+TODO/wishlist:
+  _ Configuration of server fast-forwarding.
+  _ Separate redirection of console output and debug messages from server.
+  _ Custom synchronization primitive to accelerate atomic memory operations.
+
+Command Line
+------------
+  Server:
+    <port> <n_cpus> <kernel image> <ram size in MB> [f amount] [console out]
+  Example Client:
+    <host> <port>
+
+Protocol
+--------
+
+Requests to server:
+  'r'[uint16 i][uint32 n]  : run
+  't'                      : timer interrupt
+  'i'[uint16 i][uint8 vec] : interrupt
+  'b'[uint16 i]            : booted
+  's'                      : enable callback data
+  'u'                      : disable callback data
+    'a'                      : atomic mem ops. 
+    'i'                      : instructions
+    'v'                      : int
+    'm'                      : memory op
+    'g'                      : magic instruction
+    'r'                      : register read/write
+    'o'                      : i/o op
+    'e'                      : app end
+  'n'                      : get number of CPUs
+  'T'[uint16 i]            : get TID for CPU i
+  'M'[uint16 i]            : get mode for CPU i
+  'P'[uint16 i]            : get protection level for CPU i
+
+  'T'                      : callback returned true
+  'F'                      : callback returned false
+  'x'                      : disconnect
+
+Responses to client (often multiple callbacks followed by return):
+
+  'X' : server full, connection refused.
+  'x' : server shutdown
+  'e' : error (cpu i already running)
+  '.' : void func return / ready / no more callbacks (run)
+  'T' : bool func return true
+  'F' : bool func return false
+  'u' : update
+    'T'[uint16 i][uint16 tid] : Update thread ID
+    'M'[uint16 i][int8 mode] : Update mode
+    'P'[uint16 i][int8 prot] : Update protection level
+  'a'[uint16 i] : atomic
+  'i'[uint16 i][uint64 vaddr][uint64 paddr][uint8 len][uint8*len bytes] : inst
+  'v'[uint16 i][uint8 vec] : interrupt
+  'm'[uint16 i][uint64 vaddr][uint64 paddr][uint8 size][uint8 type] : memop
+  'g'[uint16 i][uint64 rax] : magic instruction
+  'o'[uint16 i][uint64 port][uint8 size][uint8 type][uint32 val] : i/o
+  'r'[uint16 i][uint32 reg][uint8 size][uint8 type]: register read/write
+  'e'[uint16 i] : app end
+

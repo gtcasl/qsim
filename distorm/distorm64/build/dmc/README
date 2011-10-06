@@ -1,0 +1,11 @@
+http://ragestorm.net/distorm/
+Gil Dabah, Larry Lee Aug 2007
+
+Support for Digital Mars Compiler (DOS/Windows)
+
+Make sure the DMCPATH variable is set to the DMC\Bin directory.
+The make.bat will create the disasm.exe of the linux project.
+
+I prefered to compile a library since it will make the compilation of the linux project easier. So you only have to link it with the created library. Thus it's a two-steps compilation/linkage.
+
+If you want to port it to other platforms, it should be easy now that you got where to start from, just change the make file and output file name...

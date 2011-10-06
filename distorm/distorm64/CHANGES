@@ -1,0 +1,71 @@
+Copyright (C) 2003-2007 Gil Dabah, http://ragestorm.net/distorm/
+
+History:
+-+------
+FPU(387) parsing added Feb 2004.
+Prefixes parsing added July 2004.
+SIB parsing added Dec 2004.
+Rep/lock/xlat explicit-operand forms added Dec 2004.
+Wrapped in Python Jan 2005.
+Using static instructions tables Jan 2005.
+MMX parsing added Feb 2005.
+SSE parsing added Feb 2005.
+SSE2 parsing added March 2005.
+SSE3 parsing added March 2005.
+Pseudo Opcodes parsing added March 2005.
+3DNow! parsing added March 2005.
+Global Optimization April 2005.
+AMD64 added July 2005.
+Linux Port November 2005.
+Strings Optimization November 2005.
+New API December 2005.
+LGPL December 2005.
+Doc + Sources uploaded Januar 2006.
+64bit Offsets are now supported January 2006.
+diStorm is now licensed under the BSD license January 2006.
+1.2.8 diStorm can be compiled for Big Endian systems May 2006.
+1.3.9: SSE4 (later known as SSSE3) parsing added May 2006.
+1.3.9: VMX instructions set is now supported.
+1.4.10: Instructions' flags were changed, engine supports instsruction set class type. May 2006.
+1.4.10: All comments are now C style, source code is now 64bits compiler compatible.
+1.5.10: Operand size of Memory Indirection is now determined inside operands.c and not instructions.c. May 2006.
+1.5.15 SVM Instructions set is added Aug 2006.
+Python2.5 is compiled too. Sep 2006.
+1.5.17 Formerly unofficial SSE4 is now officially called SSSE3.
+diStorm has a sample code for Ring0 using the DDK. Jan 2007.
+1.6.18 Instructions table are now more optimized for size. Feb 2007.
+1.6.21 Added a new Mac makefile to compile diStorm on a Mac. Apr 2007.
+1.7.22 Real SSE4 parsing added April 2007.
+1.7.26 New AMD instructions, support of different compilers.
+
+Fixed bugs:
+-+---------
+2/11/05 1.0.1 Call instruction wasn't promoted to 64 bits automatically.
+16/11/05 1.0.2 Mov MOFF instruction used RAX in 32 bits, and wasnt dropped in 16 bits.
+17/01/06 1.1.3 Some special instructions were ignoring the REX.B flag.
+27/01/06 1.1.4 Support for 64bit offsets was added.
+03/02/06 1.1.5 PUSH, JMP and CMP instructions were slightly fixed.
+18/03/06 1.1.6 MOVZX/MOVSX and RETF operands' types were changed.
+20/03/06 1.1.7 A bug treating mandatory prefixes in 64bits was fixed.
+18/04/06 1.1.8 LOOPxx instructions are now categorized as Natives.
+18/05/06 1.2.9 A few FPU instructions weren't set correctly in IGEN.
+28/05/06 1.4.10 Push/Pop instructions with ModR/M fields are now fixed.
+02/06/06 1.5.11 Fixed a new bug in operands.c, where OT_IMM_FULL was broken in 64bits.
+03/06/06 1.5.12 Invalid memory access occurred in 64bit environments only is now fixed.
+09/06/06 1.5.13 SGDT, SIDT, LGDT, LIDT, JMP FAR, CALL FAR, SMSW, LMSW, LDS, LES, LFS, LGS, LSS and other instructions which have special memory operands' types were fully corrected. And a bug in locate_raw_inst when using mingw environment.
+01/07/06 1.5.14 REX prefix with BASE bit isn't dropped always, and string instructions are now promoted to 64bits only with REX prefix.
+08/07/06 1.5.14 The sample projects of both Linux and Windows have been updated.
+02/10/06 1.5.16 MOVSXD wasn't decoded properly and it now supports MOVZXD.
+08/01/07 1.5.17 Removed redundant #include's to standard libraries.
+11/02/07 1.5.18 Fixed a bug in OT_RM32_64 decoding.
+28/02/07 1.6.19 All string/IO instructions support both REP and REPNZ.
+03/03/07 1.6.20 3DNow! instructions weren't decoded (produced in 1.6.19).
+17/04/07 1.6.21 MOV-Offset instructions weren't decoded correctly in 64bits.
+23/04/07 1.6.22 The mnemonic of MOVD/MOVQ wasn't changed according to operand size.
+12/05/07 1.7.23 Added the instructions MOVSLDUP and INVLPGA and fixed SVM instructions.
+03/07/07 1.7.24 Added multi-byte NOP instruction.
+19/07/07 1.7.25 Fixed a memory leak in Python extension module.
+07/12/07 1.7.27 Fixed various instructions.
+09/02/08 1.7.28 NOP and XCHG are treated correctly in 64bits.
+07/03/08 1.7.29 LEA now ignores segment override prefixes.
+17/09/08 1.7.30 DLL project added to the Win32 solution and fixed DDK compilation.
