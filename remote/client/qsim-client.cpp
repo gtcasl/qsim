@@ -6,7 +6,8 @@
 #include "qsim-client.h"
 
 void Qsim::ClientQueue::inst_cb
-  (int c, uint64_t va, uint64_t pa, uint8_t l, const uint8_t *b)
+  (int c, uint64_t va, uint64_t pa, uint8_t l, const uint8_t *b,
+   enum inst_type t)
 {
   if (cpu == c) this->push(Qsim::QueueItem(va, pa, l, b));
 }

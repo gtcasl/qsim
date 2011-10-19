@@ -10,7 +10,10 @@ struct CbTester {
   int atomic(int cpu) {
     return 1;
   }
-  void inst(int cpu, uint64_t va, uint64_t pa, uint8_t l, const uint8_t *b) {
+
+  void inst(int cpu, uint64_t va, uint64_t pa, uint8_t l, const uint8_t *b,
+            enum inst_type t)
+  {
     static unsigned count = 0;
     if (count++ == 10000) count = 0; else return;
     cout << "Instruction, CPU " << cpu << " va=0x" << std::hex << va << ": ";
@@ -19,6 +22,7 @@ struct CbTester {
            << ' ';
     cout << '\n';
   }
+
   void mem(int cpu, uint64_t va, uint64_t pa, uint8_t s, int t) {
     static unsigned count = 0; 
     if (count++ == 10000) count = 0; else return;

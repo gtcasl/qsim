@@ -59,7 +59,8 @@ public:
   }
 
 private:
-  void inst_cb(int cpu, uint64_t va, uint64_t pa, uint8_t l, const uint8_t *b);
+  void inst_cb(int cpu, uint64_t va, uint64_t pa, uint8_t l, const uint8_t *b,
+               enum inst_type t);
 
   Qsim::OSDomain &osd;
   pthread_barrier_t barrier1, barrier2;
@@ -67,7 +68,7 @@ private:
 };
 
 void Statesaver::inst_cb(int cpu, uint64_t va, uint64_t pa, 
-                         uint8_t l, const uint8_t *b)
+                         uint8_t l, const uint8_t *b, enum inst_type t)
 {
   osd.set_reg(cpu, QSIM_RIP, va);
   pthread_barrier_wait(&barrier1);

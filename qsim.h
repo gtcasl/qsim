@@ -382,21 +382,6 @@ namespace Qsim {
       }
     };
 
-    template <typename T> struct inst_cb_old_obj : public inst_cb_obj_base {
-      typedef void(T::*inst_cb_t)(int, uint64_t, uint64_t, 
-				  uint8_t, const uint8_t*);
-      T* p; inst_cb_t f;
-      inst_cb_old_obj(T* p, inst_cb_t f) : p(p), f(f) {}
-      void operator()(int cpu_id, 
-		      uint64_t va, 
-		      uint64_t pa, 
-		      uint8_t l, 
-		      const uint8_t* b,
-                      enum inst_type t) {
-	((p)->*(f))(cpu_id, va, pa, l, b);
-      }
-    };
-
     template <typename T> struct reg_cb_obj : public reg_cb_obj_base {
       typedef void(T::*reg_cb_t)(int, int, uint8_t, int);
       T* p; reg_cb_t f;
@@ -481,14 +466,6 @@ namespace Qsim {
 					     inst_cb_obj<T>::inst_cb_t f)
     {
       inst_cbs.push_back(new inst_cb_obj<T>(p, f));
-      set_inst_cb(inst_cb);
-    }
-
-    template <typename T> void set_inst_cb(T* p,
-                                           typename
-                                           inst_cb_old_obj<T>::inst_cb_t f)
-    {
-      inst_cbs.push_back(new inst_cb_old_obj<T>(p, f));
       set_inst_cb(inst_cb);
     }
 

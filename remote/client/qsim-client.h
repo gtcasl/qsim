@@ -81,14 +81,6 @@ public:
   }
 
   template <typename T>
-    void set_inst_cb
-      (T* p, typename Qsim::OSDomain::inst_cb_old_obj<T>::inst_cb_t f)
-  {
-    sbs << 's' << 'i'; wait_for_dot();
-    inst_cbs.push_back(new Qsim::OSDomain::inst_cb_old_obj<T>(p, f));
-  }
-
-  template <typename T>
     void set_int_cb
       (T *p, typename Qsim::OSDomain::int_cb_obj<T>::int_cb_t f)
   {
@@ -173,7 +165,8 @@ public:
   }
   ~ClientQueue() {}
 
-  void inst_cb(int, uint64_t, uint64_t, uint8_t, const uint8_t *);
+  void inst_cb(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
+               enum inst_type t);
   void mem_cb(int, uint64_t, uint64_t, uint8_t, int);
   int int_cb(int, uint8_t);
 
