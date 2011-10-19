@@ -80,12 +80,12 @@ cd data
 # /sbin/smycj.qsim.sppthread 1000 1000 1000 1000
 
 # Use the following with the io-test example:
-# /sbin/qsim_in > extractme.tar
-# tar -xvf extractme.tar
-# /sbin/chmod +x ./runme.sh
-# ./runme.sh
+/sbin/qsim_in > extractme.tar
+tar -xvf extractme.tar
+/sbin/chmod +x ./runme.sh
+./runme.sh
 
-/sbin/render /data/teapot.cdk 100
+# /sbin/render /data/teapot.cdk 100
 
 ### End marker ###
 /sbin/mark_app END
