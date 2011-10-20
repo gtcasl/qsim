@@ -8,7 +8,7 @@
 ###############################################################################
 QSIM_PREFIX = /usr/local
 LDFLAGS = -ldl -lqsim
-CXXFLAGS = -O2 -I../distorm/ -I$(QSIM_PREFIX)/include
+CXXFLAGS = -O2 -I../distorm/ -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
 
 EXAMPLES = qtm simple simple-client io-test
 
