@@ -24,8 +24,8 @@ using std::ostream;
 
 class TraceWriter {
 public:
-  TraceWriter(OSDomain &osd, ostream &tracefile) : 
-    osd(osd), tracefile(tracefile), finished(false), infile("INFILE")
+  TraceWriter(OSDomain &osd, ostream &tracefile, const char *in) : 
+    osd(osd), tracefile(tracefile), finished(false), infile(in)
   { 
     osd.set_magic_cb(this, &TraceWriter::magic_cb);
     osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
@@ -128,18 +128,19 @@ int main(int argc, char** argv) {
   OSDomain *osd_p(NULL);
   OSDomain &osd(*osd_p);
 
-  if (argc >= 4) {
+  if (argc >= 5) {
     // Create new OSDomain from saved state.
     osd_p = new OSDomain(argv[3]);
     n_cpus = osd.get_n();
   } else {
-    osd_p = new OSDomain(n_cpus, "linux/bzImage");
+    std::cout << "Not enough command line arguments.\n";
+    return 1;
   }
 
   osd.connect_console(std::cout);
 
   // Attach a TraceWriter if a trace file is given.
-  TraceWriter tw(osd, outfile?*outfile:std::cout);
+  TraceWriter tw(osd, outfile?*outfile:std::cout, argv[4]);
 
   // The main loop: run until 'finished' is true.
   while (!tw.hasFinished()) {
