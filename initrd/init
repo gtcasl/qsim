@@ -1,6 +1,5 @@
 #!/sbin/ash
 
-/sbin/ash <<EOF 2>&1 | /sbin/qsim_out
 mknod /dev/console c 5 1
 mknod /dev/null    c 1 3
 mknod /dev/ptmx    c 4 2
@@ -12,87 +11,23 @@ mount /dev/pts
 mount /proc
 mount /sys
 
-cat /proc/cpuinfo
+PATH=/sbin
+
+export NCPUS=`grep processor /proc/cpuinfo | wc -l`
+
+echo Number of CPUs: $NCPUS | /sbin/qsim_out
 
 cd data
 
-### QEMU Benchmark ###
-# /sbin/qemu-system-x86_64 -L /etc/pc-bios/ -kernel /etc/q_bzImage -nographic
-
-### Serial Microbenchmarks ###
 /sbin/mark_app
-# /sbin/bubble.qsim   2-000 10  # n_elements rand_seed
-# /sbin/merge.qsim    2000 10 # n_elements rand_seed
-# /sbin/shuffle.qsim    2000 10 # n_elements rand_seed
-# /sbin/sieve.qsim    20000    # n_elements
 
-# /sbin/mark_app
-# /sbin/bubble.qsim    2000 1 & /sbin/bubble.qsim    2000 2 & \
-# /sbin/bubble.qsim    2000 3 & /sbin/bubble.qsim    2000 4 &
-# /sbin/merge.qsim    50000 1 & /sbin/merge.qsim    50000 2 & \
-# /sbin/merge.qsim    50000 3 & /sbin/merge.qsim    50000 4 &
-# /sbin/shuffle.qsim 100000 1 & /sbin/shuffle.qsim 100000 2 & \
-# /sbin/shuffle.qsim 100000 3 & /sbin/shuffle.qsim 100000 4 &
-# /sbin/sieve.qsim   400000   & /sbin/sieve.qsim   400000   & \
-# /sbin/sieve.qsim   400000   & /sbin/sieve.qsim   400000   &
-#wait
-#/sbin/mark_app END
-
-### MTGL test programs ###
-# /sbin/test_bfs 11 # Optional second argument is number of threads.
-# /sbin/test_cc 11 # Optional second argument is number of threads.
-# /sbin/test_pagerank 11 0.01
-
-### Beginning marker (Do not use for above apps) ###
-# /sbin/mark_app
-
-### Simulation Workshop Experiments ###
-# /sbin/flipper-cp 1000
-# /sbin/flipper-proc 1000
-# /sbin/flipper-fac 1000
-# /sbin/flipper-gp 1000
-# /sbin/spawny-proc 1000
-# /sbin/spawny-gp 1000
-# /sbin/spawny-cp 1000
-
-# /sbin/test_threads
-
-### Splash 2 ###
-# /sbin/OCEAN-non-contig -p32
-# /sbin/BARNES                  < /etc/barnes-input
-# /sbin/FMM                     < /etc/fmm-input
-# /sbin/RADIOSITY -p 8 -batch
-# /sbin/RAYTRACE -p 8 -a 7 -m 128 /etc/raytrace/car.env
-# /sbin/WATER-NSQUARED          < /etc/water-input
-# /sbin/WATER-SPATIAL           < /etc/water-input
-
-### PARSEC ###
-# /sbin/swaptions -ns 256 -nt 64 -sm 100 # Change nt to modify # of threads.
-# /sbin/blackscholes 64 blackscholes_in_4k.txt /dev/null # #thds is first param
-# /sbin/bodytrack sequenceB_1 4 1 5 1 0 64 # #threads is last param
-
-# Facesim #
-# mkdir -p Storytelling/output
-# /sbin/facesim -threads 4             # Face_Data must be in /data
-
-# /sbin/seq 4096 | xargs /sbin/proto
-
-# /sbin/smycj.qsim.sppthread 1000 1000 1000 1000
-
-# Use the following with the io-test example:
-/sbin/qsim_in > extractme.tar
-tar -xvf extractme.tar
-/sbin/chmod +x ./runme.sh
-./runme.sh
-
-# /sbin/render /data/teapot.cdk 100
-
-### End marker ###
-/sbin/mark_app END
+/sbin/qsim_in > extractme.tar                                                  
+tar -xvf extractme.tar                                                         
+/sbin/chmod +x ./runme.sh                                                      
+./runme.sh  | /sbin/qsim_out
 
 # Spin forever.
 while true; do
   echo --- init is alive ---
   sleep 10
 done
-EOF
