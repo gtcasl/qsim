@@ -17,6 +17,7 @@
 #include <errno.h>
 
 #include <qsim.h>
+#include "distorm.h"
 
 using Qsim::OSDomain;
 
@@ -28,6 +29,7 @@ public:
     osd(osd), tracefile(tracefile), finished(false), infile(in)
   { 
     osd.set_magic_cb(this, &TraceWriter::magic_cb);
+    //osd.set_inst_cb(this, &TraceWriter::inst_cb);
     osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
   }
 
@@ -40,22 +42,26 @@ public:
     return 0;
   }
 
-  void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b) {
+  void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
+               enum inst_type t)
+  {
+    _DecodedInst inst[15];
+    unsigned int shouldBeOne;
+    distorm_decode(0, b, l, Decode32Bits, inst, 15, &shouldBeOne);
+
     tracefile << std::dec << c << ": Inst@(0x" << std::hex << v << "/0x" << p 
               << ", tid=" << std::dec << osd.get_tid(c) << ", "
               << ((osd.get_prot(c) == Qsim::OSDomain::PROT_USER)?"USR":"KRN")
               << (osd.idle(c)?"[IDLE]":"[ACTIVE]")
-              << "):" << std::hex;
+              << "): " << std::hex;
 
-    while (l--) tracefile << ' ' << std::setw(2) << std::setfill('0') 
-                          << (unsigned)*(b++);
-    tracefile << '\n';
-  }
+    //while (l--) tracefile << ' ' << std::setw(2) << std::setfill('0') 
+    //                      << (unsigned)*(b++);
 
-  void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
-    tracefile << std::dec << c << ":  " << (w?"WR":"RD") << "(0x" << std::hex
-              << v << "/0x" << p << "): " << std::dec << (unsigned)(s*8) 
-              << " bits.\n";
+    if (shouldBeOne != 1) tracefile << "[Decoding Error]";
+    else tracefile << inst[0].mnemonic.p << ' ' << inst[0].operands.p;
+
+    tracefile << " (" << itype_str[t] << ")\n";
   }
 
   int int_cb(int c, uint8_t v) {
@@ -104,6 +110,22 @@ private:
   bool finished;
   char next_char;
   std::ifstream infile;
+  static const char *itype_str[];
+};
+
+const char *TraceWriter::itype_str[] = {
+  "QSIM_INST_NULL",
+  "QSIM_INST_INTBASIC",
+  "QSIM_INST_INTMUL",
+  "QSIM_INST_INTDIV",
+  "QSIM_INST_STACK",
+  "QSIM_INST_BR",
+  "QSIM_INST_CALL",
+  "QSIM_INST_RET",
+  "QSIM_INST_TRAP",
+  "QSIM_INST_FPBASIC",
+  "QSIM_INST_FPMUL",
+  "QSIM_INST_FPDIV"
 };
 
 int main(int argc, char** argv) {

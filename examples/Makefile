@@ -24,8 +24,8 @@ simple-client: simple.cpp
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -DQSIM_REMOTE -o $@ $< \
           ../remote/client/qsim-client.cpp ../distorm/distorm64.a
 
-io-test: io-test.cpp $(QSIM_PREFIX)/lib/libqsim.so
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $<
+io-test: io-test.cpp $(QSIM_PREFIX)/lib/libqsim.so ../distorm/distorm64.a
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< ../distorm/distorm64.a
 
 qtm: qtm.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -lpthread -o $@ $< ../distorm/distorm64.a
