@@ -419,75 +419,86 @@ namespace Qsim {
     static std::vector<start_cb_obj_base*>  start_cbs;
     static std::vector<end_cb_obj_base*>    end_cbs;
 
-    template <typename T> void set_atomic_cb(T* p, 
-					     typename 
-					       atomic_cb_obj<T>::atomic_cb_t f)
+    typedef std::vector<atomic_cb_obj_base*>::iterator atomic_cb_handle_t;
+    typedef std::vector<magic_cb_obj_base*>::iterator  magic_cb_handle_t;
+    typedef std::vector<io_cb_obj_base*>::iterator     io_cb_handle_t;
+    typedef std::vector<mem_cb_obj_base*>::iterator    mem_cb_handle_t;
+    typedef std::vector<int_cb_obj_base*>::iterator    int_cb_handle_t;
+    typedef std::vector<inst_cb_obj_base*>::iterator   inst_cb_handle_t;
+    typedef std::vector<reg_cb_obj_base*>::iterator    reg_cb_handle_t;
+    typedef std::vector<start_cb_obj_base*>::iterator  start_cb_handle_t;
+    typedef std::vector<end_cb_obj_base*>::iterator    end_cb_handle_t;
+
+    template <typename T>
+      atomic_cb_handle_t
+      set_atomic_cb(T* p, typename atomic_cb_obj<T>::atomic_cb_t f)
     {
       atomic_cbs.push_back(new atomic_cb_obj<T>(p, f));
       set_atomic_cb(atomic_cb);
+      return atomic_cbs.end() - 1;
     }
 
-    template <typename T> void set_magic_cb(T* p, 
-					    typename 
-					      magic_cb_obj<T>::magic_cb_t f) 
+    template <typename T>
+      magic_cb_handle_t
+        set_magic_cb(T* p, typename magic_cb_obj<T>::magic_cb_t f) 
     {
       magic_cbs.push_back(new magic_cb_obj<T>(p, f));
-      // Keep the following commented out for now; we can't set magic inst. 
-      // callbacks the old fashioned way.
-      // set_magic_cb(magic_cb);
+      return magic_cbs.end() - 1;
     }
 
-    template <typename T> void set_io_cb(T* p,
-					 typename 
-					   io_cb_obj<T>::io_cb_t f)
+    template <typename T>
+      io_cb_handle_t set_io_cb(T* p, typename io_cb_obj<T>::io_cb_t f)
     {
       io_cbs.push_back(new io_cb_obj<T>(p, f));
       set_io_cb(io_cb);
+      return io_cbs.end() - 1;
     }
 
-    template <typename T> void set_mem_cb(T* p, 
-					  typename 
-					    mem_cb_obj<T>::mem_cb_t f)
+    template <typename T>
+      mem_cb_handle_t set_mem_cb(T* p, typename mem_cb_obj<T>::mem_cb_t f)
     {
       mem_cbs.push_back(new mem_cb_obj<T>(p, f));
       set_mem_cb(mem_cb);
+      return mem_cbs.end() - 1;
     }
 
-    template <typename T> void set_int_cb(T* p, 
-					  typename 
-					    int_cb_obj<T>::int_cb_t f)
+    template <typename T>
+      int_cb_handle_t set_int_cb(T* p, typename int_cb_obj<T>::int_cb_t f)
     {
       int_cbs.push_back(new int_cb_obj<T>(p, f));
       set_int_cb(int_cb);
+      return int_cbs.end() - 1;
     }
 
-    template <typename T> void set_inst_cb(T* p, 
-					   typename 
-					     inst_cb_obj<T>::inst_cb_t f)
+    template <typename T>
+      inst_cb_handle_t set_inst_cb(T* p, typename inst_cb_obj<T>::inst_cb_t f)
     {
       inst_cbs.push_back(new inst_cb_obj<T>(p, f));
       set_inst_cb(inst_cb);
+      return inst_cbs.end() - 1;
     }
 
-    template <typename T> void set_reg_cb(T* p,
-                                             typename
-                                               reg_cb_obj<T>::reg_cb_t f)
+    template <typename T>
+      reg_cb_handle_t set_reg_cb(T* p, typename reg_cb_obj<T>::reg_cb_t f)
     {
       reg_cbs.push_back(new reg_cb_obj<T>(p, f));
       set_reg_cb(reg_cb);
+      return reg_cbs.end() - 1;
     }
 
-    template <typename T> void set_app_start_cb(T* p, 
-						typename
-						start_cb_obj<T>::start_cb_t f)
+    template <typename T>
+      start_cb_handle_t
+        set_app_start_cb(T* p, typename start_cb_obj<T>::start_cb_t f)
     {
       start_cbs.push_back(new start_cb_obj<T>(p, f));
+      return start_cbs.end() - 1;
     }
 
-    template <typename T> void set_app_end_cb(T* p, typename
-					      end_cb_obj<T>::end_cb_t f)
+    template <typename T>
+      end_cb_handle_t set_app_end_cb(T* p, typename end_cb_obj<T>::end_cb_t f)
     {
       end_cbs.push_back(new end_cb_obj<T>(p, f));
+      return end_cbs.end() - 1;
     }
 
     // Set the "application start" and "application end" callbacks.
