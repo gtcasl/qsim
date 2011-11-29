@@ -449,6 +449,38 @@ Qsim::OSDomain::~OSDomain() {
   for (unsigned i = 0; i < n; i++) delete cpus[i];
 }
 
+void Qsim::OSDomain::unset_atomic_cb(atomic_cb_handle_t h) {
+  atomic_cbs.erase(h);
+}
+
+void Qsim::OSDomain::unset_magic_cb(magic_cb_handle_t h) {
+  magic_cbs.erase(h);
+}
+
+void Qsim::OSDomain::unset_io_cb(io_cb_handle_t h) {
+  io_cbs.erase(h);
+}
+
+void Qsim::OSDomain::unset_mem_cb(mem_cb_handle_t h) {
+  mem_cbs.erase(h);
+}
+
+void Qsim::OSDomain::unset_inst_cb(inst_cb_handle_t h) {
+  inst_cbs.erase(h);
+}
+
+void Qsim::OSDomain::unset_reg_cb(reg_cb_handle_t h) {
+  reg_cbs.erase(h);
+}
+
+void Qsim::OSDomain::unset_app_start_cb(start_cb_handle_t h) {
+  start_cbs.erase(h);
+}
+
+void Qsim::OSDomain::unset_app_end_cb(end_cb_handle_t h) {
+  end_cbs.erase(h);
+}
+
 std::vector<Qsim::OSDomain::atomic_cb_obj_base*> Qsim::OSDomain::atomic_cbs;
 std::vector<Qsim::OSDomain::magic_cb_obj_base*>  Qsim::OSDomain::magic_cbs;
 std::vector<Qsim::OSDomain::io_cb_obj_base*>     Qsim::OSDomain::io_cbs;

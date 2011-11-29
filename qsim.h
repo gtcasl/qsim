@@ -501,6 +501,15 @@ namespace Qsim {
       return end_cbs.end() - 1;
     }
 
+    void unset_atomic_cb(atomic_cb_handle_t);
+    void unset_magic_cb(magic_cb_handle_t);
+    void unset_io_cb(io_cb_handle_t);
+    void unset_mem_cb(mem_cb_handle_t);
+    void unset_inst_cb(inst_cb_handle_t);
+    void unset_reg_cb(reg_cb_handle_t);
+    void unset_app_start_cb(start_cb_handle_t);
+    void unset_app_end_cb(end_cb_handle_t);
+
     // Set the "application start" and "application end" callbacks.
     void set_app_start_cb(void (*)(int));
     void set_app_end_cb  (void (*)(int));
