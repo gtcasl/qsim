@@ -15,16 +15,19 @@ all: libqsim.so qsim-fastforwarder
 statesaver.o: statesaver.cpp statesaver.h qsim.h
 	$(CXX) $(CXXFLAGS) -I./ -c -o statesaver.o statesaver.cpp
 
+qsim-load.o: qsim-load.cpp qsim-load.h qsim.h
+	$(CXX) $(CXXFLAGS) -I./ -fPIC -shared -c -o qsim-load.o qsim-load.cpp
+
 qsim-fastforwarder: fastforwarder.cpp statesaver.o statesaver.h libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -I ./ -L ./ -pthread \
                -o qsim-fastforwarder fastforwarder.cpp statesaver.o
 
-libqsim.so: qsim.cpp qsim.h qsim-vm.h mgzd.h qsim-regs.h
-	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $<
+libqsim.so: qsim.cpp qsim-load.o qsim.h qsim-vm.h mgzd.h qsim-regs.h 
+	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o
 
 install: libqsim.so qsim-fastforwarder
 	cp libqsim.so $(PREFIX)/lib/
-	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h $(PREFIX)/include/
+	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h qsim-load.h $(PREFIX)/include/
 	cp qsim-fastforwarder $(PREFIX)/bin/
 	/sbin/ldconfig
 
