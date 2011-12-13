@@ -17,6 +17,7 @@
 #include <errno.h>
 
 #include <qsim.h>
+#include <qsim-load.h>
 #include "distorm.h"
 
 using Qsim::OSDomain;
@@ -28,7 +29,9 @@ public:
   TraceWriter(OSDomain &osd, ostream &tracefile, const char *in) : 
     osd(osd), tracefile(tracefile), finished(false), infile(in)
   { 
-    osd.set_magic_cb(this, &TraceWriter::magic_cb);
+    Qsim::load_file(osd, in);
+    std::cout << "Finished loading app.\n";
+
     //osd.set_inst_cb(this, &TraceWriter::inst_cb);
     osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
   }
@@ -74,34 +77,6 @@ public:
     tracefile << std::dec << c << ": I/O " << (w?"RD":"WR") << ": (0x" 
               << std::hex << p << "): " << std::dec << (unsigned)(s*8) 
               << " bits.\n";
-  }
-
-  int magic_cb(int c, uint64_t rax) {
-    if (rax == 0xc5b1fffd) {
-      // Giving an address to deposit 1024 bytes in %rbx. Wants number of bytes
-      // actually deposited in %rcx.
-      uint64_t vaddr = osd.get_reg(c, QSIM_RBX);
-      int count = 1024;
-      while (infile.good() && count) {
-        char ch;
-        infile.get(ch);
-        osd.mem_wr_virt(c, ch, vaddr++);
-        count--;
-      }
-      osd.set_reg(c, QSIM_RCX, 1024-count);
-    } else if (rax == 0xc5b1fffe) {
-      // Asking if input is ready
-      osd.set_reg(c, QSIM_RAX, !(!infile));
-    } else if (rax == 0xc5b1ffff) {
-      // Asking for a byte of input.
-      char ch;
-      infile.get(ch);
-      osd.set_reg(c, QSIM_RAX, ch);
-    } else if (rax&0xffffff00 == 0xc5b100) {
-      std::cout << "binary write: " << (rax&0xff) << '\n';
-    }
-
-    return 0;
   }
 
 private:
@@ -153,9 +128,10 @@ int main(int argc, char** argv) {
   if (argc >= 5) {
     // Create new OSDomain from saved state.
     osd_p = new OSDomain(argv[3]);
+    std::cout << "Finished loading state.\n";
     n_cpus = osd.get_n();
   } else {
-    std::cout << "Not enough command line arguments.\n";
+    std::cout << "Usage:\n  " << argv[0] << " #cpus tracefile statefile tar\n";
     return 1;
   }
 
