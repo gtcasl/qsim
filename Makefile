@@ -7,8 +7,8 @@
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
 CXXFLAGS = -O2 -g -Idistorm/
-LDFLAGS = -ldl -lqsim
 PREFIX = /usr/local
+LDFLAGS = -L$(PREFIX)/lib -ldl -lqsim
 
 all: libqsim.so qsim-fastforwarder
 
@@ -26,6 +26,9 @@ libqsim.so: qsim.cpp qsim-load.o qsim.h qsim-vm.h mgzd.h qsim-regs.h
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o
 
 install: libqsim.so qsim-fastforwarder
+	mkdir -p $(PREFIX)/lib
+	mkdir -p $(PREFIX)/include
+	mkdir -p $(PREFIX)/bin
 	cp libqsim.so $(PREFIX)/lib/
 	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h qsim-load.h $(PREFIX)/include/
 	cp qsim-fastforwarder $(PREFIX)/bin/
