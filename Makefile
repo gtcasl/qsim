@@ -24,7 +24,7 @@ qsim-fastforwarder: fastforwarder.cpp statesaver.o statesaver.h libqsim.so
                -o qsim-fastforwarder fastforwarder.cpp statesaver.o $(LDLIBS)
 
 libqsim.so: qsim.cpp qsim-load.o qsim.h qsim-vm.h mgzd.h qsim-regs.h 
-	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o $(LDLIBS)
+	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o
 
 install: libqsim.so qsim-fastforwarder
 	mkdir -p $(PREFIX)/lib
