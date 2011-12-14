@@ -8,22 +8,23 @@
 ###############################################################################
 CXXFLAGS = -O2 -g -Idistorm/
 PREFIX = /usr/local
-LDFLAGS = -L$(PREFIX)/lib -ldl -lqsim
+LDFLAGS = -L$(PREFIX)/lib
+LDLIBS = -lqsim -ldl
 
 all: libqsim.so qsim-fastforwarder
 
 statesaver.o: statesaver.cpp statesaver.h qsim.h
-	$(CXX) $(CXXFLAGS) -I./ -c -o statesaver.o statesaver.cpp
+	$(CXX) $(CXXFLAGS) -I./ -c -o statesaver.o $(LDLIBS) statesaver.cpp
 
 qsim-load.o: qsim-load.cpp qsim-load.h qsim.h
 	$(CXX) $(CXXFLAGS) -I./ -fPIC -shared -c -o qsim-load.o qsim-load.cpp
 
 qsim-fastforwarder: fastforwarder.cpp statesaver.o statesaver.h libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -I ./ -L ./ -pthread \
-               -o qsim-fastforwarder fastforwarder.cpp statesaver.o
+               -o qsim-fastforwarder fastforwarder.cpp statesaver.o $(LDLIBS)
 
 libqsim.so: qsim.cpp qsim-load.o qsim.h qsim-vm.h mgzd.h qsim-regs.h 
-	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o
+	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o $(LDLIBS)
 
 install: libqsim.so qsim-fastforwarder
 	mkdir -p $(PREFIX)/lib
