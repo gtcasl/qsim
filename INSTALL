@@ -69,6 +69,7 @@ in the usual path, before the server is run.
 
 $ cd remote/server
 $ make
+$ cd ../..
 
 Building Examples
 -----------------
