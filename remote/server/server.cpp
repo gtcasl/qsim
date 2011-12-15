@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <qsim.h>
+#include <qsim-load.h>
 #include <pthread.h>
 
 #include <sys/types.h>
@@ -387,50 +388,28 @@ int main(int argc, char** argv) {
   std::string kernel;
   unsigned ramsz;
   char *port;
-  bool load_state(argc == 3);
 
-  if (!load_state && (argc < 4 || argc > 5)) {
+  if (argc != 4) {
     std::cout << "Usage: \n  "
-              << argv[0] << " <port> <#cpus> <kernel image> [ram size (MB)]\n"
-              << "or: \n  "
-              << argv[0] << " <port> <state file>\n";
+              << argv[0] << " <port> <state file> <benchmark>\n";
     return 1;
   }
 
   port = argv[1];
 
   // Create the OSDomain
-  if (load_state) {
-    std::cout << "Loading state...\n";
-    osd = new Qsim::OSDomain(argv[2]);
-    cpus = osd->get_n();
-  } else {
-    arg_convert(cpus,   argv[2], 2, argc, 1u);
-    arg_convert(kernel, argv[3], 3, argc, std::string(""));
-    arg_convert(ramsz,  argv[4], 4, argc, 1024u);
-
-    osd = new Qsim::OSDomain(cpus, kernel.c_str(), ramsz);
-  }
-  _cba = new CallbackAdaptor(cpus);
+  std::cout << "Loading state...\n";
+  osd = new Qsim::OSDomain(argv[2]);
+  cpus = osd->get_n();
   osd->connect_console(std::cout);
 
-  if (!load_state) {
-    // Fast forward, if necessary.
-    std::cout << "Fast forwarding to app start; "
-                 "depending on bzImage this may take a while...\n";
-    osd->set_app_start_cb(_cba, &CallbackAdaptor::app_start_cb);
-    while (!_cba->app_running) {
-      for (unsigned j = 0; j < cpus; j++) {
-        for (unsigned k = 0; !_cba->app_running && k < 10000; k++) {
-          if (osd->booted(j)) osd->run(j, 1000);
-        }
-      }
-      osd->timer_interrupt();
-    }
-    std::cout << "Fast forwarding finished.\n";
-  } else {
-    std::cout << "Server ready.\n";
-  }
+  // Load the benchmark
+  std::cout << "Loading benchmark...\n";
+  Qsim::load_file(*osd, argv[3]);
+
+  std::cout << "QSim server ready.\n";
+
+  _cba = new CallbackAdaptor(cpus);
 
   // Instantiate the server thread objects
   st = new ServerThread[cpus]();
