@@ -110,3 +110,19 @@
 * Removed the benchmarks from the main source directory.
 
 * Fixed a ton of minor issues and bugs.
+
+0.1.1
+
+* Running QSim no longer requires access to the QEMU source directory in order
+  to open the (unused) PC BIOS image.
+
+* The build process now downloads BusyBox by script (it is no longer included
+  in the distribution).
+
+* Callbacks setters now return handles, which can be used to un-set callbacks.
+
+* Benchmarks can now be loaded from .tar images through qsim-io. The
+  QSim::load_file() function in qsim-load.h provides this functionality.
+
+* The benchmarks are no longer part of the main repository, and building kernel
+  images is no longer a required part of the QSim build process.
