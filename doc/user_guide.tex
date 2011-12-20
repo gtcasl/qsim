@@ -108,6 +108,7 @@ including:
   \item{Every instruction}
   \item{Atomic memory operations}
   \item{Memory reads/writes}
+  \item{Register reads/writes}
   \item{Interrupts}
   \item{``Magic'' CPUID instructions}
 \end{itemize}
@@ -234,7 +235,6 @@ object file which will be used by the QSim library.
     initrd/mark_app.c
     initrd/qsim_io.c
     initrd/test_threads.c
-    initrd/benchmarks
     initrd/busybox-1.16.1
     initrd/etc
 \end{verbatim}
@@ -288,6 +288,13 @@ share a single instance of the QSim emulator among several remote processes.
 Remote QSim includes a server program (\texttt{server.cpp}), the client library
 (\texttt{qsim-client.h}, \texttt{qsim-client.cpp}), and a sample remote client
 program (\texttt{client.cpp}).
+
+\subsection{Simplesim}
+\begin{verbatim}
+    simplesim/
+\end{verbatim}
+SimpleSim is an example multicore out-of-order CPU simulator.
+%TODO: Expand this section!
 
 \subsection{Examples}
 \begin{verbatim}
@@ -508,14 +515,6 @@ can be accomplished with:
 
 The \texttt{file} command can be used to ensure that the resulting binary is
 actually a 32-bit statically-linked ELF.
-
-Too often, this simple process is complicated by build systems that do not
-fully support cross compilation. To eliminate the task of porting in many
-cases, a directory of precompiled benchmark applications is included under
-\texttt{initrd/benchmarks}. If an application that is needed cannot be
-cross-compiled easily and is not already provided, a third option is building
-as usual on a 32-bit operating system running on another machine (virtual or 
-real). 
 
 \section{Setting Up the Linux Initial Ramdisk}
 The \texttt{initrd} makefile is set up so that any files placed in 
@@ -1128,6 +1127,20 @@ Read a value of arbitrary size from guest RAM at virtual address
 
 Write a value of arbitrary size to guest RAM at virtual address
 \texttt{vaddr}, translating the address according to CPU \texttt{i}.
+
+\subsection{Utility Functions}
+
+The following functions are not part of \texttt{Qsim::OSDomain} proper, but act on OSDomains to provide important features:
+
+\label{func:load_file} \begin{verbatim}
+    void load_file(OSDomain &osd, const char *filename);
+\end{verbatim}
+
+If the \texttt{OSDomain} is running the \texttt{qsim-io} guest program, this
+function will provide input through this system. This is used by the default
+initial ramdisk to load a \texttt{tar} archive containing the application to be
+run, along with any data and libraries it needs. A demonstration of the use of
+\texttt{load-file} can be seen in \texttt{examples/io-test.cpp}.
 \newpage
 
 \section{\texttt{Qsim::QemuCpu}} \label{class:QemuCpu}
@@ -1276,7 +1289,6 @@ Set the contents of register \texttt{r} to value \texttt{v}.
 \end{verbatim}
 Get the RAM descriptor for this CPU. Details of the \texttt{qemu\_ramdesc\_t}
 structure are on page \ref{struct:qemu_ramdesc_t}.
-
 \newpage
 
 \section{\texttt{Qsim::Client}} \label{class:Client}
@@ -1285,7 +1297,8 @@ OSDomain-like interface to a remote QSim server.
 
 \subsection{Member Functions}
 
-\label{func:Client} \begin{verbatim}
+\label{func:Client}
+\begin{verbatim}
   Client(int socket);
 \end{verbatim}
 Construct a client connected to the server on \texttt{socket}. The parameter is
