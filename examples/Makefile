@@ -7,28 +7,31 @@
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
 QSIM_PREFIX = /usr/local
-LDFLAGS = -ldl -lqsim
 CXXFLAGS = -O2 -I../distorm/ -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
+LDLIBS = -ldl -lqsim -pthread
 
-EXAMPLES = qtm simple simple-client io-test
+EXAMPLES = qtm simple simple-client io-test test64
 
 all: $(EXAMPLES)
 
 vistrace: vistrace.cpp $(QSIM_PREFIX)/lib/libqsim.so
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -lpthread -lImlib2 -o $@ $<
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS) -lImlib2
 
 simple: simple.cpp $(QSIM_PREFIX)/lib/libqsim.so
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< ../distorm/distorm64.a
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< ../distorm/distorm64.a $(LDLIBS)
+
+test64: test64.cpp $(QSIM_PREFIX)/lib/libqsim.so
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< ../distorm/distorm64.a $(LDLIBS)
 
 simple-client: simple.cpp
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -DQSIM_REMOTE -o $@ $< \
-          ../remote/client/qsim-client.cpp ../distorm/distorm64.a
+          ../remote/client/qsim-client.cpp ../distorm/distorm64.a $(LDLIBS)
 
 io-test: io-test.cpp $(QSIM_PREFIX)/lib/libqsim.so ../distorm/distorm64.a
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< ../distorm/distorm64.a
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< ../distorm/distorm64.a $(LDLIBS)
 
 qtm: qtm.cpp $(QSIM_PREFIX)/lib/libqsim.so
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -lpthread -o $@ $< ../distorm/distorm64.a
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -lpthread -o $@ $< ../distorm/distorm64.a $(LDLIBS)
 
 clean:
 	rm -f $(EXAMPLES) *~ *\#
