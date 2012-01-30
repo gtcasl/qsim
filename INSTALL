@@ -21,7 +21,7 @@ Building busybox
 
 $ cd initrd
 $ ./getbusybox.sh
-$ cd busybox-1.16.1
+$ cd busybox-1.19.3
 $ make CFLAGS="-m32" LDFLAGS="-m32"
 $ cp busybox ../sbin
 
