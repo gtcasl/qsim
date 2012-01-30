@@ -33,7 +33,9 @@ install: libqsim.so qsim-fastforwarder
 	cp libqsim.so $(PREFIX)/lib/
 	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h qsim-load.h $(PREFIX)/include/
 	cp qsim-fastforwarder $(PREFIX)/bin/
+ifeq ($(USER),root) # Only need this if we're installing globally as root.
 	/sbin/ldconfig
+endif
 
 uninstall: $(PREFIX)/lib/libqsim.so
 	rm -f $(PREFIX)/lib/libqsim.so $(PREFIX)/include/qsim.h         \
