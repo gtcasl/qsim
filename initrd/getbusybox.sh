@@ -4,7 +4,7 @@
 # NOTE: This is optional. The binary of busybox distributed with QSim should
 # work perfectly adequately.
 
-BBOX=busybox-1.16.1
+BBOX=busybox-1.19.3
 BBOX_ARCHIVE=$BBOX.tar.bz2
 BBOX_URL=http://www.busybox.net/downloads/$BBOX_ARCHIVE
 
