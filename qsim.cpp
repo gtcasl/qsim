@@ -197,18 +197,19 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
 Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb) :
   cpu_id(id), ram_size_mb(ram_mb)
 {
-  std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
+  { // Limiting scope of this stringstream to avoid compiler-specific bug
+    std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
-  load_and_grab_pointers("./libqemu.so");
+    load_and_grab_pointers("./libqemu.so");
 
-  qemu_init(NULL, ram_size_ss.str().c_str(), id);
-  ramdesc = *ramdesc_p;
+    qemu_init(NULL, ram_size_ss.str().c_str(), id);
+  }
+    ramdesc = *ramdesc_p;
 
   // Read RAM state.
   file.read((char*)ramdesc->low_mem_ptr, ramdesc->low_mem_sz);
   file.read((char*)ramdesc->below_4g_ptr, ramdesc->below_4g_sz);
   file.read((char*)ramdesc->above_4g_ptr, ramdesc->above_4g_sz);
-
 
   // TODO: The following should be moved to a utility function
   for (int i = 0; i < QSIM_N_REGS; i++) {
