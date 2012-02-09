@@ -36,9 +36,11 @@ class Statesaver {
 public:
   Statesaver(Qsim::OSDomain &osd, const char* state_filename): osd(osd) 
   {
+    Qsim::OSDomain::inst_cb_handle_t icb_handle;
+
     pthread_barrier_init(&barrier1, NULL, osd.get_n() + 1);
     pthread_barrier_init(&barrier2, NULL, osd.get_n() + 1);
-    osd.set_inst_cb(this, &Statesaver::inst_cb);
+    icb_handle = osd.set_inst_cb(this, &Statesaver::inst_cb);
 
     // Spawn n threads, one per CPU.
     unsigned n(osd.get_n());
@@ -56,6 +58,9 @@ public:
 
     // Join the threads.
     for (unsigned i = 0; i < n; i++) pthread_join(v[i].pt, NULL);
+
+    // Unset the callback so we can continue.
+    osd.unset_inst_cb(icb_handle);
   }
 
 private:
