@@ -46,6 +46,26 @@ enum regs {
   QSIM_N_REGS
 };
 
+/* This has to be manually kept consistent with the above. Ugly, I know. */
+const char *regs_str[] = {
+  "rax", "rcx", "rdx", "rbx",
+  "rsp", "rbp",
+  "rsi", "rdi",
+  "cr0", "cr2", "cr3", "cr4",
+  "gdtb", "idtb", "gdtl", "idtl",
+  "tr", "trb", "trl", "trf",
+  "ldt", "ldtb", "ldtl", "ldtf",
+  "dr6", "dr7",
+  "es", "cs", "ss", "ds", "fs", "gs",
+  "esb", "csb", "ssb", "dsb", "fsb", "gsb",
+  "esl", "csl", "ssl", "dsl", "fsl", "gsl",
+  "esf", "csf", "ssf", "dsf", "fsf", "gsf",
+  "rip", "rflags",
+  "hflags", "hflags2",
+  "se_cs", "se_sp", "se_ip",
+  NULL
+};
+
 /* The flags enum is used with the register access callback (size=0) to signal
    condition code access. */
 enum flags {
