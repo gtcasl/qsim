@@ -1,6 +1,6 @@
 diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
---- qemu-0.12.3/cpu-all.h	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/cpu-all.h	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/cpu-all.h	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/cpu-all.h	2012-02-06 14:22:09.000000000 -0500
 @@ -16,9 +16,13 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
@@ -27,8 +27,8 @@ diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
  
  #define ldub_raw(p) ldub_p(laddr((p)))
 diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
---- qemu-0.12.3/cpu-common.h	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/cpu-common.h	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/cpu-common.h	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/cpu-common.h	2012-02-06 14:22:09.000000000 -0500
 @@ -29,6 +29,7 @@
  }
  
@@ -38,8 +38,8 @@ diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
  void qemu_ram_free(ram_addr_t addr);
  /* This should only be used for ram local to a device.  */
 diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
---- qemu-0.12.3/cpu-exec.c	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/cpu-exec.c	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/cpu-exec.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/cpu-exec.c	2012-02-06 14:22:09.000000000 -0500
 @@ -38,6 +38,11 @@
  #endif
  #endif
@@ -90,8 +90,8 @@ diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
  
      /* never comes here */
 diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
---- qemu-0.12.3/exec.c	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/exec.c	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/exec.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/exec.c	2012-02-06 14:22:09.000000000 -0500
 @@ -438,7 +438,7 @@
  
          flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -137,8 +137,8 @@ diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
  {
      RAMBlock *new_block;
 diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
---- qemu-0.12.3/hw/apic.c	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/hw/apic.c	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/hw/apic.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/hw/apic.c	2012-02-06 14:22:09.000000000 -0500
 @@ -185,7 +185,7 @@
  void apic_deliver_pic_intr(CPUState *env, int level)
  {
@@ -239,8 +239,8 @@ diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
      vmstate_register(s->idx, &vmstate_apic, s);
      qemu_register_reset(apic_reset, s);
 diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
---- qemu-0.12.3/hw/pc.c	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/hw/pc.c	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/hw/pc.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/hw/pc.c	2012-02-06 14:22:09.000000000 -0500
 @@ -45,6 +45,10 @@
  #include "loader.h"
  #include "elf.h"
@@ -721,8 +721,8 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
  static QEMUMachine pc_machine = {
 diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
---- qemu-0.12.3/posix-aio-compat.c	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/posix-aio-compat.c	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/posix-aio-compat.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/posix-aio-compat.c	2012-02-06 14:22:09.000000000 -0500
 @@ -368,6 +368,9 @@
  {
      sigset_t set, oldset;
@@ -734,8 +734,8 @@ diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
      idle_threads++;
  
 diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
---- qemu-0.12.3/softmmu_header.h	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/softmmu_header.h	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/softmmu_header.h	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/softmmu_header.h	2012-02-06 14:22:09.000000000 -0500
 @@ -16,6 +16,48 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
@@ -818,8 +818,8 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
  
  #endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
 diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.h
---- qemu-0.12.3/target-i386/helper.h	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/target-i386/helper.h	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/target-i386/helper.h	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/target-i386/helper.h	2012-02-06 14:22:09.000000000 -0500
 @@ -1,4 +1,5 @@
  #include "def-helper.h"
 +#include <stdint.h>
@@ -838,9 +838,10 @@ diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.
 +DEF_HELPER_3(store_callback, tl, tl, tl, tl)
 +
  #include "def-helper.h"
+Only in qemu-0.12.3-qsim/target-i386: #op_helper.c#
 diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_helper.c
---- qemu-0.12.3/target-i386/op_helper.c	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/target-i386/op_helper.c	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/target-i386/op_helper.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/target-i386/op_helper.c	2012-02-09 02:17:12.000000000 -0500
 @@ -20,9 +20,35 @@
  #include "exec.h"
  #include "exec-all.h"
@@ -1055,7 +1056,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
      EAX = (uint32_t)(val);
      EDX = (uint32_t)(val >> 32);
  }
-@@ -5656,3 +5723,234 @@
+@@ -5656,3 +5723,235 @@
  #endif
      }
  }
@@ -1258,7 +1259,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +  case QSIM_GSF:    first_cpu->segs[R_GS ].flags    = val;
 +                    qsim_update_seg(R_GS);                      break;
 +  case QSIM_RIP:    first_cpu->eip                  = val;      break;
-+  case QSIM_CR0:    env = first_cpu; 
++  case QSIM_CR0:    env = first_cpu;
 +                    helper_write_crN(0, val);                   break;
 +  case QSIM_CR2:    env = first_cpu; 
 +                    helper_write_crN(2, val);                   break;
@@ -1270,7 +1271,8 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +  case QSIM_GDTL:   first_cpu->gdt.limit            = val;      break;
 +  case QSIM_IDTB:   first_cpu->idt.base             = val;      break;
 +  case QSIM_IDTL:   first_cpu->idt.limit            = val;      break;
-+  case QSIM_RFLAGS: load_eflags(val,
++  case QSIM_RFLAGS: env = first_cpu;
++                    load_eflags(val,
 +                      ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
 +                                                                break;
 +  case QSIM_TR:     first_cpu->tr.selector          = val;      break;
@@ -1291,8 +1293,8 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +  } 
 +}
 diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/translate.c
---- qemu-0.12.3/target-i386/translate.c	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/target-i386/translate.c	2011-09-13 16:22:53.000000000 -0400
+--- qemu-0.12.3/target-i386/translate.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/target-i386/translate.c	2012-02-06 14:22:09.000000000 -0500
 @@ -5,7 +5,7 @@
   *
   * This library is free software; you can redistribute it and/or
@@ -2123,8 +2125,8 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          /* stop translation if indicated */
          if (dc->is_jmp)
 diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
---- qemu-0.12.3/vl.c	2010-02-23 15:08:31.000000000 -0500
-+++ qemu-0.12.3-qsim/vl.c	2011-09-12 21:44:51.000000000 -0400
+--- qemu-0.12.3/vl.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/vl.c	2012-02-06 14:22:09.000000000 -0500
 @@ -91,6 +91,9 @@
  #endif
  #endif
