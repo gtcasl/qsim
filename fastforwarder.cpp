@@ -43,6 +43,8 @@ int main(int argc, char** argv) {
     for (unsigned i = 0; i < 100 && !magic_cb_s.app_started; i++) {
       for (unsigned j = 0; j < cpus && !magic_cb_s.app_started; j++) {
         if (osd.booted(j)) osd.run(j, 10000);
+
+        // So we don't immediately run the app start callback on load
         if (magic_cb_s.app_started) osd.run(j, 1);
       }
     }
