@@ -47,7 +47,7 @@ enum regs {
 };
 
 /* This has to be manually kept consistent with the above. Ugly, I know. */
-const char *regs_str[] = {
+static const char *regs_str[] = {
   "rax", "rcx", "rdx", "rbx",
   "rsp", "rbp",
   "rsi", "rdi",
