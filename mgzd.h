@@ -42,7 +42,7 @@ namespace Mgzd {
     int r;
     if ((r = system(cp_command.str().c_str())) != 0) {
       std::cerr << "system(\"" << cp_command.str() 
-                << "\" returned " << r <<".\n";
+                << "\") returned " << r <<".\n";
       exit(1);
     }
 
