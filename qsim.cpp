@@ -211,7 +211,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb) :
 
   // TODO: The following should be moved to a utility function
   for (int i = 0; i < QSIM_N_REGS; i++) {
-    uint64_t contents; 
+    uint64_t contents;
     file.read((char*)&contents, sizeof(contents));
     set_reg(regs(i), contents);
   }
@@ -319,9 +319,6 @@ Qsim::OSDomain::OSDomain(const char* filename) {
 
   // Get a copy of the RAM descriptor.
   ramdesc = cpus[0]->get_ramdesc();
-
-  // Start the run with a timer interrupt.
-  timer_interrupt();
 
   file.close();
 }
