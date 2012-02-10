@@ -13,7 +13,16 @@
 #include <cstdlib>
 #include "statesaver.h"
 
+// The following two defines can be used to create instruction traces. DEBUG
+// enables tracing and LOAD reconfigures the fastforwarder to load a state
+// file and trace this. Doing this allows comparison of the trace of the
+// loaded state to the trace of the fastforwarder after loading a state.
+//#define LOAD
+//#define DEBUG
+
 struct Magic_cb_s {
+  Magic_cb_s(Qsim::OSDomain &osd): osd(osd), app_started(false) {}
+
   int magic_cb_f(int cpu_id, uint64_t rax) {
     if (rax == 0xaaaaaaaa) {
       app_started = true;
@@ -22,7 +31,24 @@ struct Magic_cb_s {
     return 0;
   }
   bool app_started;
-} magic_cb_s;
+
+  void inst_cb_f(int i, uint64_t p, uint64_t v, uint8_t l, const uint8_t *b,
+                 enum inst_type t)
+  {
+    std::cerr << '\n' << std::dec << i << ' ' << std::hex << p << '/' << v;
+  }
+
+  void reg_cb_f(int i, int r, uint8_t s, int w) {
+    if (!w && s) {
+      std::cerr << ' ' << regs_str[r] << '(' << osd.get_reg(i, regs(r)) << ')';
+    } else if (!w) {
+      std::cerr << " f" << std::setw(2) << std::setfill('0') << r
+                << '(' << std::setw(2) << osd.get_reg(i, QSIM_RFLAGS) << ')';
+    }
+  }
+
+  Qsim::OSDomain &osd;
+};
 
 int main(int argc, char** argv) {
   if (argc != 4) {
@@ -33,9 +59,15 @@ int main(int argc, char** argv) {
   int cpus = atoi(argv[2]);
   if (cpus <= 0) { std::cout << "# CPUs out of range.\n"; return 1; }
 
+#ifdef LOAD
+  Qsim::OSDomain osd("state.debug");
+#else
   Qsim::OSDomain osd(cpus, argv[1]);
+#endif
+  Magic_cb_s magic_cb_s(osd);
 
   osd.connect_console(std::cout);
+#ifndef LOAD
   osd.set_magic_cb(&magic_cb_s, &Magic_cb_s::magic_cb_f);
 
   std::cout << "Fast forwarding...\n";
@@ -48,11 +80,38 @@ int main(int argc, char** argv) {
         if (magic_cb_s.app_started) osd.run(j, 1);
       }
     }
-    osd.timer_interrupt();
+    if (!magic_cb_s.app_started) osd.timer_interrupt();
   } while (!magic_cb_s.app_started);
+#endif
 
+#ifdef DEBUG
+  osd.set_inst_cb(&magic_cb_s, &Magic_cb_s::inst_cb_f);
+  osd.set_reg_cb(&magic_cb_s, &Magic_cb_s::reg_cb_f);
+#endif
+
+#ifndef LOAD
   std::cout << "Saving state...\n";
   Qsim::save_state(osd, argv[3]);
+#endif
+
+  std::cout << "Tracing 1M instructions.\n";
+
+#ifdef LOAD
+  int runfor = 10000;
+#else
+  int runfor = 9999;
+#endif
+  for (unsigned i = 0; i < 1; ++i) {
+    for (unsigned j = 0; j < 100; ++j) {
+      for (unsigned k = 0; k < cpus; ++k) {
+        osd.run(k, runfor);
+      }
+#ifndef LOAD
+      runfor = 10000;
+#endif
+    }
+    osd.timer_interrupt();
+  }
 
   std::cout << "Finished.\n";
   
