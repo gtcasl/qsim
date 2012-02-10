@@ -51,18 +51,25 @@ struct Magic_cb_s {
 };
 
 int main(int argc, char** argv) {
-  if (argc != 4) {
-    std::cout <<"Usage:\n  "<<argv[0]<<" <bzImage> <# CPUs> <state file>\n";
+  if (argc != 5) {
+    std::cout << "Usage:\n  " << argv[0] 
+              << " <bzImage> <# CPUs> <ram size (MB)> <state file>\n";
     return 1;
   }
 
-  int cpus = atoi(argv[2]);
-  if (cpus <= 0) { std::cout << "# CPUs out of range.\n"; return 1; }
+  int cpus(atoi(argv[2])), ram_mb(atoi(argv[3]));
+  if (cpus <= 0) {
+    std::cerr << "# CPUs " << cpus << " out of range.\n"; return 1;
+  }
+
+  if (ram_mb < 64) {
+    std::cerr << "Ram size " << ram_mb << " out of range.\n"; return 1;
+  }
 
 #ifdef LOAD
   Qsim::OSDomain osd("state.debug");
 #else
-  Qsim::OSDomain osd(cpus, argv[1]);
+  Qsim::OSDomain osd(cpus, argv[1], ram_mb);
 #endif
   Magic_cb_s magic_cb_s(osd);
 
@@ -91,7 +98,7 @@ int main(int argc, char** argv) {
 
 #ifndef LOAD
   std::cout << "Saving state...\n";
-  Qsim::save_state(osd, argv[3]);
+  Qsim::save_state(osd, argv[4]);
 #endif
 
   std::cout << "Tracing 1M instructions.\n";
