@@ -184,8 +184,14 @@ namespace Qsim {
     }
 
     // Read memory at given physical address
-    uint8_t mem_rd(uint64_t pa)         { return qemu_mem_rd(pa); }
-    void    mem_wr(uint64_t pa, uint8_t val)   { qemu_mem_wr(pa, val); }
+    uint8_t mem_rd(uint64_t pa) {
+      return qemu_mem_rd(pa);
+    }
+
+    void    mem_wr(uint64_t pa, uint8_t val) {
+      qemu_mem_wr(pa, val);
+    }
+
     uint8_t mem_rd_virt(uint64_t va)      { return qemu_mem_rd_virt(va); }
     void    mem_wr_virt(uint64_t va, uint8_t val){ qemu_mem_wr_virt(va, val); }
 

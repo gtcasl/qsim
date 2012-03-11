@@ -14,8 +14,104 @@
 
 #include <qsim.h>
 
+using namespace std;
 using Qsim::OSDomain;
-using std::ostream;
+
+const uint64_t ioapic_base = 0xa0000;
+
+map<uint64_t, string> sysmap;
+
+void read_sys_map(const char* mapfile) {
+  ifstream sysmap_stream;
+  string   t;
+  uint64_t addr;
+  string   sym;
+  
+  sysmap_stream.open(mapfile);
+  
+  for (;;) {
+    sysmap_stream >> std::hex >> addr >> t >> sym;
+    if (!sysmap_stream) break;
+    sysmap[addr] = sym;
+    //cout << "Added 0x" << std::hex << addr << ':' << sym << " to sysmap.\n";  
+  }
+  
+  sysmap_stream.close();
+}
+
+void mk_checksum(OSDomain &osd, uint64_t addr, size_t sumbyte, size_t size) {
+  int sum = 0;
+
+  for (size_t i = 0; i < size; ++i) {
+    if (i != sumbyte) {
+      signed char b;
+      osd.mem_rd(b, addr + i);
+      sum += b;
+      std::cout << std::hex << std::setw(2) << std::setfill('0') << (unsigned)b << ' ';
+    }
+  }
+
+  unsigned char checksum( (-sum)&0xff );
+  osd.mem_wr(checksum, addr + sumbyte);
+  std::cout << "\nChecksum: " << std::hex << std::setw(2) << std::setfill('0') << (unsigned)checksum << '\n';
+}
+
+// Make an SFI table using dirty type punning.
+void mk_sfi_table(OSDomain &osd) {
+  // SFI Table to place at 0xe0000 ()
+  unsigned n = osd.get_n();
+
+  const char *sys_ident = "SYST", *cpu_ident="CPUS", *apic_ident="APIC",
+             *vendor_str = "qsim00";
+
+  uint64_t base = 0xe0000, cput_base = 0xe0030,
+           apic_base = 0xe0030 + 24 + n/4*16;
+
+  // SYST, the system table
+  osd.mem_wr(*(uint32_t*)sys_ident, base);    // "SYST"
+  osd.mem_wr((uint32_t)36, base+4);           // System table length.
+  osd.mem_wr((uint8_t)1, base+8);             // SFI Revision
+
+  for (unsigned i = 0; i < 6; ++i)            // Vendor ID
+    osd.mem_wr(vendor_str[i], base+10+i);
+
+  osd.mem_wr((uint64_t)0x00000000, base+16);  // OEM Table ID  
+  osd.mem_wr(cput_base, base+24);             // Address of CPU table
+  osd.mem_wr(apic_base, base+32);             // Address of APIC table
+
+  mk_checksum(osd, base, 9, 40);
+
+  // CPUS, the CPU table
+  osd.mem_wr(*(uint32_t*)cpu_ident, cput_base);   // "CPUS"
+  osd.mem_wr(uint32_t(24+4*n), cput_base+4);      // CPU table length.
+  osd.mem_wr((uint8_t)1, cput_base+8);            // SFI Revision
+  
+  
+  for (unsigned i = 0; i < 6; ++i)                // Vendor ID
+    osd.mem_wr(vendor_str[i], cput_base+10+i);
+
+  osd.mem_wr((uint64_t)0x00000000, cput_base+16); // OEM Table ID
+  
+  for (unsigned i = 0; i < n; ++i)                // LAPIC ID for each CPU
+    osd.mem_wr((uint32_t)i, cput_base+24+4*i);
+
+  mk_checksum(osd, cput_base, 9, 24+4*n);
+
+  // APIC, the IO-APIC table
+  osd.mem_wr(*(uint32_t*)apic_ident, apic_base);  // "APIC"
+  osd.mem_wr((uint32_t)32, apic_base+4);          // IO-APIC table length.
+  osd.mem_wr((uint8_t)1, apic_base+8);            // SFI Revision.
+
+  for (unsigned i = 0; i < 6; ++i)                // Vendor ID
+    osd.mem_wr(vendor_str[i], apic_base+10+i);
+
+  osd.mem_wr((uint64_t)0x00000000, apic_base+16); // OEM Table ID
+
+  osd.mem_wr((uint64_t)ioapic_base, apic_base+24);// IO-APIC base address.
+
+  mk_checksum(osd, apic_base, 9, 32);
+
+}
 
 class TraceWriter {
 public:
@@ -23,6 +119,7 @@ public:
     osd(osd), tracefile(tracefile), finished(false) 
   { 
     //osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
+    osd.set_inst_cb(this, &TraceWriter::inst_cb);
     osd.set_io_cb(this, &TraceWriter::io_cb);
   }
 
@@ -52,10 +149,19 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
                enum inst_type t)
   {
+    if (sysmap.find(v) != sysmap.end()) 
+      cerr << "===" << sysmap[v] << "()=== - " << std::dec << c << '\n';
+
+#if 0
+    static int count = 0;
+    if (++count != 100000000) return;
+    else count = 0;
+#endif
     _DecodedInst inst[15];
     unsigned int shouldBeOne;
     distorm_decode(0, b, l, Decode32Bits, inst, 15, &shouldBeOne);
 
+#if 0
     tracefile << std::dec << c << ": Inst@(0x" << std::hex << v << "/0x" << p 
               << ", tid=" << std::dec << osd.get_tid(c) << ", "
               << ((osd.get_prot(c) == Qsim::OSDomain::PROT_USER)?"USR":"KRN")
@@ -69,6 +175,7 @@ public:
     else tracefile << inst[0].mnemonic.p << ' ' << inst[0].operands.p;
 
     tracefile << " (" << itype_str[t] << ")\n";
+#endif
   }
 
   void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
@@ -89,7 +196,7 @@ public:
     switch(addr) {
     default:
       std::cout << "Unsupported CMOS address for write.\n";
-      exit(0);
+      //exit(0);
     }
   }
 
@@ -98,7 +205,7 @@ public:
     switch(addr) {
     default:
       std::cout << "Unsupported CMOS address for read.\n";
-      exit(0);
+      //exit(0);
     }
   }
 
@@ -150,7 +257,7 @@ public:
         break;
       default:
         std::cout << "Unsupported port address for write.\n";
-        exit(0);
+        //exit(0);
       }
     } else {
       switch(p) {
@@ -181,7 +288,7 @@ public:
         break;
       default:
         std::cout << "Unsupported port address for read.\n";
-        exit(0);
+        //exit(0);
       }
     }
   }
@@ -224,7 +331,10 @@ int main(int argc, char** argv) {
 
   ofstream *outfile(NULL);
 
-  unsigned n_cpus = 1;
+  unsigned n_cpus = 2;
+
+  // Read in the kernel symtable
+  read_sys_map("../linux64/linux-2.6.34/System.map");
 
   // Read number of CPUs as a parameter. 
   if (argc >= 2) {
@@ -245,8 +355,10 @@ int main(int argc, char** argv) {
     osd_p = new OSDomain(argv[3]);
     n_cpus = osd.get_n();
   } else {
-    osd_p = new OSDomain(n_cpus, "linux/bzImage");
+    osd_p = new OSDomain(n_cpus, "../linux64/bzImage");
   }
+
+  mk_sfi_table(*osd_p);
 
   // Attach a TraceWriter if a trace file is given.
   TraceWriter tw(osd, outfile?*outfile:std::cout);
