@@ -60,6 +60,16 @@ default is /usr/local, which is typically not world-writeable).
 
 $ sudo make install
 
+Building a Basic Set of State Files
+-----------------------------------
+
+To build state files for 1 through 64 CPUs in powers of two, run:
+
+$ ./mkstate.sh
+
+This script can be modified to produce state files for more or fewer CPUs, or with different
+RAM sizes. 3072 megs is necessary to run all of Parsec.
+
 Building QSim Server
 --------------------
 
