@@ -126,3 +126,12 @@
 
 * The benchmarks are no longer part of the main repository, and building kernel
   images is no longer a required part of the QSim build process.
+
+0.1.2
+
+* Fixed compiler specific crashes.
+
+* Added script to make tarballs.
+
+* Fixed bug in set_reg() for flags register.
+
