@@ -51,21 +51,7 @@ void RandomCpu::resp(MemReq *mr) {
 }
 
 template <typename CBObj> struct CallbackAdaptor {
-  CallbackAdaptor(Qsim::OSDomain &osd): osd(osd), ready(false) {
-    osd.set_app_start_cb(this, &CallbackAdaptor::app_start_cb);
-
-    // Fastforward!
-    while (!ready) {
-      for (unsigned i = 0; i < 100; ++i) {
-        for (unsigned j = 0; j < osd.get_n(); ++j) {
-          osd.run(j, 10000);
-          if (ready) break;
-        }
-        if (ready) break;
-      }
-      osd.timer_interrupt();
-    }
-
+  CallbackAdaptor(Qsim::OSDomain &osd): osd(osd), running(true) {
     osd.set_inst_cb(this, &CallbackAdaptor::inst_cb);
     osd.set_mem_cb(this, &CallbackAdaptor::mem_cb);
     osd.set_reg_cb(this, &CallbackAdaptor::reg_cb);
@@ -75,14 +61,10 @@ template <typename CBObj> struct CallbackAdaptor {
 
   void addCpu(CBObj *c) { cpus.push_back(c); }
 
-  bool finished() { return !ready; }
-
-  void app_start_cb(int c) {
-    ready = true;
-  }
+  bool finished() { return !running; }
 
   void app_end_cb(int c) {
-    ready = false;
+    running = false;
   }
 
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, \
@@ -104,7 +86,7 @@ template <typename CBObj> struct CallbackAdaptor {
     return 0;
   }
 
-  bool ready;
+  bool running;
   std::vector<CBObj *> cpus;
   Qsim::OSDomain &osd;
 };

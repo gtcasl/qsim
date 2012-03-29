@@ -4,7 +4,9 @@
 #include "des.h"
 
 #include <qsim.h>
+#include <qsim-load.h>
 
+#include <string>
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -26,22 +28,24 @@ int Main(int argc, char **argv) {
 
   unsigned nCpus, rSeed(0);
   uint64_t nCycles;
+  std::string statefile, benchmark;
 
   // Read arguments; print usage if we don't have the right number.
-  if (argc < 3 || argc > 4 ||
-                    !sstreamRead(nCpus, argv[1]) || nCpus == 0 ||
-                    !sstreamRead(nCycles, argv[2]) ||
-      (argc >= 4 && !sstreamRead(rSeed, argv[3])))
+  if (argc != 4 ||  !sstreamRead(statefile, argv[1]) ||
+                    !sstreamRead(benchmark, argv[2]) ||
+                    !sstreamRead(nCycles, argv[3]))
   {
-    cout << "Usage:\n  " << argv[0] << " <# CPUs> <# Cycles>\n";
+    cout << "Usage:\n  " << argv[0] << " <statefile> <benchmark .tar> <# Cycles>\n";
     return 1;
   }
 
   srand(rSeed);
 
   // Instantiate QSIM with appropriate state file or whatever it needs.
-  Qsim::OSDomain osd(nCpus, "bzImage");
+  Qsim::OSDomain osd(statefile.c_str());
+  nCpus = osd.get_n();
   osd.connect_console(cout);
+  Qsim::load_file(osd, benchmark.c_str());
 
   // Instantiate CPUs.
 #ifdef SIMPLE_CPU
@@ -108,10 +112,11 @@ int Main(int argc, char **argv) {
   } else {
     while (nCycles) {
       unsigned n(nCycles>=1000?1000:nCycles);
-      Slide::_advance(Slide::_now + n);
+      bool finished = !Slide::_advance(Slide::_now + n);
       SimpleSim::Counter::printAll(cout);
       SimpleSim::Counter::resetAll();
       nCycles -= n;
+      if (finished) break;
     }
   }
 
