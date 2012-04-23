@@ -7,8 +7,8 @@
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
 CXXFLAGS = -O2 -g -Idistorm/
-PREFIX = /usr/local
-LDFLAGS = -L$(PREFIX)/lib
+QSIM_PREFIX ?= /usr/local
+LDFLAGS = -L$(QSIM_PREFIX)/lib
 LDLIBS = -lqsim -ldl
 
 all: libqsim.so qsim-fastforwarder
@@ -27,20 +27,22 @@ libqsim.so: qsim.cpp qsim-load.o qsim.h qsim-vm.h mgzd.h qsim-regs.h
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o
 
 install: libqsim.so qsim-fastforwarder
-	mkdir -p $(PREFIX)/lib
-	mkdir -p $(PREFIX)/include
-	mkdir -p $(PREFIX)/bin
-	cp libqsim.so $(PREFIX)/lib/
-	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h qsim-load.h $(PREFIX)/include/
-	cp qsim-fastforwarder $(PREFIX)/bin/
+	mkdir -p $(QSIM_PREFIX)/lib
+	mkdir -p $(QSIM_PREFIX)/include
+	mkdir -p $(QSIM_PREFIX)/bin
+	cp libqsim.so $(QSIM_PREFIX)/lib/
+	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h qsim-load.h                   \
+	   $(QSIM_PREFIX)/include/
+	cp qsim-fastforwarder $(QSIM_PREFIX)/bin/
 ifeq ($(USER),root) # Only need this if we're installing globally as root.
 	/sbin/ldconfig
 endif
 
-uninstall: $(PREFIX)/lib/libqsim.so
-	rm -f $(PREFIX)/lib/libqsim.so $(PREFIX)/include/qsim.h         \
-              $(PREFIX)/include/qsim-vm.h $(PREFIX)/include/qsim-regs.h \
-              $(PREFIX)/bin/qsim-fastforwarder
+uninstall: $(QSIM_PREFIX)/lib/libqsim.so
+	rm -f $(QSIM_PREFIX)/lib/libqsim.so $(QSIM_PREFIX)/include/qsim.h     \
+              $(QSIM_PREFIX)/include/qsim-vm.h                                \
+	      $(QSIM_PREFIX)/include/qsim-regs.h                              \
+              $(QSIM_PREFIX)/bin/qsim-fastforwarder
 
 clean:
 	rm -f *~ \#*\# libqsim.so *.o test qtm qsim-fastforwarder
