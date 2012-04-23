@@ -6,9 +6,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2. See the    #
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
-QSIM_PREFIX = /usr/local
-CXXFLAGS = -O2 -I../distorm/ -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
-LDLIBS = -lqsim -pthread -ldl
+QSIM_PREFIX ?= /usr/local
+CXXFLAGS ?= -O2 -I../distorm/ -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
+LDLIBS ?= -lqsim -pthread -ldl
 
 EXAMPLES = qtm simple simple-client io-test test64
 

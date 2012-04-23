@@ -54,9 +54,20 @@ $ cd ../../../..
 Building Qsim
 -------------
 
-Edit the makefile to change prefix to appropriate directory. "sudo" is only
-required here if this is not a directory normally writeable by your user (the
-default is /usr/local, which is typically not world-writeable).
+If an install prefix other than /usr/local is required, set the QSIM_PREFIX
+environment variable prior to building QSim. "sudo" is only required here if
+this is not a directory normally writeable by your user (the default is
+/usr/local, which is typically not world-writeable).
+
+Optional, to install in a home directory:
+
+$ mkdir ~/qsim-root
+$ mkdir ~/qsim-root/bin
+$ mkdir ~/qsim-root/include
+$ mkdir ~/qsim-root/lib
+$ export QSIM_PREFIX=~/qsim-root
+
+Required:
 
 $ sudo make install
 
@@ -73,12 +84,26 @@ RAM sizes. 3072 megs is necessary to run all of Parsec.
 Building QSim Server
 --------------------
 
-Again, the makefile must be changed if the QSim installation prefix is not
-/usr/local. LD_LIBRARY_PATH must also be set, if the installation prefix is not 
-in the usual path, before the server is run.
+This makefile also uses the QSIM_PREFIX variable, if it is set, otherwise QSIM
+is assumed to reside in /usr/local. Remember to set LD_LIBRARY_PATH before
+running the server, if the installation libary path is not in the library
+search path.
 
 $ cd remote/server
 $ make
+$ cd ../..
+
+There is currently no "install" target for the QSim server, so it must be run
+in place or manually copied as desired.
+
+Building/Installing QSim Client Library
+---------------------------------------
+
+This also respects QSIM_PREFIX, and will install libqsim-client.so and
+qsim-client.h in $QSIM_PREFIX/lib and $QSIM_PREFIX/include respectively.
+
+$ cd remote/server
+$ sudo make install
 $ cd ../..
 
 Building Examples
