@@ -6,7 +6,7 @@
 #include <vector>
 #include <map>
 
-#include "../qsim-net.h"
+#include <qsim-net.h>
 
 namespace Qsim {
 class Client {
