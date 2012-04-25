@@ -102,7 +102,7 @@ Building/Installing QSim Client Library
 This also respects QSIM_PREFIX, and will install libqsim-client.so and
 qsim-client.h in $QSIM_PREFIX/lib and $QSIM_PREFIX/include respectively.
 
-$ cd remote/server
+$ cd remote/client
 $ sudo make install
 $ cd ../..
 
