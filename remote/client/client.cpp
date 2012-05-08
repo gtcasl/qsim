@@ -7,8 +7,10 @@
 using std::cout;
 
 struct CbTester {
+  CbTester(): running(true) {}
+
   int atomic(int cpu) {
-    return 1;
+    return 0;
   }
 
   void inst(int cpu, uint64_t va, uint64_t pa, uint8_t l, const uint8_t *b,
@@ -29,19 +31,27 @@ struct CbTester {
     cout << "Memory op, CPU " << cpu << " va=0x" << std::hex << va << " size="
          << (s&0xff) << ' ' << (t?'W':'R') << '\n';
   }
+
+  void app_end(int cpu) { running = false; }
+
+  bool running;
 } cbtest;
 
 int main(int argc, char **argv) {
-  if (argc != 3) {
-    cout << "Usage: " << argv[0] << " <server> <port>\n";
+  int cpu(-1);
+
+  if (argc != 3 && argc != 4) {
+    cout << "Usage: " << argv[0] << " <server> <port> [core #]\n";
     return 1;
   }
 
   Qsim::Client *qc = new Qsim::Client(client_socket(argv[1], argv[2]));
+  if (argc == 4) cpu = atol(argv[3]);
 
-  qc->set_atomic_cb(&cbtest, &CbTester::atomic);
-  qc->set_inst_cb(&cbtest, &CbTester::inst);
-  qc->set_mem_cb (&cbtest, &CbTester::mem );
+  qc->set_atomic_cb (&cbtest, &CbTester::atomic );
+  qc->set_inst_cb   (&cbtest, &CbTester::inst   );
+  qc->set_mem_cb    (&cbtest, &CbTester::mem    );
+  //qc->set_app_end_cb(&cbtest, &CbTester::app_end);
 
   cout << "Server has " << qc->get_n() << " CPUs.\n";
   for (unsigned i = 0; i < qc->get_n(); i++) {
@@ -51,26 +61,14 @@ int main(int argc, char **argv) {
     cout << "  " << ((qc->get_mode(i))?"Protected mode.\n":"Real mode.\n");
   }
 
-  unsigned *inst_countdown = new unsigned[sizeof(unsigned)*qc->get_n()];
-
-  for (unsigned i = 0; i < 10000; i++) {
-    for (unsigned j = 0; j < qc->get_n(); j++)
-      inst_countdown[j] = (qc->booted(j)?10000000:0);
-
-    bool running;
-    do {
-      for (unsigned j = 0; j < qc->get_n(); j++)
-        inst_countdown[j] -= qc->run(j, inst_countdown[j]);
-    
-      running = false;
-      for (unsigned j = 0; j < qc->get_n(); j++) 
-        if (inst_countdown[j] != 0) running = true;
-    } while(running);
-
-    qc->timer_interrupt();
+  for (unsigned i = 0; i < 100; ++i) { // Run for 100M instructions
+    if (cpu == -1)
+      for (unsigned j = 0; j < qc->get_n(); j++) qc->run(j, 1000000);
+    else
+      qc->run(cpu, 1000000);
+    if (cpu == 0) qc->timer_interrupt();
   }
 
-  delete inst_countdown;
   delete qc;
 
   return 0;

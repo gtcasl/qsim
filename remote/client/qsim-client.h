@@ -11,7 +11,7 @@
 namespace Qsim {
 class Client {
 public:
-  Client(int fd) : sbs(fd) { wait_for_dot(); }
+ Client(int fd) : sbs(new QsimNet::SockHandle(fd)) { wait_for_dot(); }
   ~Client() { sbs << 'x'; }
 
   unsigned run(unsigned short cpu, unsigned insts) {

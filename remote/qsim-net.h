@@ -1,12 +1,17 @@
 #ifndef __QSIM_NET_H
 #define __QSIM_NET_H
 
+#include <map>
+#include <vector>
+
 #include <netinet/tcp.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <string.h>
 #include <stdlib.h>
+
+#define QSIM_NET_BUF_SIZE 32*(1<<20)
 
 #ifdef DEBUG
 #include <iostream>
@@ -29,14 +34,20 @@ static void dump(const char *s, size_t n) {
 #endif
 
 namespace QsimNet {
+  struct SockHandle {
+    SockHandle(int fd): fd(fd), buf_end(buf) {}
+    SockHandle(): buf_end(buf) {}
+    int fd;
+    char buf[QSIM_NET_BUF_SIZE], *buf_end;
+  };
 
-  static bool senddata(int socket_fd, const char *message, size_t n) {
+  static bool raw_senddata(int fd, const char *message, size_t n) {
      while (n > 0) {
 #ifdef DEBUG
-       std::cout << "Send to " << socket_fd << ":\n";
+       std::cout << "Send to " << fd << ":\n";
        dump(message, n);
 #endif
-       int rval = send(socket_fd, message, n, 0);
+       int rval = send(fd, message, n, 0);
        if (rval == -1) {
          return false;
        } else {
@@ -47,11 +58,32 @@ namespace QsimNet {
      return true;
   }
 
-  static bool recvdata(int socket_fd, char *buf, size_t n) {
+  static bool senddata(SockHandle &sock, const char *message, size_t n) {
+    if (sock.buf_end - sock.buf + n > QSIM_NET_BUF_SIZE) {
+      if (!raw_senddata(sock.fd, sock.buf, sock.buf_end - sock.buf))
+        return false;
+      sock.buf_end = sock.buf;
+    }
+
+    memcpy(sock.buf_end, message, n);
+    sock.buf_end += n;
+
+    return true;
+  }
+
+  static bool recvdata(SockHandle &sock, char *buf, size_t n) {
+    // We're turning the link around, so flush the outgoing buffer to prevent
+    // deadlock.
+    if (sock.buf_end > sock.buf) {
+      if (!raw_senddata(sock.fd, sock.buf, sock.buf_end - sock.buf))
+        return false;
+      sock.buf_end = sock.buf;
+    }
+
     while (n > 0) {
-      int rval = recv(socket_fd, buf, n, 0);
+      int rval = recv(sock.fd, buf, n, 0);
 #ifdef DEBUG
-      std::cout << "Recv on " << socket_fd << ":\n";
+      std::cout << "Recv on " << sock.fd << ":\n";
       dump(buf, n);
 #endif
       if (rval == -1) {
@@ -65,28 +97,28 @@ namespace QsimNet {
   }
 
   struct SockBinStream {
-    int fd;
-    SockBinStream(int fd) : fd(fd) {}
+    SockHandle &sock;
+    SockBinStream(SockHandle *s) : sock(*s) {}
   };
 
   struct SockBinStreamError {};
 
-  template <typename T> bool sockBinGet(int socket_fd, T& d) {
-    return recvdata(socket_fd, (char *)&d, sizeof(d));
+  template <typename T> bool sockBinGet(SockHandle &sock, T& d) {
+    return recvdata(sock, (char *)&d, sizeof(d));
   }
 
-  template <typename T> bool sockBinPut(int socket_fd, const T& d) {
-    return senddata(socket_fd, (char *)&d, sizeof(d));
+  template <typename T> bool sockBinPut(SockHandle &sock, const T& d) {
+    return senddata(sock, (char *)&d, sizeof(d));
   }
 
   template <typename T> SockBinStream &operator>>(SockBinStream &g, T& d) {
-    if (!sockBinGet(g.fd, d)) throw SockBinStreamError();
+    if (!sockBinGet(g.sock, d)) throw SockBinStreamError();
     return g;
   }
 
   template <typename T> SockBinStream &operator<<(SockBinStream &g, const T& d) 
   {
-    if (!sockBinPut(g.fd, d)) throw SockBinStreamError();
+    if (!sockBinPut(g.sock, d)) throw SockBinStreamError();
     return g;
   }
 }

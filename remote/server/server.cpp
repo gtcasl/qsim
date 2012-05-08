@@ -15,7 +15,7 @@
 #include <signal.h>
 #include <stdint.h>
 
-#include "../qsim-net.h"
+#include <qsim-net.h>
 
 Qsim::OSDomain *osd;
 
@@ -28,7 +28,7 @@ class ServerThread;
 ServerThread *st;
 
 // Terrible performance-wise, but effective and simple.
-pthread_mutex_t runlock = PTHREAD_MUTEX_INITIALIZER;
+//pthread_mutex_t runlock = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t active_connections_lock = PTHREAD_MUTEX_INITIALIZER;
 unsigned active_connections(0), cpus;
@@ -72,9 +72,9 @@ public:
   }
 
   ~ServerThread() {
-    if (active) senddata(socket_fd, "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", 32);
+    if (active) senddata(sock, "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", 32);
     pthread_mutex_lock(&lock);
-    if (active) close(socket_fd);
+    if (active) close(sock.fd);
     pthread_mutex_unlock(&lock);
   }
 
@@ -89,7 +89,7 @@ public:
       return false;
     }
     active = true;
-    socket_fd = fd;
+    sock.fd = fd;
     pthread_mutex_unlock(&lock);
 
     pthread_create(&pthread, NULL, serverthread_main, (void*)this);
@@ -99,7 +99,7 @@ public:
 
   void main_loop() {
     try {
-      SockBinStream sbs(socket_fd);
+      SockBinStream sbs(&sock);
       sbs << '.';
       while (true) {
         char c;
@@ -109,9 +109,9 @@ public:
         case 'r': { uint16_t i; uint32_t n;
                     sbs >> i >> n; 
                     _cba->start(i, this);
-                    pthread_mutex_lock(&runlock);
+                    //pthread_mutex_lock(&runlock);
                     n = osd->run(i, n);
-                    pthread_mutex_unlock(&runlock);
+                    //pthread_mutex_unlock(&runlock);
                     _cba->finish(i);
                     sbs << '.';
                     sbs << n;
@@ -179,7 +179,7 @@ public:
     }
 
   cleanup:
-    if (active) { close(socket_fd); }
+    if (active) { close(sock.fd); }
     active = false;
     pthread_mutex_lock(&active_connections_lock);
     --active_connections;
@@ -188,7 +188,7 @@ public:
   }
 
   bool get_cb_rval() {
-    SockBinStream sbs(socket_fd);
+    SockBinStream sbs(&sock);
     char c;
     sbs >> c;
     if (c == 'T') return true;
@@ -198,7 +198,7 @@ public:
   int atomic_cb(int cpu_id) {
     if (!active || !atomic_cb_f) return 1;
 
-    SockBinStream sbs(socket_fd);
+    SockBinStream sbs(&sock);
     uint16_t i = cpu_id;
     sbs << 'a' << i;
 
@@ -209,7 +209,7 @@ public:
                uint64_t vaddr, uint64_t paddr, uint8_t len, 
                const uint8_t *bytes, enum inst_type type) 
   {
-    SockBinStream sbs(socket_fd);
+    SockBinStream sbs(&sock);
 
     int tid = osd->get_tid(cpu_id);
     Qsim::OSDomain::cpu_mode mode = osd->get_mode(cpu_id);
@@ -247,7 +247,7 @@ public:
   int int_cb(int cpu_id, uint8_t vec) {
     if (!int_cb_f) return 0;
 
-    SockBinStream sbs(socket_fd);
+    SockBinStream sbs(&sock);
     uint16_t i = cpu_id;
     sbs << 'v' << i << vec;
     return get_cb_rval();
@@ -258,7 +258,7 @@ public:
   {
     if (!mem_cb_f) return;
 
-    SockBinStream sbs(socket_fd);
+    SockBinStream sbs(&sock);
     uint16_t i(cpu_id);
     uint8_t t(type);
     sbs << 'm' << i << vaddr << paddr << size << t;
@@ -267,7 +267,7 @@ public:
   int magic_cb(int cpu_id, uint64_t rax) {
     if (!magic_cb_f) return 0;
 
-    SockBinStream sbs(socket_fd);
+    SockBinStream sbs(&sock);
     uint16_t i(cpu_id);
     sbs << 'g' << i << rax;
     return get_cb_rval();
@@ -276,7 +276,7 @@ public:
   void io_cb(int cpu_id, uint64_t port, uint8_t size, int type, uint32_t val) {
     if (!io_cb_f) return;
 
-    SockBinStream sbs(socket_fd);
+    SockBinStream sbs(&sock);
     uint16_t i(cpu_id); 
     uint8_t t(type);
     sbs << 'o' << i << port << size << t << val;
@@ -285,7 +285,7 @@ public:
   void reg_cb(int cpu_id, int reg, uint8_t size, int type) {
     if (!reg_cb_f) return;
 
-    SockBinStream sbs(socket_fd);
+    SockBinStream sbs(&sock);
     uint16_t i(cpu_id);
     uint32_t r(reg);
     uint8_t  s(size), t(type);
@@ -295,7 +295,7 @@ public:
   void app_end_cb(int cpu_id) {
     if (!app_end_cb_f) return;
 
-    SockBinStream sbs(socket_fd);
+    SockBinStream sbs(&sock);
     uint16_t i(cpu_id);
     sbs << 'e' << i;
   }
@@ -305,7 +305,7 @@ private:
        app_end_cb_f, reg_cb_f;
   pthread_mutex_t lock;
   pthread_cond_t wait_on_connection;
-  int socket_fd;
+  QsimNet::SockHandle sock;
 };
 
 int CallbackAdaptor::atomic_cb(int c) {
@@ -443,7 +443,7 @@ int main(int argc, char** argv) {
     if (active_connections == cpus) {
       // Refuse connection.
       pthread_mutex_unlock(&active_connections_lock);
-      senddata(fd, "x", 1);
+      raw_senddata(fd, "x", 1);
       close(fd); 
       continue;
     }

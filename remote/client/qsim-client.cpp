@@ -41,7 +41,7 @@ void Qsim::Client::process_callbacks() {
                 uint8_t len, *bytes(inst_bytes), type_b;
                 sbs >> i >> vaddr >> paddr >> len >> type_b;
                 enum inst_type type((enum inst_type)type_b);
-                QsimNet::recvdata(sbs.fd, (char *)bytes, len);
+                QsimNet::recvdata(sbs.sock, (char *)bytes, len);
                 for (unsigned I = 0; I < inst_cbs.size(); I++)
                   (*inst_cbs[I])(i, vaddr, paddr, len, inst_bytes, type);
               }
