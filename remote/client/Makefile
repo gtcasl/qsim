@@ -1,11 +1,12 @@
 QSIM_PREFIX ?= /usr/local
 
 client: client.cpp libqsim-client.so
-	g++ -o client -L/usr/local -L. -I/usr/local/include -I../ client.cpp \
-	       qsim-client.cpp -ldl -lqsim -lqsim-client
+	g++ -o client -L$(QSIM_PREFIX)/lib -L. -I$(QSIM_PREFIX)/include -I../ \
+	       client.cpp qsim-client.cpp -ldl -lqsim -lqsim-client
 
 libqsim-client.so: qsim-client.cpp qsim-client.h ../qsim-net.h
-	g++ -fPIC -o libqsim-client.so -shared qsim-client.cpp -I ../
+	g++ -fPIC -o libqsim-client.so -shared qsim-client.cpp -I ../ \
+            -I$(QSIM_PREFIX)/include
 
 install: client libqsim-client.so
 	cp libqsim-client.so $(QSIM_PREFIX)/lib
