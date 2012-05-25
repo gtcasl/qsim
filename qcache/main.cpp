@@ -15,8 +15,8 @@ extern "C" {
 
 class CallbackAdaptor {
 public:
-  CallbackAdaptor(struct cache &c,  Qsim::OSDomain &osd):
-    c(&c), running(true), icount(0), osd(osd)
+  CallbackAdaptor(struct cache &c, struct cache &ic, Qsim::OSDomain &osd):
+    c(&c), ic(&ic), running(true), icount(0), osd(osd)
   {
     
 
@@ -26,17 +26,21 @@ public:
     
     struct cache *p = &c;
     hit.push_back(0);
+    hit.push_back(0);
     do { hit.push_back(0); } while (p = p->next);
   }
 
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, 
                const uint8_t *b, enum inst_type t)
   {
+    ++hit[ac_cache(ic, p, 0) + 1];
     ++icount;
   }
 
   void mem_cb(int core, uint64_t va, uint64_t pa, uint8_t sz, int wr) {
-    ++hit[ac_cache(c, pa, wr)];
+    int hitc = ac_cache(c, pa, wr);
+    if (hitc > 0) ++hitc;
+    ++hit[hitc];
   }
 
   void app_end_cb(int core) {
@@ -56,7 +60,7 @@ public:
 
   
 private:
-  struct cache *c;
+  struct cache *c, *ic;
   std::vector<unsigned> hit;
   unsigned long long icount;
 
@@ -75,13 +79,15 @@ int main(int argc, char** argv) {
   unsigned l1ways = 4, l2ways = 16, l3ways = 32;
 
   // Build a reasonable 3-level cache hierarchy.
-  struct cache c[3];
-  init_cache(&c[0], l1ways, 7, 6); //   32k,  4-way set associative L1
-  init_cache(&c[1], l2ways, 8, 6); //  256k, 16-way set associative L2
-  init_cache(&c[2], l3ways, 13, 6);// 4096k, 32-way set associative L3
+  struct cache c[4];
+  init_cache(&c[0], l1ways, 7, 6); //   32k,  4-way set associative L1-d
+  init_cache(&c[1], l1ways, 7, 6); //   32k,  4-way set associative L1-i
+  init_cache(&c[2], l2ways, 8, 6); //  256k, 16-way set associative L2
+  init_cache(&c[3], l3ways, 13, 6);// 4096k, 32-way set associative L3
 
-  chain_cache(&c[0], &c[1]);
+  chain_cache(&c[0], &c[2]);
   chain_cache(&c[1], &c[2]);
+  chain_cache(&c[2], &c[3]);
 
   Qsim::OSDomain osd(argv[1]);
   std::cout << "State loaded. Loading benchmark.\n";
@@ -89,7 +95,7 @@ int main(int argc, char** argv) {
   Qsim::load_file(osd, argv[2]);
   std::cout << "Benchmark loaded. Running.\n";
 
-  CallbackAdaptor cba(c[0], osd);
+  CallbackAdaptor cba(c[0], c[1], osd);
 
   unsigned long long start_usec = utime();
   while (cba.running) {
