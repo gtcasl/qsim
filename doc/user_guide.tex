@@ -486,6 +486,11 @@ called by the \texttt{TraceWriter} constructor instead, and no start or end
 callbacks are set.
 
 \chapter{Porting Guest Software} \label{chap:porting}
+Note: before porting an application or benchmark suite to QSim, make sure it is 
+not already present in the QSim benchmarks collection. This collection,
+available through the QSim website, contains a growing set of common benchmarks,
+including all of Splash 2 and Parsec.
+
 Currently, there are two available methods for loading guest software into QSim.
 It can be compiled into the kernel image, or it can be transferred to the guest
 environment through the \texttt{initrd/qsim\_io.c} program. With the former 
@@ -502,14 +507,57 @@ manner is in \texttt{examples/test-io.cpp}.
 Porting an application to QSim consists of the following steps:
 
 \begin{itemize}
-  \item{Compile the application for 32-bit Linux, statically linked.}
-  \item{Copy the application and all needed files into \texttt{initrd/sbin}.}
-  \item{Modify the \texttt{initrd/init} script appropriately.}
-  \item{Run \texttt{make} in \texttt{initrd} to build \texttt{initrd.cpio}.}
-  \item{Run \texttt{ARCH=i386 make} in the Linux kernel root to create 
-        \texttt{bzImage}, the kernel image which will be loaded into the QSim
-        address space.}
+  \item{Add an application start callback to the application where the ``region
+        of interest'' begins.}
+  \item{Add an application end callback to the application where the ``region of
+        interest'' ends.}
+  \item{
+    Compile the application for 32-bit Linux, statically linked.
+    \begin{itemize}
+      \item{Create an executable script, called \texttt{runme.sh} that runs the
+            application with appropriate command line arguments.}
+      \item{Place the application, \texttt{runme.sh}, and any required data
+            files or libraries into a \texttt{.tar} archive.}
+    \end{itemize}
+    or
+    \begin{itemize}
+      \item{Copy the application and all needed files into
+            \texttt{initrd/sbin}.}
+      \item{Modify the \texttt{initrd/init} script appropriately.}
+      \item{Run \texttt{make} in \texttt{initrd} to build \texttt{initrd.cpio}.}
+      \item{Run \texttt{ARCH=i386 make} in the Linux kernel root to create 
+            \texttt{bzImage}, the kernel image which will be loaded into the
+            QSim address space.}
+    \end{itemize}
+    }
 \end{itemize}
+
+For all new ports to QSim, the first method is recommended. Running benchmarks
+from \texttt{.tar} archives is faster and more convenient than running them from
+kernel images.
+
+\section{Application Start and End Markers}
+QSim provides callbacks for the start and end of applications. These are used by
+QSim client programs to fast-forward through irrelevant code to the simulation
+\textit{region of interest} (ROI). These can be inserted before and after a
+program by adding, to the init or \texttt{runme.sh} script, the following lines
+before and after the program under test, respectively:
+
+\begin{verbatim}
+        /sbin/mark_app
+
+        /sbin/mark_app end
+\end{verbatim}
+
+If more fine-grained demarcation of the ROI is needed, the following lines of
+GCC-compatible C code can be used, at the start and end of the ROI,
+respectively:
+
+\begin{verbatim}
+        __asm__ __volatile__("cpuid;"::"a"(0xaaaaaaaa));
+
+        __asm__ __volatile__("cpuid;"::"a"(0xfa11dead));
+\end{verbatim}
 
 \section{Compiling for QSim}
 On a 64-bit host, creating 32-bit statically-linked binaries is a matter of 
