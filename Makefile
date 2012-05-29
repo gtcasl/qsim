@@ -11,6 +11,8 @@ QSIM_PREFIX ?= /usr/local
 LDFLAGS = -L$(QSIM_PREFIX)/lib
 LDLIBS = -lqsim -ldl
 
+QEMU_DIR=qemu-0.12.3
+
 all: libqsim.so qsim-fastforwarder
 
 statesaver.o: statesaver.cpp statesaver.h qsim.h
@@ -34,6 +36,8 @@ install: libqsim.so qsim-fastforwarder
 	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h qsim-load.h                   \
 	   $(QSIM_PREFIX)/include/
 	cp qsim-fastforwarder $(QSIM_PREFIX)/bin/
+	cp $(QEMU_DIR)/x86_64-softmmu/qemu-system-x86_64 \
+	   $(QSIM_PREFIX)/lib/libqemu-qsim.so
 ifeq ($(USER),root) # Only need this if we're installing globally as root.
 	/sbin/ldconfig
 endif

@@ -48,6 +48,28 @@ static inline void read_data_chunk(FILE*    f,
   fread(ptr, size, 1, f);
 }
 
+// Find the libqemu-qsim.so library.
+#define MAX_QEMU_PATH_LEN 512
+const char *get_qemu_lib() {
+  static char outstr[MAX_QEMU_PATH_LEN];
+  outstr[0] = '\0';
+
+  const char *suffix = "/lib/libqemu-qsim.so";
+  char *qsim_prefix = getenv("QSIM_PREFIX");
+
+  if (!qsim_prefix) qsim_prefix = "/usr/local";
+
+  if (strlen(qsim_prefix) + strlen(suffix) > MAX_QEMU_PATH_LEN) {
+    std::cerr << "Path to libqemu-qsim.so too long.";
+    exit(1);
+  } else {
+    strcat(outstr, qsim_prefix);
+    strcat(outstr, suffix);
+  }
+
+  return outstr;
+}
+
 // Put the vtable for Cpu here.
 Qsim::Cpu::~Cpu() {}
 
@@ -128,7 +150,7 @@ Qsim::QemuCpu::QemuCpu(int id,
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
   // Load the library file and get pointers
-  load_and_grab_pointers("./libqemu.so");
+  load_and_grab_pointers(get_qemu_lib());
 
   // Initialize Qemu library
   qemu_init(NULL, ram_size_ss.str().c_str(), id);
@@ -155,7 +177,7 @@ Qsim::QemuCpu::QemuCpu(int id,
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
-  load_and_grab_pointers("./libqemu.so");
+  load_and_grab_pointers(get_qemu_lib());
   qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id);
   ramdesc = master_cpu->ramdesc;
 
@@ -176,7 +198,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
   // Load the library file and get pointers.
-  load_and_grab_pointers("./libqemu.so");
+  load_and_grab_pointers(get_qemu_lib());
 
   // Initialize Qemu library
   qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id);
@@ -199,7 +221,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb) :
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
-  load_and_grab_pointers("./libqemu.so");
+  load_and_grab_pointers(get_qemu_lib());
 
   qemu_init(NULL, ram_size_ss.str().c_str(), id);
   ramdesc = *ramdesc_p;
