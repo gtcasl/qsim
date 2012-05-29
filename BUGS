@@ -1,4 +1,6 @@
-* Temporary files are not deleted when a QSIM-using program exits unexpectedly.
+* Temporary files are not deleted when a QSIM-using program exits, unexpectedly
+  or otherwise. Attempts to delete the files, even after they are dlclosed()
+  have caused bus errors. This could perhaps be fixed by a cleanup function.
 
 * The temporary filenames created in mgzd.h are not safe. The tempnam() 
   function is used for their creation, which leads to a race condition. 

@@ -135,3 +135,22 @@
 
 * Fixed bug in set_reg() for flags register.
 
+0.1.3
+
+* Re-packaged QSim client as a library, which is installed to $QSIM_PREFIX/lib
+  by the remote/client/ makefile.
+
+* Makefiles now (mostly) respect $QSIM_PREFIX
+
+0.1.4
+
+* Fixed bug in QSim client; now respects $QSIM_PREFIX.
+
+* The QEMU library is now placed in $QSIM_PREFIX/lib and found relative to
+  $QSIM_PREFIX/lib (if set) or /usr/local/lib by libqsim.so. This finally
+  eliminates the need to have a symlink called libqemu.so in the working
+  directory.
+
+* Added simple zero-run compression to state file save/load functions. The
+  result is a massive space savings in state files (with 3GB of guest RAM,
+  files were 3GB, now they're ~28MB).
