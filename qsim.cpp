@@ -55,7 +55,7 @@ const char *get_qemu_lib() {
   outstr[0] = '\0';
 
   const char *suffix = "/lib/libqemu-qsim.so";
-  char *qsim_prefix = getenv("QSIM_PREFIX");
+  const char *qsim_prefix = getenv("QSIM_PREFIX");
 
   if (!qsim_prefix) qsim_prefix = "/usr/local";
 
@@ -68,6 +68,58 @@ const char *get_qemu_lib() {
   }
 
   return outstr;
+}
+
+// Simple zero-run compression for state files. We could use libz, but avoiding
+// dependencies is the name of the game.
+//
+// Format: Each zero byte is followed by a 16-bit little endian runlength for
+// additional zeros.
+void zrun_compress_read(std::istream &f, void *data, size_t n) {
+  uint8_t *d((uint8_t*)data);
+  const uint8_t *end(d + n);
+
+  while (d < end && f.good()) {
+    uint8_t next = f.get();
+    *(d++) = next;
+    if (next == '\0') {
+      uint16_t runlen = uint8_t(f.get()) | (uint8_t(f.get())<<8);
+      for (unsigned i = 0; i < runlen && n; ++i) { *(d++) = '\0'; }
+    }
+  }
+
+  if (d != end) {
+    std::cerr << "Zero-run decoding of input failed.\n";
+    exit(1);
+  }
+}
+
+void zrun_compress_write(std::ostream &f, const void *data, size_t n) {
+  const uint8_t *d((const uint8_t *)data),
+                *end(d + n);
+
+  while (d < end) {
+    char next = *(d++);
+    f.put(next);
+    if (next == '\0') {
+      uint16_t count = 0;
+      while (d < end && *d == '\0') {
+        ++d;
+        if (count == 0xffff) {
+          f.put(0xff); f.put(0xff); f.put(0x00);
+          count = 0;
+        } else {
+          ++count;
+        }
+      }
+      f.put(count & 0xff); f.put(count>>8);
+    }
+  }
+
+  if (d != end) {
+    std::cerr << "Zero-run encoding of output failed.\n";
+    exit(1);
+  }
 }
 
 // Put the vtable for Cpu here.
@@ -227,9 +279,9 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb) :
   ramdesc = *ramdesc_p;
 
   // Read RAM state.
-  file.read((char*)ramdesc->low_mem_ptr, ramdesc->low_mem_sz);
-  file.read((char*)ramdesc->below_4g_ptr, ramdesc->below_4g_sz);
-  file.read((char*)ramdesc->above_4g_ptr, ramdesc->above_4g_sz);
+  zrun_compress_read(file, (void*)ramdesc->low_mem_ptr, ramdesc->low_mem_sz);
+  zrun_compress_read(file, (void*)ramdesc->below_4g_ptr, ramdesc->below_4g_sz);
+  zrun_compress_read(file, (void*)ramdesc->above_4g_ptr, ramdesc->above_4g_sz);
 
   // TODO: The following should be moved to a utility function
   for (int i = 0; i < QSIM_N_REGS; i++) {
@@ -356,9 +408,9 @@ void Qsim::OSDomain::save_state(std::ostream &o) {
   o.write((const char*)&n_cores, sizeof(n_cores));
   o.write((const char*)&ram_size_mb, sizeof(ram_size_mb));
 
-  o.write((const char*)ramdesc.low_mem_ptr, ramdesc.low_mem_sz);
-  o.write((const char*)ramdesc.below_4g_ptr, ramdesc.below_4g_sz);
-  o.write((const char*)ramdesc.above_4g_ptr, ramdesc.above_4g_sz);
+  zrun_compress_write(o,(const void*)ramdesc.low_mem_ptr,ramdesc.low_mem_sz);
+  zrun_compress_write(o,(const void*)ramdesc.below_4g_ptr,ramdesc.below_4g_sz);
+  zrun_compress_write(o,(const void*)ramdesc.above_4g_ptr,ramdesc.above_4g_sz);
 
   for (unsigned i = 0; i < n_cores; i++) cpus[i]->save_state(o);
 }
