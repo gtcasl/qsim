@@ -1,8 +1,11 @@
 QSIM_PREFIX ?= /usr/local
 
-server: server.cpp ../qsim-net.h
+qsim-server: server.cpp ../qsim-net.h
 	g++ -pthread -g -L$(QSIM_PREFIX)/lib -I$(QSIM_PREFIX)/include -I../ \
-	    -o server server.cpp -ldl -lqsim
+	    -o qsim-server server.cpp -ldl -lqsim
+
+install: qsim-server
+	cp qsim-server $(QSIM_PREFIX)/bin
 
 clean: 
-	rm -f server *~
+	rm -f qsim-server *~
