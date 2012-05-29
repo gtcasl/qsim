@@ -1,4 +1,4 @@
-QSIM_PREFIX=/usr/local
+QSIM_PREFIX?=/usr/local
 
 # Choose a CXXFLAGS. One for production, one for profiling, and one for debug.
 CXXFLAGS = -O3 -I$(QSIM_PREFIX)/include
