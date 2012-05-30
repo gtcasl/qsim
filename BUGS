@@ -14,3 +14,7 @@
 * There is currently no way to broadcast a translation cache flush. This means
   that one CPU can overwrite code that another has already cached and this
   change will not propagate. Luckily this seems to be rare.
+
+* The server doesn't handle application exit gracefully. It should probably
+  also exit, since no further instructions will be needed. Otherwise, it
+  continues to run after the client exists, creating a problem.
