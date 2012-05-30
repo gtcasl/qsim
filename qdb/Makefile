@@ -6,8 +6,10 @@
 # This work is licensed under the terms of the GNU GPL, version 2. See the    #
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
-CXXFLAGS=-g -pthread -I../distorm/
-LDFLAGS=-pthread -lreadline -ltermcap -ldl -lqsim
+QSIM_PREFIX ?= /usr/local/
+CXXFLAGS = -g -pthread -I../distorm/ -I$(QSIM_PREFIX)/include
+LDFLAGS= -L$(QSIM_PREFIX)/lib
+LDLIBS = -pthread -lreadline -ltermcap -ldl -lqsim
 OBJS = qdb.o lex.yy.o parser.tab.o help.o ../distorm/distorm64.a
 
 #Killed making docs by default because the output is annoying/Doxygen isn't
@@ -15,7 +17,7 @@ OBJS = qdb.o lex.yy.o parser.tab.o help.o ../distorm/distorm64.a
 all: qdb
 
 qdb: $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(OBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 parser.tab.cpp tok.h: parser.ypp
 	bison -v --defines=tok.h parser.ypp
