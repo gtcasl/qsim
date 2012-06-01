@@ -28,12 +28,13 @@ qsim-fastforwarder: fastforwarder.cpp statesaver.o statesaver.h libqsim.so
 libqsim.so: qsim.cpp qsim-load.o qsim.h qsim-vm.h mgzd.h qsim-regs.h 
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o
 
-install: libqsim.so qsim-fastforwarder
+install: libqsim.so qsim-fastforwarder qsim.h qsim-vm.h mgzd.h qsim-regs.h \
+	 qsim-load.h qsim-lock.h
 	mkdir -p $(QSIM_PREFIX)/lib
 	mkdir -p $(QSIM_PREFIX)/include
 	mkdir -p $(QSIM_PREFIX)/bin
 	cp libqsim.so $(QSIM_PREFIX)/lib/
-	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h qsim-load.h                   \
+	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h qsim-load.h qsim-lock.h \
 	   $(QSIM_PREFIX)/include/
 	cp qsim-fastforwarder $(QSIM_PREFIX)/bin/
 	cp $(QEMU_DIR)/x86_64-softmmu/qemu-system-x86_64 \
@@ -46,6 +47,8 @@ uninstall: $(QSIM_PREFIX)/lib/libqsim.so
 	rm -f $(QSIM_PREFIX)/lib/libqsim.so $(QSIM_PREFIX)/include/qsim.h     \
               $(QSIM_PREFIX)/include/qsim-vm.h                                \
 	      $(QSIM_PREFIX)/include/qsim-regs.h                              \
+              $(QSIM_PREFIX)/include/qsim-load.h                              \
+              $(QSIM_PREFIX)/include/qsim-lock.h                              \
               $(QSIM_PREFIX)/bin/qsim-fastforwarder
 
 clean:

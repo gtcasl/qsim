@@ -15,6 +15,7 @@ extern "C" {
 #include <pthread.h>
 
 #include "qsim-regs.h"
+#include "qsim-lock.h"
 
 typedef void     (*inst_cb_t)  (int            cpu_id,
                                 uint64_t       vaddr,
@@ -55,7 +56,7 @@ typedef struct {
   size_t   below_4g_sz ;
   uint8_t *above_4g_ptr;
   size_t   above_4g_sz ;
-  pthread_rwlock_t atomic_lock;
+  qsim_lockstruct l;
 } qemu_ramdesc_t;
 
 #ifdef __cplusplus

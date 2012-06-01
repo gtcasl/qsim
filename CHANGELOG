@@ -154,3 +154,10 @@
 * Added simple zero-run compression to state file save/load functions. The
   result is a massive space savings in state files (with 3GB of guest RAM,
   files were 3GB, now they're ~28MB).
+
+0.1.5
+
+* Improved multithreaded support in QEMU. The global lock has been replaced with
+  smaller-grained readers/writer locks interleaved on cache line boundaries. The
+  locking infrastructure has been moved to a header file, qsim-lock.h, where it
+  can be further tweaked independently of the QEMU modifications.

@@ -18,15 +18,18 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <sys/time.h>
+
 #include "distorm.h"
-#include "qsim.h"
+#include <qsim.h>
+#include <qsim-load.h>
 
 using std::cout; using std::vector; using std::ofstream; using std::string;
 using Qsim::OSDomain; using std::map;
 
 const unsigned BRS_PER_MILN  = 1            ;
 const unsigned MILLION_INSTS = 48000        ;
-const unsigned N_CPUS        = 16           ;
+const unsigned MAX_CPUS      = 256          ;
 
 pthread_mutex_t   output_mutex      = PTHREAD_MUTEX_INITIALIZER;
 pthread_barrier_t cpu_barrier1;
@@ -40,8 +43,17 @@ struct thread_arg_t {
   uint64_t  icount;
 };
 
-vector<thread_arg_t*> thread_args(N_CPUS);
-vector<pthread_t   *> threads    (N_CPUS);
+vector<thread_arg_t*> thread_args(MAX_CPUS);
+vector<pthread_t   *> threads    (MAX_CPUS);
+
+static inline unsigned long long utime() {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return 1000000l*tv.tv_sec + tv.tv_usec;
+}
+
+bool app_finished = false;
+unsigned long long start_time, end_time;
 
 void *cpu_thread_main(void* thread_arg) {
   void mem_cb(int cpu, uint64_t vaddr, uint64_t paddr, uint8_t size, int type);
@@ -54,7 +66,8 @@ void *cpu_thread_main(void* thread_arg) {
   if (arg->cpu == 0) cout << "QTM threads ready.\n";
 
   // Outer loop: run for MILLION_INSTS million instructions
-  for (unsigned i = 0; i < MILLION_INSTS * BRS_PER_MILN; i++) {
+  for (unsigned i = 0; i < MILLION_INSTS * BRS_PER_MILN && !app_finished; i++)
+  {
     unsigned countdown = 1000000/BRS_PER_MILN;
     while (countdown > 0) {
       int rval = arg->cd->run(arg->cpu, countdown);
@@ -75,6 +88,10 @@ void *cpu_thread_main(void* thread_arg) {
          " stopping at 0x" << std::hex << std::setfill('0') << std::setw(8)
                << last_rip << "(TID=" << std::dec << last_tid << ')' 
                << (kernel?"-kernel\n":"\n");
+        tout << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RAX) << ", "
+             << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RCX) << ", "
+             << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RBX) << ", "
+             << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RDX) << '\n';
         pthread_mutex_unlock(&output_mutex);
       }
 
@@ -94,7 +111,7 @@ void *cpu_thread_main(void* thread_arg) {
 
   return NULL;
 }
-
+struct cb_struct {
 void inst_cb(int            cpu_id, 
 	     uint64_t       vaddr,
 	     uint64_t       paddr, 
@@ -155,24 +172,39 @@ void mem_cb(int cpu_id, uint64_t vaddr, uint64_t paddr, uint8_t size, int type)
   pthread_mutex_unlock(&output_mutex);
 }
 
+  void end_cb(int c) { app_finished = true; }
+
+} cb_obj;
+
 int main(int argc, char** argv) {
   // Open trace file.
   tout.open("EXEC_TRACE");
   if (!tout) { cout << "Could not open EXEC_TRACE for writing.\n"; exit(1); }
 
-  // Init. sync objects
-  pthread_barrier_init(&cpu_barrier1, NULL, N_CPUS);
-  pthread_barrier_init(&cpu_barrier2, NULL, N_CPUS);
-
   // Create a runnable OSDomain.
-  OSDomain cd(N_CPUS, "linux/bzImage", 3*1024);
-  cd.set_inst_cb    (inst_cb  );
-  cd.set_int_cb     (int_cb   );
-  cd.set_mem_cb     (NULL     );
-  cd.connect_console(cout     );
+  OSDomain *cdp;
+  OSDomain &cd(*cdp);
+  if (argc < 3) {
+    cdp = new OSDomain(MAX_CPUS, "linux/bzImage", 3*1024);
+  } else {
+    cdp = new OSDomain(argv[1]);
+    cout << "Loaded state. Reading benchmark.\n";
+    Qsim::load_file(cd, argv[2]);
+    cout << "Loaded benchmark .tar file.\n";
+  }
+  cd.set_inst_cb(&cb_obj, &cb_struct::inst_cb);
+  cd.set_int_cb(&cb_obj, &cb_struct::int_cb);
+  cd.set_app_end_cb(&cb_obj, &cb_struct::end_cb);
+  cd.connect_console(cout);
+
+  // Init. sync objects 
+  pthread_barrier_init(&cpu_barrier1, NULL, cd.get_n());
+  pthread_barrier_init(&cpu_barrier2, NULL, cd.get_n());
+
 
   // Launch threads
-  for (unsigned i = 0; i < N_CPUS; i++) {
+  start_time = utime();
+  for (unsigned i = 0; i < cd.get_n(); i++) {
     threads[i]     = new pthread_t    ;
     thread_args[i] = new thread_arg_t ;
 
@@ -184,18 +216,20 @@ int main(int argc, char** argv) {
   }
 
   // Wait for threads to end
-  for (unsigned i = 0; i < N_CPUS; i++) pthread_join(*threads[i], NULL);
+  for (unsigned i = 0; i < cd.get_n(); i++) pthread_join(*threads[i], NULL);
+  end_time = utime();
 
   // Print stats.
-  for (int i = 0; i < N_CPUS; i++) {
+  for (int i = 0; i < cd.get_n(); i++) {
     cout << "CPU " << i << ": " << thread_args[i]->icount 
          << " instructions.\n";
   }
+  cout << end_time - start_time << "us\n";
 
   // Clean up.
   pthread_barrier_destroy(&cpu_barrier1);
   pthread_barrier_destroy(&cpu_barrier2);
-  for (unsigned i = 0; i < N_CPUS; i++) { 
+  for (unsigned i = 0; i < cd.get_n(); i++) { 
     delete threads[i]; 
     delete thread_args[i];
   }
