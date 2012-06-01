@@ -25,11 +25,12 @@ qsim-fastforwarder: fastforwarder.cpp statesaver.o statesaver.h libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -I ./ -L ./ -pthread \
                -o qsim-fastforwarder fastforwarder.cpp statesaver.o $(LDLIBS)
 
-libqsim.so: qsim.cpp qsim-load.o qsim.h qsim-vm.h mgzd.h qsim-regs.h 
+libqsim.so: qsim.cpp qsim-load.o qsim.h qsim-vm.h qsim-lock.h mgzd.h \
+            qsim-regs.h qsim-rwlock.h
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o
 
 install: libqsim.so qsim-fastforwarder qsim.h qsim-vm.h mgzd.h qsim-regs.h \
-	 qsim-load.h qsim-lock.h
+	 qsim-load.h qsim-lock.h qsim-rwlock.h
 	mkdir -p $(QSIM_PREFIX)/lib
 	mkdir -p $(QSIM_PREFIX)/include
 	mkdir -p $(QSIM_PREFIX)/bin
@@ -44,12 +45,13 @@ ifeq ($(USER),root) # Only need this if we're installing globally as root.
 endif
 
 uninstall: $(QSIM_PREFIX)/lib/libqsim.so
-	rm -f $(QSIM_PREFIX)/lib/libqsim.so $(QSIM_PREFIX)/include/qsim.h     \
-              $(QSIM_PREFIX)/include/qsim-vm.h                                \
-	      $(QSIM_PREFIX)/include/qsim-regs.h                              \
-              $(QSIM_PREFIX)/include/qsim-load.h                              \
-              $(QSIM_PREFIX)/include/qsim-lock.h                              \
-              $(QSIM_PREFIX)/bin/qsim-fastforwarder
+	rm -f $(QSIM_PREFIX)/lib/libqsim.so $(QSIM_PREFIX)/include/qsim.h \
+              $(QSIM_PREFIX)/include/qsim-vm.h                            \
+	      $(QSIM_PREFIX)/include/qsim-regs.h                          \
+              $(QSIM_PREFIX)/include/qsim-load.h                          \
+              $(QSIM_PREFIX)/include/qsim-lock.h                          \
+	      $(QSIM_PREFIX)/include/qsim-rwlock.h                        \
+	      $(QSIM_PREFIX)/bin/qsim-fastforwarder
 
 clean:
 	rm -f *~ \#*\# libqsim.so *.o test qtm qsim-fastforwarder
