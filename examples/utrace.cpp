@@ -14,6 +14,7 @@
 #include "distorm.h"
 
 #include <qsim.h>
+#include <qsim-load.h>
 
 #ifdef QSIM_REMOTE
 #include "../remote/client/qsim-client.h"
@@ -21,6 +22,7 @@ using Qsim::Client;
 #define QSIM_OBJECT Client
 #else
 using Qsim::OSDomain;
+using Qsim::load_file;
 #define QSIM_OBJECT OSDomain
 #endif
 
@@ -189,6 +191,12 @@ int main(int argc, char** argv) {
 
   unsigned n_cpus = 1;
 
+  if (argc == 1) {
+    std::cout << "Usage:\n  " << argv[0] << " <# CPUs> "
+                 "[[[trace] state] benchmark.tar]\n";
+    return 0;
+  }
+
 #ifndef QSIM_REMOTE
   // Read number of CPUs as a parameter. 
   if (argc >= 2) {
@@ -215,6 +223,10 @@ int main(int argc, char** argv) {
     n_cpus = osd.get_n();
   } else {
     osd_p = new OSDomain(n_cpus, "linux/bzImage");
+  }
+
+  if (argc >= 5) {
+    load_file(osd, argv[4]);
   }
 #endif
 
