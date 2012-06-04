@@ -157,7 +157,8 @@
 
 0.1.5
 
-* Improved multithreaded support in QEMU. The global lock has been replaced with
-  smaller-grained readers/writer locks interleaved on cache line boundaries. The
-  locking infrastructure has been moved to a header file, qsim-lock.h, where it
-  can be further tweaked independently of the QEMU modifications.
+* Improved multithreaded support in QEMU. The global lock has been replaced
+  with smaller-grained readers/writer locks interleaved on cache line
+  boundaries. The locking infrastructure has been moved to a header file,
+  qsim-lock.h, where it can be further tweaked independently of the QEMU
+  modifications.

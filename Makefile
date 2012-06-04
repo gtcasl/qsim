@@ -36,7 +36,7 @@ install: libqsim.so qsim-fastforwarder qsim.h qsim-vm.h mgzd.h qsim-regs.h \
 	mkdir -p $(QSIM_PREFIX)/bin
 	cp libqsim.so $(QSIM_PREFIX)/lib/
 	cp qsim.h qsim-vm.h mgzd.h qsim-regs.h qsim-load.h qsim-lock.h \
-	   $(QSIM_PREFIX)/include/
+           qsim-rwlock.h $(QSIM_PREFIX)/include/
 	cp qsim-fastforwarder $(QSIM_PREFIX)/bin/
 	cp $(QEMU_DIR)/x86_64-softmmu/qemu-system-x86_64 \
 	   $(QSIM_PREFIX)/lib/libqemu-qsim.so
