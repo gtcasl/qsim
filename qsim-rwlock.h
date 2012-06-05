@@ -5,9 +5,19 @@
 #define __QSIM_RWLOCK_H
 
 #define QSIM_RWLOCK_BIAS 0x10000
-#define QSIM_RWLOCK_INIT QSIM_RWLOCK_BIAS
 
-typedef int qsim_rwlock_t;
+#define QSIM_PADDED_LOCKS
+
+typedef struct qsim_rwlock {
+  int i;
+#ifdef QSIM_PADDED_LOCKS
+  int _padding[15]; /* With padding, there is one lock per cache line. */
+#endif
+} qsim_rwlock_t;
+
+static inline void qsim_rwlock_init(qsim_rwlock_t *l) {
+  l->i = QSIM_RWLOCK_BIAS;
+}
 
 static inline void qsim_rwlock_rdlock(qsim_rwlock_t *l) {
   __asm__ __volatile__ ("1: lock subl $1,(%0);\n"
@@ -17,7 +27,7 @@ static inline void qsim_rwlock_rdlock(qsim_rwlock_t *l) {
                         "cmpl $1, (%0);\n"
                         "js 2b;\n"
                         "jmp 1b;\n"
-                        "3:\n":: "a"(l): "memory");
+                        "3:\n":: "a"(&l->i): "memory");
 }
 
 static inline void qsim_rwlock_wrlock(qsim_rwlock_t *l) {
@@ -29,17 +39,17 @@ static inline void qsim_rwlock_wrlock(qsim_rwlock_t *l) {
                         "jnz 2b;\n"
                         "jmp 1b;\n"
                         "3:\n"::
-                        "a"(l), "i"(QSIM_RWLOCK_BIAS): "memory");
+                        "a"(&l->i), "i"(QSIM_RWLOCK_BIAS): "memory");
 }
 
 static inline void qsim_rwlock_rdunlock(qsim_rwlock_t *l) {
-  __asm__ __volatile__ ("lock addl $1, (%0);\n":: "a"(l): "memory");
+  __asm__ __volatile__ ("lock addl $1, (%0);\n":: "a"(&l->i): "memory");
 
 }
 
 static inline void qsim_rwlock_wrunlock(qsim_rwlock_t *l) {
   __asm__ __volatile__ ("lock addl %1,(%0);\n"::
-                        "a"(l), "i"(QSIM_RWLOCK_BIAS): "memory");
+                        "a"(&l->i), "i"(QSIM_RWLOCK_BIAS): "memory");
 }
 
 #endif

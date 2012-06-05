@@ -11,6 +11,7 @@
 
 #ifdef QSIM_USE_PTHREAD_RWLOCK
 #include <pthread.h>
+#include <stdint.h>
 typedef pthread_rwlock_t qsim_rwlock_t;
 #define qsim_rwlock_init(l) do { pthread_rwlock_init((l), NULL); } while (0)
 #define qsim_rwlock_rdlock(l) do { pthread_rwlock_rdlock(l); } while (0)
@@ -19,14 +20,13 @@ typedef pthread_rwlock_t qsim_rwlock_t;
 #define qsim_rwlock_rdunlock(l) do { pthread_rwlock_unlock(l); } while (0)
 #else
 #include "qsim-rwlock.h"
-#define qsim_rwlock_init(l) do { *(l) = QSIM_RWLOCK_INIT; } while (0)
 #endif
 
-#define QSIM_N_RWLOCKS 1024
+#define QSIM_N_RWLOCKS 0x10000
 
 typedef struct {
   qsim_rwlock_t  locks[QSIM_N_RWLOCKS];
-} qsim_lockstruct;
+} qsim_lockstruct __attribute__ ((aligned(64)));
 
 static inline void qsim_lock_init(qsim_lockstruct *l) {
   unsigned i;
@@ -34,7 +34,8 @@ static inline void qsim_lock_init(qsim_lockstruct *l) {
 }
 
 static inline size_t qsim_lock_idx(uint64_t addr) {
-  return (addr>>6)%QSIM_N_RWLOCKS;
+  return ((addr & 0xffff)      ^ ((addr>>16) & 0xffff)) ^
+        (((addr>>32) & 0xffff) ^ ((addr>>40) & 0xffff));
 }
 
 static inline void qsim_lock_addr(qsim_lockstruct *l, uint64_t addr) {

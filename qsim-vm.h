@@ -56,7 +56,7 @@ typedef struct {
   size_t   below_4g_sz ;
   uint8_t *above_4g_ptr;
   size_t   above_4g_sz ;
-  qsim_lockstruct l;
+  qsim_lockstruct *l;
 } qemu_ramdesc_t;
 
 #ifdef __cplusplus

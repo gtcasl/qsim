@@ -1,6 +1,6 @@
 diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
 --- qemu-0.12.3/cpu-all.h	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/cpu-all.h	2012-06-01 09:01:50.570224530 -0700
++++ qemu-0.12.3-qsim/cpu-all.h	2012-06-04 06:35:48.786454786 -0700
 @@ -16,9 +16,13 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
@@ -28,7 +28,7 @@ diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
  #define ldub_raw(p) ldub_p(laddr((p)))
 diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
 --- qemu-0.12.3/cpu-common.h	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/cpu-common.h	2012-06-01 09:01:50.570224530 -0700
++++ qemu-0.12.3-qsim/cpu-common.h	2012-06-04 06:35:48.786454786 -0700
 @@ -29,6 +29,7 @@
  }
  
@@ -39,7 +39,7 @@ diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
  /* This should only be used for ram local to a device.  */
 diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
 --- qemu-0.12.3/cpu-exec.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/cpu-exec.c	2012-06-01 09:01:50.570224530 -0700
++++ qemu-0.12.3-qsim/cpu-exec.c	2012-06-04 06:35:48.790454786 -0700
 @@ -38,6 +38,11 @@
  #endif
  #endif
@@ -91,7 +91,7 @@ diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
      /* never comes here */
 diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
 --- qemu-0.12.3/exec.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/exec.c	2012-06-01 09:01:50.570224530 -0700
++++ qemu-0.12.3-qsim/exec.c	2012-06-04 06:35:48.790454786 -0700
 @@ -438,7 +438,7 @@
  
          flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -138,7 +138,7 @@ diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
      RAMBlock *new_block;
 diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
 --- qemu-0.12.3/hw/apic.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/hw/apic.c	2012-06-01 09:01:50.574224530 -0700
++++ qemu-0.12.3-qsim/hw/apic.c	2012-06-04 06:35:48.790454786 -0700
 @@ -185,7 +185,7 @@
  void apic_deliver_pic_intr(CPUState *env, int level)
  {
@@ -240,18 +240,20 @@ diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
      qemu_register_reset(apic_reset, s);
 diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 --- qemu-0.12.3/hw/pc.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/hw/pc.c	2012-06-01 09:01:50.574224530 -0700
-@@ -45,6 +45,9 @@
++++ qemu-0.12.3-qsim/hw/pc.c	2012-06-05 06:24:17.651725063 -0700
+@@ -45,6 +45,11 @@
  #include "loader.h"
  #include "elf.h"
  
 +#include "qsim-vm.h"
 +extern int               qsim_qemu_is_slave;
++extern qemu_ramdesc_t   *qsim_ram;
++extern qsim_lockstruct  *qsim_ram_l;
 +
  /* output Bochs bios info messages */
  //#define DEBUG_BIOS
  
-@@ -65,8 +68,8 @@
+@@ -65,8 +70,8 @@
  #define MAX_IDE_BUS 2
  
  static fdctrl_t *floppy_controller;
@@ -262,7 +264,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  static PCII440FXState *i440fx_state;
  
  typedef struct isa_irq_state {
-@@ -158,216 +161,6 @@
+@@ -158,216 +163,6 @@
  
  #define REG_EQUIPMENT_BYTE          0x14
  
@@ -479,7 +481,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  void ioport_set_a20(int enable)
  {
      /* XXX: send to all CPUs ? */
-@@ -986,7 +779,7 @@
+@@ -986,7 +781,7 @@
      ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
      int bios_size, isa_bios_size;
      PCIBus *pci_bus;
@@ -488,7 +490,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
      int piix3_devfn = -1;
      CPUState *env;
      qemu_irq *cpu_irq;
-@@ -997,6 +790,8 @@
+@@ -997,6 +792,8 @@
      DriveInfo *fd[MAX_FD];
      void *fw_cfg;
  
@@ -497,7 +499,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
      if (ram_size >= 0xe0000000 ) {
          above_4g_mem_size = ram_size - 0xe0000000;
          below_4g_mem_size = 0xe0000000;
-@@ -1021,83 +816,70 @@
+@@ -1021,84 +818,74 @@
  
      vmport_init();
  
@@ -519,9 +521,10 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 +    if (qsim_ram == NULL) {
 +      /* allocate the qsim_ram structure */
 +      qsim_ram = qemu_mallocz(sizeof(qemu_ramdesc_t));
++      qsim_ram->l = qemu_mallocz(sizeof(qsim_lockstruct));
 +
-+      /* initialize the sync bit. */
-+      qsim_lock_init(&qsim_ram->l);
++      /* initialize the sync. */
++      qsim_lock_init(qsim_ram->l);
 +
 +      /* allocate RAM */
 +      ram_addr = qemu_ram_alloc(0xa0000);
@@ -604,9 +607,6 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 -    /* map all the bios at the top of memory */
 -    cpu_register_physical_memory((uint32_t)(-bios_size),
 -                                 bios_size, bios_offset | IO_MEM_ROM);
--
--    fw_cfg = bochs_bios_init();
--    rom_set_fw(fw_cfg);
 +      if (qsim_ram->low_mem_sz != 0) {
 +        ram_addr = qemu_ram_share(qsim_ram->low_mem_sz, qsim_ram->low_mem_ptr);
 +        cpu_register_physical_memory(0, 
@@ -614,9 +614,8 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 +                                     ram_addr);
 +      }
  
--    if (linux_boot) {
--        load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
--    }
+-    fw_cfg = bochs_bios_init();
+-    rom_set_fw(fw_cfg);
 +      if (qsim_ram->below_4g_sz != 0) {
 +        ram_addr = qemu_ram_share(qsim_ram->below_4g_sz, 
 +                                  qsim_ram->below_4g_ptr);
@@ -625,8 +624,8 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 +                                     ram_addr);
 +      }
  
--    for (i = 0; i < nb_option_roms; i++) {
--        rom_add_option(option_rom[i]);
+-    if (linux_boot) {
+-        load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
 +      if (qsim_ram->above_4g_sz != 0) {
 +        ram_addr = qemu_ram_share(qsim_ram->above_4g_sz, 
 +                                  qsim_ram->above_4g_ptr);
@@ -636,8 +635,14 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 +      }
      }
  
+-    for (i = 0; i < nb_option_roms; i++) {
+-        rom_add_option(option_rom[i]);
+-    }
++    qsim_ram_l = qsim_ram->l;
+ 
      cpu_irq = qemu_allocate_irqs(pic_irq_request, NULL, 1);
-@@ -1121,6 +903,7 @@
+     i8259 = i8259_init(cpu_irq[0]);
+@@ -1121,6 +908,7 @@
  
      register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
  
@@ -645,7 +650,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
      if (cirrus_vga_enabled) {
          if (pci_enabled) {
              pci_cirrus_vga_init(pci_bus);
-@@ -1139,10 +922,11 @@
+@@ -1139,10 +927,11 @@
              isa_vga_init();
          }
      }
@@ -659,7 +664,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
      register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
      register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
-@@ -1150,12 +934,13 @@
+@@ -1150,12 +939,13 @@
      if (pci_enabled) {
          isa_irq_state->ioapic = ioapic_init();
      }
@@ -675,7 +680,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
      for(i = 0; i < MAX_SERIAL_PORTS; i++) {
          if (serial_hds[i]) {
              serial_isa_init(i, serial_hds[i]);
-@@ -1167,6 +952,7 @@
+@@ -1167,6 +957,7 @@
              parallel_init(i, parallel_hds[i]);
          }
      }
@@ -683,7 +688,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
      for(i = 0; i < nb_nics; i++) {
          NICInfo *nd = &nd_table[i];
-@@ -1186,6 +972,7 @@
+@@ -1186,6 +977,7 @@
          hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
      }
  
@@ -691,7 +696,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
      if (pci_enabled) {
          pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
      } else {
-@@ -1194,9 +981,10 @@
+@@ -1194,9 +986,10 @@
  	                 hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
          }
      }
@@ -704,7 +709,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  #ifdef HAS_AUDIO
      audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
  #endif
-@@ -1206,11 +994,13 @@
+@@ -1206,11 +999,13 @@
      }
      floppy_controller = fdctrl_init_isa(fd);
  
@@ -719,7 +724,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
      if (pci_enabled && acpi_enabled) {
          uint8_t *eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
-@@ -1283,8 +1073,8 @@
+@@ -1283,8 +1078,8 @@
     BIOS will read it and start S3 resume at POST Entry */
  void cmos_set_s3_resume(void)
  {
@@ -732,7 +737,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  static QEMUMachine pc_machine = {
 diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
 --- qemu-0.12.3/posix-aio-compat.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/posix-aio-compat.c	2012-06-01 09:01:50.574224530 -0700
++++ qemu-0.12.3-qsim/posix-aio-compat.c	2012-06-04 06:35:48.790454786 -0700
 @@ -368,6 +368,9 @@
  {
      sigset_t set, oldset;
@@ -745,7 +750,7 @@ diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
  
 diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
 --- qemu-0.12.3/softmmu_header.h	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/softmmu_header.h	2012-06-01 09:01:50.574224530 -0700
++++ qemu-0.12.3-qsim/softmmu_header.h	2012-06-04 06:35:48.790454786 -0700
 @@ -16,6 +16,48 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
@@ -829,7 +834,7 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
  #endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
 diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.h
 --- qemu-0.12.3/target-i386/helper.h	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/target-i386/helper.h	2012-06-01 09:01:50.574224530 -0700
++++ qemu-0.12.3-qsim/target-i386/helper.h	2012-06-04 06:35:48.790454786 -0700
 @@ -1,4 +1,5 @@
  #include "def-helper.h"
 +#include <stdint.h>
@@ -852,8 +857,8 @@ diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.
  #include "def-helper.h"
 diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_helper.c
 --- qemu-0.12.3/target-i386/op_helper.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/target-i386/op_helper.c	2012-06-01 15:01:00.377814816 -0700
-@@ -21,8 +21,40 @@
++++ qemu-0.12.3-qsim/target-i386/op_helper.c	2012-06-05 06:19:33.563719699 -0700
+@@ -21,8 +21,41 @@
  #include "exec-all.h"
  #include "host-utils.h"
  
@@ -888,6 +893,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +extern qsim_ucontext_t main_context;
 +
 +extern qemu_ramdesc_t *qsim_ram;
++extern qsim_lockstruct *qsim_ram_l;
  
 +uint64_t qsim_eip;
 +
@@ -895,7 +901,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
  
  #ifdef DEBUG_PCALL
  #  define LOG_PCALL(...) qemu_log_mask(CPU_LOG_PCALL, ## __VA_ARGS__)
-@@ -104,18 +136,35 @@
+@@ -104,18 +137,35 @@
      3.32192809488736234781L,  /*l2t*/
  };
  
@@ -930,11 +936,11 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
  {
 -    spin_unlock(&global_cpu_lock);
 +    atomic_flag = 0;
-+    if (atomic_locked) qsim_aunlock_addr(&qsim_ram->l, atomic_addr);
++    if (atomic_locked) qsim_aunlock_addr(qsim_ram_l, atomic_addr);
  }
  
  void helper_write_eflags(target_ulong t0, uint32_t update_mask)
-@@ -140,10 +189,12 @@
+@@ -140,10 +190,12 @@
      int index;
      target_ulong ptr;
  
@@ -947,7 +953,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
      index = selector & ~7;
      if ((index + 7) > dt->limit)
          return -1;
-@@ -558,31 +609,37 @@
+@@ -558,31 +610,37 @@
  
  void helper_outb(uint32_t port, uint32_t data)
  {
@@ -985,13 +991,13 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
      return cpu_inl(port);
  }
  
-@@ -1211,6 +1268,17 @@
+@@ -1211,6 +1269,17 @@
  void do_interrupt(int intno, int is_int, int error_code,
                    target_ulong next_eip, int is_hw)
  {
 +  if (atomic_flag) helper_unlock();
 +  if (nonatomic_locked) {
-+    qsim_unlock_addr(&qsim_ram->l, qsim_phys_addr);
++    qsim_unlock_addr(qsim_ram_l, qsim_phys_addr);
 +    nonatomic_locked = 0;
 +  }
 +
@@ -1003,7 +1009,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
      if (qemu_loglevel_mask(CPU_LOG_INT)) {
          if ((env->cr[0] & CR0_PE_MASK)) {
              static int count;
-@@ -1930,13 +1998,23 @@
+@@ -1930,13 +1999,23 @@
  {
      uint32_t eax, ebx, ecx, edx;
  
@@ -1032,7 +1038,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
  }
  
  void helper_enter_level(int level, int data32, target_ulong t1)
-@@ -2193,31 +2271,38 @@
+@@ -2193,31 +2272,38 @@
  
      if ((new_cs & 0xfffc) == 0)
          raise_exception_err(EXCP0D_GPF, 0);
@@ -1078,7 +1084,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
          cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
                         get_seg_base(e1, e2), limit, e2);
          EIP = new_eip;
-@@ -2943,6 +3028,7 @@
+@@ -2943,6 +3029,7 @@
      helper_write_crN(0, t0);
  }
  
@@ -1086,7 +1092,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
  void helper_clts(void)
  {
      env->cr[0] &= ~CR0_TS_MASK;
-@@ -2964,7 +3050,7 @@
+@@ -2964,7 +3051,7 @@
      }
      helper_svm_check_intercept_param(SVM_EXIT_RDTSC, 0);
  
@@ -1095,7 +1101,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
      EAX = (uint32_t)(val);
      EDX = (uint32_t)(val >> 32);
  }
-@@ -5656,3 +5742,303 @@
+@@ -5656,3 +5743,303 @@
  #endif
      }
  }
@@ -1108,12 +1114,12 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +  }
 +
 +  if (atomic_flag && atomic_locked) {
-+    qsim_aunlock_addr(&qsim_ram->l, qsim_phys_addr);
++    qsim_aunlock_addr(qsim_ram_l, qsim_phys_addr);
 +    atomic_flag = atomic_locked = 0;
 +  }
 +
 +  if (nonatomic_locked) {
-+    qsim_unlock_addr(&qsim_ram->l, qsim_phys_addr);
++    qsim_unlock_addr(qsim_ram_l, qsim_phys_addr);
 +    nonatomic_locked = 0;
 +  }
 +
@@ -1162,9 +1168,9 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +  if (atomic_flag && !atomic_locked) {
 +    atomic_locked = 1;
 +    atomic_addr = qsim_phys_addr;
-+    qsim_alock_addr(&qsim_ram->l, qsim_phys_addr);
++    qsim_alock_addr(qsim_ram_l, qsim_phys_addr);
 +  } else if (!atomic_flag) {
-+    qsim_lock_addr(&qsim_ram->l, qsim_phys_addr);
++    qsim_lock_addr(qsim_ram_l, qsim_phys_addr);
 +    nonatomic_locked = 1;
 +  }
 +
@@ -1181,9 +1187,9 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +  if (atomic_flag && !atomic_locked) {
 +    atomic_locked = 1;
 +    atomic_addr = qsim_phys_addr;
-+    qsim_alock_addr(&qsim_ram->l, qsim_phys_addr);
++    qsim_alock_addr(qsim_ram_l, qsim_phys_addr);
 +  } else if (!atomic_flag) {
-+    qsim_lock_addr(&qsim_ram->l, qsim_phys_addr);
++    qsim_lock_addr(qsim_ram_l, qsim_phys_addr);
 +    nonatomic_locked = 1;
 +  }
 +  return 0;
@@ -1194,7 +1200,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +				       target_ulong data)
 +{
 +  if (nonatomic_locked) {
-+    qsim_unlock_addr(&qsim_ram->l, qsim_phys_addr);
++    qsim_unlock_addr(qsim_ram_l, qsim_phys_addr);
 +    nonatomic_locked = 0;
 +  }
 +
@@ -1205,7 +1211,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +target_ulong helper_load_callback_post(target_ulong vaddr, target_ulong size)
 +{
 +  if (nonatomic_locked) {
-+    qsim_unlock_addr(&qsim_ram->l, qsim_phys_addr);
++    qsim_unlock_addr(qsim_ram_l, qsim_phys_addr);
 +    nonatomic_locked = 0;
 +  }
 +
@@ -1401,7 +1407,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +}
 diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/translate.c
 --- qemu-0.12.3/target-i386/translate.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/target-i386/translate.c	2012-06-01 09:01:50.578224529 -0700
++++ qemu-0.12.3-qsim/target-i386/translate.c	2012-06-04 06:35:48.794454785 -0700
 @@ -5,7 +5,7 @@
   *
   * This library is free software; you can redistribute it and/or
@@ -2492,7 +2498,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          if (dc->is_jmp)
 diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
 --- qemu-0.12.3/vl.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/vl.c	2012-06-01 09:01:50.582224528 -0700
++++ qemu-0.12.3-qsim/vl.c	2012-06-05 06:21:21.883722733 -0700
 @@ -91,6 +91,9 @@
  #endif
  #endif
@@ -2515,7 +2521,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  //#define DEBUG_NET
  //#define DEBUG_SLIRP
  
-@@ -293,6 +301,39 @@
+@@ -293,6 +301,40 @@
      { .driver = "vmware-svga",          .flag = &default_vga       },
  };
  
@@ -2547,6 +2553,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
 +void       *qemu_stack  ;
 +
 +qemu_ramdesc_t *qsim_ram;
++qsim_lockstruct *qsim_ram_l;
 +int             qsim_qemu_is_slave;
 +
 +const size_t QEMU_STACK_SIZE = 8*(1<<20);
@@ -2555,7 +2562,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static int default_driver_check(QemuOpts *opts, void *opaque)
  {
      const char *driver = qemu_opt_get(opts, "driver");
-@@ -651,6 +692,7 @@
+@@ -651,6 +693,7 @@
  static void init_get_clock(void)
  {
      use_rt_clock = 0;
@@ -2563,7 +2570,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  #if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000) \
      || defined(__DragonFly__) || defined(__FreeBSD_kernel__)
      {
-@@ -660,6 +702,7 @@
+@@ -660,6 +703,7 @@
          }
      }
  #endif
@@ -2571,7 +2578,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  }
  
  static int64_t get_clock(void)
-@@ -910,6 +953,7 @@
+@@ -910,6 +954,7 @@
  }
  
  static struct qemu_alarm_timer alarm_timers[] = {
@@ -2579,7 +2586,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  #ifndef _WIN32
  #ifdef __linux__
      {"dynticks", ALARM_FLAG_DYNTICKS, dynticks_start_timer,
-@@ -926,6 +970,7 @@
+@@ -926,6 +971,7 @@
      {"win32", 0, win32_start_timer,
       win32_stop_timer, NULL, &alarm_win32_data},
  #endif
@@ -2587,7 +2594,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      {NULL, }
  };
  
-@@ -1189,8 +1234,8 @@
+@@ -1189,8 +1235,8 @@
  static void host_alarm_handler(int host_signum)
  #endif
  {
@@ -2597,7 +2604,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      {
          static int64_t delta_min = INT64_MAX;
          static int64_t delta_max, delta_cum, last_clock, delta, ti;
-@@ -1217,27 +1262,29 @@
+@@ -1217,27 +1263,29 @@
          }
          last_clock = ti;
      }
@@ -2637,7 +2644,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  }
  
  static int64_t qemu_next_deadline(void)
-@@ -1417,7 +1464,7 @@
+@@ -1417,7 +1465,7 @@
      act.sa_flags = 0;
      act.sa_handler = host_alarm_handler;
  
@@ -2646,7 +2653,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
      /* 
       * Initialize ev struct to 0 to avoid valgrind complaining
-@@ -1426,7 +1473,7 @@
+@@ -1426,7 +1474,7 @@
      memset(&ev, 0, sizeof(ev));
      ev.sigev_value.sival_int = 0;
      ev.sigev_notify = SIGEV_SIGNAL;
@@ -2655,7 +2662,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
      if (timer_create(CLOCK_REALTIME, &ev, &host_timer)) {
          perror("timer_create");
-@@ -1469,6 +1516,7 @@
+@@ -1469,6 +1517,7 @@
          fprintf(stderr, "Internal timer error: aborting\n");
          exit(1);
      }
@@ -2663,7 +2670,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      current_us = timeout.it_value.tv_sec * 1000000 + timeout.it_value.tv_nsec/1000;
      if (current_us && current_us <= nearest_delta_us)
          return;
-@@ -1623,11 +1671,13 @@
+@@ -1623,11 +1672,13 @@
      return err;
  }
  
@@ -2677,7 +2684,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
  /***********************************************************/
  /* host time/date access */
-@@ -3409,34 +3459,6 @@
+@@ -3409,34 +3460,6 @@
      } while ((len == -1 && errno == EINTR) || len > 0);
  }
  
@@ -2712,7 +2719,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  #else
  HANDLE qemu_event_handle;
  
-@@ -3444,17 +3466,6 @@
+@@ -3444,17 +3467,6 @@
  {
  }
  
@@ -2730,7 +2737,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void qemu_event_increment(void)
  {
      if (!SetEvent(qemu_event_handle)) {
-@@ -3477,7 +3488,7 @@
+@@ -3477,7 +3489,7 @@
  #ifndef CONFIG_IOTHREAD
  static int qemu_init_main_loop(void)
  {
@@ -2739,7 +2746,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  }
  
  void qemu_init_vcpu(void *_env)
-@@ -3514,7 +3525,7 @@
+@@ -3514,7 +3526,7 @@
      CPUState *env = cpu_single_env;
  
      if (env) {
@@ -2748,7 +2755,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      }
  }
  
-@@ -3553,10 +3564,6 @@
+@@ -3553,10 +3565,6 @@
  {
      int ret;
  
@@ -2759,7 +2766,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      qemu_cond_init(&qemu_pause_cond);
      qemu_mutex_init(&qemu_fair_mutex);
      qemu_mutex_init(&qemu_global_mutex);
-@@ -3568,6 +3575,7 @@
+@@ -3568,6 +3576,7 @@
      return 0;
  }
  
@@ -2767,7 +2774,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void qemu_wait_io_event(CPUState *env)
  {
      while (!tcg_has_work())
-@@ -3590,9 +3598,11 @@
+@@ -3590,9 +3599,11 @@
          qemu_cond_signal(&qemu_pause_cond);
      }
  }
@@ -2779,7 +2786,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void *kvm_cpu_thread_fn(void *arg)
  {
      CPUState *env = arg;
-@@ -3612,16 +3622,18 @@
+@@ -3612,16 +3623,18 @@
          qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
  
      while (1) {
@@ -2800,7 +2807,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void *tcg_cpu_thread_fn(void *arg)
  {
      CPUState *env = arg;
-@@ -3646,6 +3658,7 @@
+@@ -3646,6 +3659,7 @@
  
      return NULL;
  }
@@ -2808,7 +2815,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
  void qemu_cpu_kick(void *_env)
  {
-@@ -3746,6 +3759,7 @@
+@@ -3746,6 +3760,7 @@
      return 1;
  }
  
@@ -2816,7 +2823,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void pause_all_vcpus(void)
  {
      CPUState *penv = first_cpu;
-@@ -3820,6 +3834,7 @@
+@@ -3820,6 +3835,7 @@
      else
          tcg_init_vcpu(env);
  }
@@ -2824,7 +2831,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
  void qemu_notify_event(void)
  {
-@@ -4033,32 +4048,6 @@
+@@ -4033,32 +4049,6 @@
      return ret;
  }
  
@@ -2857,7 +2864,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static int cpu_has_work(CPUState *env)
  {
      if (env->stop)
-@@ -4150,7 +4139,15 @@
+@@ -4150,7 +4140,15 @@
  
  qemu_irq qemu_system_powerdown;
  
@@ -2874,7 +2881,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  {
      int r;
  
-@@ -4159,21 +4156,22 @@
+@@ -4159,21 +4157,22 @@
      qemu_cond_broadcast(&qemu_system_cond);
  #endif
  
@@ -2900,7 +2907,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
          } while (vm_can_run());
  
          if (qemu_debug_requested()) {
-@@ -4846,7 +4844,75 @@
+@@ -4846,7 +4845,75 @@
      return 0;
  }
  
@@ -2977,7 +2984,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  {
      const char *gdbstub_dev = NULL;
      uint32_t boot_devices_bitmap = 0;
-@@ -5815,6 +5881,7 @@
+@@ -5815,6 +5882,7 @@
      setvbuf(stdout, NULL, _IOLBF, 0);
  #endif
  
@@ -2985,7 +2992,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      if (init_timer_alarm() < 0) {
          fprintf(stderr, "could not initialize alarm timer\n");
          exit(1);
-@@ -5826,6 +5893,7 @@
+@@ -5826,6 +5894,7 @@
          icount_time_shift = 3;
          init_icount_adjust();
      }
@@ -2993,7 +3000,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
  #ifdef _WIN32
      socket_init();
-@@ -5946,7 +6014,7 @@
+@@ -5946,7 +6015,7 @@
  
  #ifndef _WIN32
      /* must be after terminal init, SDL library changes signal handlers */
@@ -3002,7 +3009,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  #endif
  
      for (env = first_cpu; env != NULL; env = env->next_cpu) {
-@@ -5986,7 +6054,7 @@
+@@ -5986,7 +6055,7 @@
  #endif
      }
          
@@ -3011,7 +3018,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      switch (display_type) {
      case DT_NOGRAPHIC:
          break;
-@@ -6042,6 +6110,7 @@
+@@ -6042,6 +6111,7 @@
                  gdbstub_dev);
          exit(1);
      }
@@ -3019,7 +3026,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
      qdev_machine_creation_done();
  
-@@ -6122,9 +6191,5 @@
+@@ -6122,9 +6192,5 @@
      }
  #endif
  
