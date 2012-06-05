@@ -12,7 +12,16 @@ namespace Qsim {
 class Client {
 public:
  Client(int fd) : sbs(new QsimNet::SockHandle(fd)) { wait_for_dot(); }
-  ~Client() { sbs << 'x'; }
+  ~Client() {
+    sbs << 'x';
+    uint8_t reply;
+    try {
+      sbs >> reply;
+    } catch (QsimNet::SockBinStreamError e) {
+      // Do nothing for now. This just means that the remote server exited.
+    }
+    delete &sbs.sock;
+  }
 
   unsigned run(unsigned short cpu, unsigned insts) {
     uint16_t i(cpu);

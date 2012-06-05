@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -27,8 +28,7 @@ std::vector<bool> idle_vec;
 class ServerThread;
 ServerThread *st;
 
-// Terrible performance-wise, but effective and simple.
-//pthread_mutex_t runlock = PTHREAD_MUTEX_INITIALIZER;
+static void handle_sigint(int);
 
 pthread_mutex_t active_connections_lock = PTHREAD_MUTEX_INITIALIZER;
 unsigned active_connections(0), cpus;
@@ -109,9 +109,7 @@ public:
         case 'r': { uint16_t i; uint32_t n;
                     sbs >> i >> n; 
                     _cba->start(i, this);
-                    //pthread_mutex_lock(&runlock);
                     n = osd->run(i, n);
-                    //pthread_mutex_unlock(&runlock);
                     _cba->finish(i);
                     sbs << '.';
                     sbs << n;
@@ -169,7 +167,8 @@ public:
                   }
                   break;
 
-        default: pthread_mutex_lock(&lock);
+        default: sbs << '.'; // Usually in response to 'x'.
+                 pthread_mutex_lock(&lock);
                  goto cleanup;
         }
       }
@@ -183,6 +182,15 @@ public:
     active = false;
     pthread_mutex_lock(&active_connections_lock);
     --active_connections;
+
+    // When the last client exits, terminate.
+    if (active_connections == 0) {
+      pthread_mutex_unlock(&active_connections_lock);
+      pthread_mutex_unlock(&lock);
+      handle_sigint(0);
+    }
+    else std::cout << "Client discon. " << active_connections << " left.\n";
+
     pthread_mutex_unlock(&active_connections_lock);
     pthread_mutex_unlock(&lock);
   }

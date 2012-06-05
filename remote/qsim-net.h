@@ -42,13 +42,13 @@ namespace QsimNet {
   };
 
   static bool raw_senddata(int fd, const char *message, size_t n) {
-     while (n > 0) {
 #ifdef DEBUG
-       std::cout << "Send to " << fd << ":\n";
-       dump(message, n);
+    std::cout << "Send to " << fd << ":\n";
+    dump(message, n);
 #endif
-       int rval = send(fd, message, n, 0);
-       if (rval == -1) {
+     while (n > 0) {
+       ssize_t rval = send(fd, message, n, 0);
+       if (rval == -1 || rval == 0) {
          return false;
        } else {
          message += rval;
@@ -72,6 +72,11 @@ namespace QsimNet {
   }
 
   static bool recvdata(SockHandle &sock, char *buf, size_t n) {
+    #ifdef DEBUG
+    size_t n0(n);
+    char *buf0(buf);
+    #endif
+
     // We're turning the link around, so flush the outgoing buffer to prevent
     // deadlock.
     if (sock.buf_end > sock.buf) {
@@ -81,18 +86,19 @@ namespace QsimNet {
     }
 
     while (n > 0) {
-      int rval = recv(sock.fd, buf, n, 0);
-#ifdef DEBUG
-      std::cout << "Recv on " << sock.fd << ":\n";
-      dump(buf, n);
-#endif
-      if (rval == -1) {
+      ssize_t rval = recv(sock.fd, buf, n, 0);
+
+      if (rval == -1 || rval == 0) {
         return false;
       } else {
         buf += rval;
         n -= rval;
       }
     }
+#ifdef DEBUG
+    std::cout << "Recv on " << sock.fd << ":\n";
+    dump(buf0, n0);
+#endif
     return true;
   }
 

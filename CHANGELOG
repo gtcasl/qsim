@@ -162,3 +162,5 @@
   boundaries. The locking infrastructure has been moved to a header file,
   qsim-lock.h, where it can be further tweaked independently of the QEMU
   modifications.
+
+* Server exits when final client disconnects.

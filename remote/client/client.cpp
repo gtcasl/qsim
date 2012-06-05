@@ -17,7 +17,7 @@ struct CbTester {
             enum inst_type t)
   {
     static unsigned count = 0;
-    if (count++ == 10000) count = 0; else return;
+    if (count++ == 1000000) count = 0; else return;
     cout << "Instruction, CPU " << cpu << " va=0x" << std::hex << va << ": ";
     for (unsigned i = 0; i < l; i++) 
       cout << std::hex << std::setw(0) << std::setfill('0') << (b[i]&0xff) 
@@ -27,7 +27,7 @@ struct CbTester {
 
   void mem(int cpu, uint64_t va, uint64_t pa, uint8_t s, int t) {
     static unsigned count = 0; 
-    if (count++ == 10000) count = 0; else return;
+    if (count++ == 1000000) count = 0; else return;
     cout << "Memory op, CPU " << cpu << " va=0x" << std::hex << va << " size="
          << (s&0xff) << ' ' << (t?'W':'R') << '\n';
   }
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     cout << "  " << ((qc->get_mode(i))?"Protected mode.\n":"Real mode.\n");
   }
 
-  for (unsigned i = 0; i < 100; ++i) { // Run for 100M instructions
+  for (unsigned i = 0; i < 1 && cbtest.running; ++i) { // Run for 1M inst.
     if (cpu == -1)
       for (unsigned j = 0; j < qc->get_n(); j++) qc->run(j, 1000000);
     else
