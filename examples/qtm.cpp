@@ -186,8 +186,10 @@ int main(int argc, char** argv) {
   OSDomain &cd(*cdp);
   if (argc < 3) {
     cdp = new OSDomain(MAX_CPUS, "linux/bzImage", 3*1024);
+    cd.connect_console(cout);
   } else {
     cdp = new OSDomain(argv[1]);
+    cd.connect_console(cout);
     cout << "Loaded state. Reading benchmark.\n";
     Qsim::load_file(cd, argv[2]);
     cout << "Loaded benchmark .tar file.\n";
@@ -195,7 +197,6 @@ int main(int argc, char** argv) {
   cd.set_inst_cb(&cb_obj, &cb_struct::inst_cb);
   cd.set_int_cb(&cb_obj, &cb_struct::int_cb);
   cd.set_app_end_cb(&cb_obj, &cb_struct::end_cb);
-  cd.connect_console(cout);
 
   // Init. sync objects 
   pthread_barrier_init(&cpu_barrier1, NULL, cd.get_n());
