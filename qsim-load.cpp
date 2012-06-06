@@ -39,7 +39,7 @@ public:
         }
         if (finished) break;
       }
-      osd.timer_interrupt();
+      if (!finished) osd.timer_interrupt();
     }
 
     // Unset the callbacks.
@@ -59,7 +59,8 @@ private:
   int magic_cb(int c, uint64_t rax) {
     if (rax == 0xc5b1fffd) {
       // Giving an address to deposit 1024 bytes in %rbx. Wants number of bytes
-      // actually deposited in %rcx.                                            
+      // actually deposited in %rcx.                                           
+
       uint64_t vaddr = osd.get_reg(c, QSIM_RBX);
       int count = 1024;
       while (infile.good() && count) {
@@ -70,10 +71,10 @@ private:
       }
       osd.set_reg(c, QSIM_RCX, 1024-count);
     } else if (rax == 0xc5b1fffe) {
-      // Asking if input is ready                                               
+      // Asking if input is ready
       osd.set_reg(c, QSIM_RAX, !(!infile));
     } else if (rax == 0xc5b1ffff) {
-      // Asking for a byte of input.                                            
+      // Asking for a byte of input.
       char ch;
       infile.get(ch);
       osd.set_reg(c, QSIM_RAX, ch);
