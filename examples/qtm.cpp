@@ -27,9 +27,8 @@
 using std::cout; using std::vector; using std::ofstream; using std::string;
 using Qsim::OSDomain; using std::map;
 
-const unsigned BRS_PER_MILN  = 1            ;
-const unsigned MILLION_INSTS = 48000        ;
-const unsigned MAX_CPUS      = 256          ;
+const unsigned BRS_PER_MILN = 1  ;
+const unsigned MAX_CPUS     = 256;
 
 pthread_mutex_t   output_mutex      = PTHREAD_MUTEX_INITIALIZER;
 pthread_barrier_t cpu_barrier1;
@@ -52,7 +51,7 @@ static inline unsigned long long utime() {
   return 1000000l*tv.tv_sec + tv.tv_usec;
 }
 
-bool app_finished = false;
+bool app_finished = false, do_exit = false;
 unsigned long long start_time, end_time;
 
 void *cpu_thread_main(void* thread_arg) {
@@ -65,48 +64,40 @@ void *cpu_thread_main(void* thread_arg) {
 
   if (arg->cpu == 0) cout << "QTM threads ready.\n";
 
-  // Outer loop: run for MILLION_INSTS million instructions
-  for (unsigned i = 0; i < MILLION_INSTS * BRS_PER_MILN && !app_finished; i++)
+  // Run until app finished.
+  unsigned i = 0;
+  while (!do_exit)
   {
-    unsigned countdown = 1000000/BRS_PER_MILN;
-    while (countdown > 0) {
-      int rval = arg->cd->run(arg->cpu, countdown);
+    arg->cd->run(arg->cpu, 1000000/BRS_PER_MILN);
+    arg->icount += 1000000/BRS_PER_MILN;
       
-      local_inst_count += rval;
-      countdown -= rval;
-      if (arg->icount != local_inst_count) {
-        cout << '(' << local_inst_count << '/' 
-             << arg->icount << ")\n"; 
-      }
-
-      uint64_t last_rip = arg->cd->get_reg(arg->cpu, QSIM_RIP);
-      uint16_t last_tid = arg->cd->get_tid(arg->cpu);
-      bool     kernel   = arg->cd->get_prot(arg->cpu) == OSDomain::PROT_KERN;
-      if (rval != 0) {
-        pthread_mutex_lock(&output_mutex);
-        tout << "Ran CPU " <<std::dec<<arg->cpu<<" for "<< rval << " insts,"
-         " stopping at 0x" << std::hex << std::setfill('0') << std::setw(8)
-               << last_rip << "(TID=" << std::dec << last_tid << ')' 
-               << (kernel?"-kernel\n":"\n");
-        tout << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RAX) << ", "
-             << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RCX) << ", "
-             << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RBX) << ", "
-             << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RDX) << '\n';
-        pthread_mutex_unlock(&output_mutex);
-      }
-
-      // This CPU may not be running yet. Get out and wait for the barrier.
-      if (countdown == 1000000/BRS_PER_MILN) break;
+    uint64_t last_rip = arg->cd->get_reg(arg->cpu, QSIM_RIP);
+    uint16_t last_tid = arg->cd->get_tid(arg->cpu);
+    bool     kernel   = arg->cd->get_prot(arg->cpu) == OSDomain::PROT_KERN;
+    if (i % BRS_PER_MILN == (BRS_PER_MILN - 1)) {
+      pthread_mutex_lock(&output_mutex);
+      tout << "Ran CPU " <<std::dec<<arg->cpu<<" for "<< 1000000/BRS_PER_MILN
+           << " insts, stopping at 0x" << std::hex << std::setfill('0') 
+           << std::setw(8) << last_rip << "(TID=" << std::dec << last_tid
+           << ')' << (kernel?"-kernel\n":"\n");
+      tout << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RAX) << ", "
+           << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RCX) << ", "
+           << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RBX) << ", "
+           << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RDX) << '\n';
+      pthread_mutex_unlock(&output_mutex);
     }
+
     // We call the timer interrupt in one thread, while no others are running.
     pthread_barrier_wait(&cpu_barrier1);
     if (arg->cpu == 0) {
       if (i % BRS_PER_MILN == (BRS_PER_MILN - 1)) {
 	arg->cd->timer_interrupt();
-	//cout << "---Timer Interrupt---\n";
       }
+
+      if (app_finished) do_exit = true;
     }
     pthread_barrier_wait(&cpu_barrier2);
+    ++i;
   }
 
   return NULL;
@@ -119,21 +110,15 @@ void inst_cb(int            cpu_id,
 	     const uint8_t *bytes,
              enum inst_type type) 
 {
+#if 0
   uint16_t tid = thread_args[cpu_id]->cd->get_tid(cpu_id);
 
-  thread_args[cpu_id]->icount++;
-
-#if 0
   if (thread_args[cpu_id]->cd->get_prot(cpu_id) == OSDomain::PROT_KERN) {
     kernel_inst_counts[tid]++;
   } else {
     user_inst_counts[tid]++;
   }
 #endif
-
-  if (len == 1 && *bytes == 0xf4) {
-    thread_args[cpu_id]->cd->timer_interrupt();
-  }
 }
 
 int int_cb(int cpu_id, uint8_t vec) 
