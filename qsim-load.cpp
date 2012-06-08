@@ -33,9 +33,9 @@ public:
     
     // The main loop: run until 'finished' is true.                            
     while (!finished) {
-      for (unsigned i = 0; i < 1000000; i++) {
+      for (unsigned i = 0; i < 1000; i++) {
         for (unsigned j = 0; j < osd.get_n(); j++) {
-          osd.run(j, 1);
+          osd.run(j, 1000);
         }
         if (finished) break;
       }
@@ -52,8 +52,9 @@ private:
   ifstream &infile;
   bool finished;
 
-  void app_start_cb(int) {
+  int app_start_cb(int) {
     finished = true;
+    return 1;
   }
 
   int magic_cb(int c, uint64_t rax) {

@@ -63,8 +63,9 @@ template <typename CBObj> struct CallbackAdaptor {
 
   bool finished() { return !running; }
 
-  void app_end_cb(int c) {
+  int app_end_cb(int c) {
     running = false;
+    return 0;
   }
 
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, \

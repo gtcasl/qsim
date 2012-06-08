@@ -311,8 +311,8 @@ vector<bool> Qsim::OSDomain::idlevec;
 vector<uint16_t> Qsim::OSDomain::tids;
 vector<bool> Qsim::OSDomain::running;
 vector<ostream*> Qsim::OSDomain::consoles;
-void (*Qsim::OSDomain::app_start_cb)(int) = NULL;
-void (*Qsim::OSDomain::app_end_cb  )(int) = NULL;
+int (*Qsim::OSDomain::app_start_cb)(int) = NULL;
+int (*Qsim::OSDomain::app_end_cb  )(int) = NULL;
 
 Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
 {
@@ -496,11 +496,11 @@ void Qsim::OSDomain::set_reg_cb(reg_cb_t cb) {
   for (unsigned i = 0; i < n; i++) cpus[i]->set_reg_cb(cb);
 }
 
-void Qsim::OSDomain::set_app_start_cb(void (*fp)(int)) {
+void Qsim::OSDomain::set_app_start_cb(int (*fp)(int)) {
   app_start_cb = fp;
 }
 
-void Qsim::OSDomain::set_app_end_cb  (void (*fp)(int)) {
+void Qsim::OSDomain::set_app_end_cb  (int (*fp)(int)) {
   app_end_cb  = fp;
 }
 
@@ -692,7 +692,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
      
     std::vector<start_cb_obj_base*>::iterator i;
     for (i = start_cbs.begin(); i != start_cbs.end(); ++i) {
-      (**i)(cpu_id);
+      if ((**i)(cpu_id)) rval = 1;
     }
 
   } else if ( (rax & 0xffffffff) == 0xfa11dead ) {
@@ -701,7 +701,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
 
     std::vector<end_cb_obj_base*>::iterator i;
     for (i = end_cbs.begin(); i != end_cbs.end(); ++i) {
-      (**i)(cpu_id);
+      if ((**i)(cpu_id)) rval = 1;
     }
     for (unsigned i = 0; i < n; i++) running[i] = false;
   } else if ( (rax & 0xfffffff0) != 0x00000000 &&

@@ -157,7 +157,7 @@ void mem_cb(int cpu_id, uint64_t vaddr, uint64_t paddr, uint8_t size, int type)
   pthread_mutex_unlock(&output_mutex);
 }
 
-  void end_cb(int c) { app_finished = true; }
+int end_cb(int c) { app_finished = true; return 1; }
 
 } cb_obj;
 

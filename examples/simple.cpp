@@ -39,7 +39,7 @@ public:
 
   bool hasFinished() { return finished; }
 
-  void app_start_cb(int c) {
+  int app_start_cb(int c) {
     static bool ran = false;
     if (!ran) {
       ran = true;
@@ -52,10 +52,11 @@ public:
 #ifndef QSIM_REMOTE
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
 #endif
+      return 1;
     }
   }
 
-  void app_end_cb(int c)   { finished = true; }
+  int app_end_cb(int c)   { finished = true; return 0; }
 
   int atomic_cb(int c) {
     tracefile << std::dec << c << ": Atomic\n";

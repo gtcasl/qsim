@@ -14,12 +14,11 @@ RAMSIZE=3072
 # Truncate our log file
 echo > mkstate.log
 
-for i in `seq 9 9`; do
+for i in `seq 0 3`; do
   n=`echo 2 $i ^ p | dc`
   echo "-- running qsim-fastforwarder for $n core(s) --"
   $FF linux/bzImage $n $RAMSIZE state.$n 2>&1 >> mkstate.log
 
-  rm /tmp/qsim_*
 #  examples/io-test \
 #    $n TRACE state.$n ../benchmarks/splash2-tar/fft.tar > state.$n.testout &
 done

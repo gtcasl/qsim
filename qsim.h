@@ -318,12 +318,12 @@ namespace Qsim {
 
     struct start_cb_obj_base {
       virtual ~start_cb_obj_base() {}
-      virtual void operator()(int)=0;
+      virtual int operator()(int)=0;
     };
 
     struct end_cb_obj_base {
       virtual ~end_cb_obj_base() {}
-      virtual void operator()(int)=0;
+      virtual int operator()(int)=0;
     };
 
     template <typename T> struct atomic_cb_obj : public atomic_cb_obj_base {
@@ -398,20 +398,20 @@ namespace Qsim {
     };
 
     template <typename T> struct start_cb_obj : public start_cb_obj_base {
-      typedef void(T::*start_cb_t)(int);
+      typedef int(T::*start_cb_t)(int);
       T* p; start_cb_t f;
       start_cb_obj(T* p, start_cb_t f) : p(p), f(f) {}
-      void operator()(int cpu_id) {
-	((p)->*(f))(cpu_id);
+      int operator()(int cpu_id) {
+	return ((p)->*(f))(cpu_id);
       }
     };
 
     template <typename T> struct end_cb_obj : public end_cb_obj_base {
-      typedef void(T::*end_cb_t)(int);
+      typedef int(T::*end_cb_t)(int);
       T* p; end_cb_t f;
       end_cb_obj(T* p, end_cb_t f) : p(p), f(f) {}
-      void operator()(int cpu_id) {
-	((p)->*(f))(cpu_id);
+      int operator()(int cpu_id) {
+	return ((p)->*(f))(cpu_id);
       }
     };
 
@@ -517,8 +517,8 @@ namespace Qsim {
     void unset_app_end_cb(end_cb_handle_t);
 
     // Set the "application start" and "application end" callbacks.
-    void set_app_start_cb(void (*)(int));
-    void set_app_end_cb  (void (*)(int));
+    void set_app_start_cb(int (*)(int));
+    void set_app_end_cb  (int (*)(int));
 
     // Get the number of CPUs
     int get_n() const { return n; }
@@ -581,8 +581,8 @@ namespace Qsim {
     static std::vector<uint16_t> tids   ;       // Current tid of each CPU
     static std::vector<bool>     running;       // Whether CPU is running.
 
-    static void (*app_start_cb)(int);  // Call this when the app starts running
-    static void (*app_end_cb  )(int);  // Call this when the app finishes
+    static int (*app_start_cb)(int);  // Call this when the app starts running
+    static int (*app_end_cb  )(int);  // Call this when the app finishes
 
     //static std::ostream*         console;       // Console output stream.
  

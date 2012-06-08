@@ -1015,7 +1015,7 @@ register callback can be interpreted as a flag bit read or write. In this case,
 (see page \pageref{enum flags}).
 
 \label{func:set_app_start_cb} \begin{verbatim}
-    void set_app_start_cb(void (*f)(int));
+    void set_app_start_cb(int (*f)(int));
 \end{verbatim}
 A simple callback that uses a magic instruction delivered by the guest 
 application or a three-instruction utility program to provide an indication of
@@ -1028,6 +1028,10 @@ performance counters within simulators so that at application end they reflect
 only the operations created by the application being evaluated. New callbacks
 assigned with this function replace the old ones. A null assignment will
 disable the callback.
+
+This callback will return 0 to continue execution, or nonzero to cause
+\texttt{OSDomain::run()} to exit prematurely, just like the interrupt and
+atomic callbacks.
 
 \label{func:set_app_end_cb} \begin{verbatim}
     void set_app_end_cb(void (*f)(int));
@@ -1131,7 +1135,7 @@ The equivalent of \texttt{set\_atomic\_cb()} (see page
 \label{tf:set_app_start_cb} \begin{verbatim}
     template <typename T>
       void set_app_start_cb(T* o,
-                            void (T::f)(int));
+                            int (T::f)(int));
 \end{verbatim}
 The equivalent of \texttt{set\_atomic\_cb()} (see page
 \pageref{tf:set_atomic_cb}) for the application start callback (see
@@ -1140,7 +1144,7 @@ The equivalent of \texttt{set\_atomic\_cb()} (see page
 \label{tf:set_app_end_cb} \begin{verbatim}
     template <typename T>
       void set_app_end_cb(T* o,
-                          void (T::f)(int));
+                          int (T::f)(int));
 \end{verbatim}
 The equivalent of \texttt{set\_atomic\_cb()} (see page 
 \pageref{tf:set_atomic_cb}) for the application end callback (see 

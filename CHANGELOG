@@ -164,3 +164,8 @@
   modifications.
 
 * Server exits when final client disconnects.
+
+* App start and end callbacks can now return nonzero to cause run() to exit
+  prematurely. Used by qsim_load to run in blocks of 1000 instructions instead
+  of advancing one instruction at a time, for a speedup of the initialization
+  phase of over 5.

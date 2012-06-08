@@ -53,8 +53,8 @@ public:
   int magic_cb(int c, uint64_t a);
   void io_cb(int c, uint64_t p, uint8_t s, int t, uint32_t v);
   void reg_cb(int c, int r, uint8_t s, int t);
-  void app_end_cb(int c);
-  void app_start_cb(int c);
+  int app_end_cb(int c);
+  int app_start_cb(int c);
 
   bool app_running;
   
@@ -346,12 +346,14 @@ void CallbackAdaptor::reg_cb(int c, int r, uint8_t s, int t) {
   if (runmap[c]) runmap[c]->reg_cb(c, r, s, t);
 }
 
-void CallbackAdaptor::app_end_cb(int c) {
+int CallbackAdaptor::app_end_cb(int c) {
   if (runmap[c]) runmap[c]->app_end_cb(c);
+  return 0;
 }
 
-void CallbackAdaptor::app_start_cb(int c) {
+int CallbackAdaptor::app_start_cb(int c) {
   app_running = true;
+  return 0;
 }
 
 void *serverthread_main(void *arg_vp) {

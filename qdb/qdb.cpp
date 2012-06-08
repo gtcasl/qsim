@@ -508,14 +508,16 @@ void *CPUThread::thread_main(void *arg) {
 }
 
 // Always profile the application.
-void app_start_cb(int cpu_id) {
+int app_start_cb(int cpu_id) {
   puts("Application started: profiling on.");
   app_flag = true;
+  return 0;
 }
 
-void app_end_cb  (int cpu_id) {
+int app_end_cb  (int cpu_id) {
   if (prof_all_tids) do_report();
   app_flag = false;
+  return 0;
 }
 
 int main(int argc, char **argv) {

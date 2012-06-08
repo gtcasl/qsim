@@ -38,7 +38,7 @@ public:
 
   bool hasFinished() { return finished; }
 
-  void app_end_cb(int c)   { finished = true; }
+  int app_end_cb(int c)   { finished = true; return 1; }
 
   int atomic_cb(int c) {
     tracefile << std::dec << c << ": Atomic\n";
