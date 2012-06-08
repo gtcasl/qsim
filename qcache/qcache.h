@@ -1,102 +1,208 @@
 #ifndef __QCACHE_H
 #define __QCACHE_H
 
-#include <stdio.h>
+#include <iostream>
+#include <iomanip>
+
+#include <vector>
+
 #include <stdint.h>
-#include <stdlib.h>
+#include <pthread.h>
 #include <limits.h>
 
-typedef uint64_t addr_t;
+#include <stdlib.h>
 
-// blocksz_bits is the log2 of the block size and must be at least large enough
-// to make room for attribute bits in the tag array.
-struct cache {
-  int ways, set_bits, blocksz_bits;
-  addr_t *tags;
-  unsigned *ts_array, *ts_max;
-  struct cache *next;
-};
+#if 1
+#define ASSERT(b) do { if (!(b)) { \
+  std::cerr << "Error: Failed assertion at " << __FILE__ << ':' << std::dec \
+            << __LINE__ << '\n'; \
+  abort(); \
+} } while(0)
 
-enum { CACHE_ATTR_VALID = 0x01,
-       CACHE_ATTR_DIRTY = 0x02 };
+#else
+#define ASSERT(b) do {} while(0)
+#endif
 
-void init_cache(struct cache *c, int ways, int set_bits, int blocksz_bits);
-void chain_cache(struct cache *upper, struct cache *lower);
+namespace Qcache {
+  typedef unsigned timestamp_t;
+  #define TIMESTAMP_MAX UINT_MAX
 
-// Update the LRU information for a successful access.
-static inline void upd_lru(struct cache *c, addr_t set, int idx) {
-  // No need to update our timestamp if this is already the MRU way.
-  if (c->ts_max[set] == c->ts_array[idx]) return;
+  typedef pthread_spinlock_t spinlock_t;
+  #define spinlock_init(s) do { pthread_spin_init((s), 0); } while (0)
+  #define spin_lock(s) do { pthread_spin_lock((s)); } while (0)
+  #define spin_unlock(s) do { pthread_spin_unlock((s)); } while (0)
+  typedef uint64_t addr_t;
 
-  // In the event of a timestamp overflow, react accordingly.
-  if (c->ts_max[set] == UINT_MAX) {
-    fputs("Timestamp overflow. Terminating.", stderr);
-    exit(2);
-  }
+  // Things to throw when we're angry.
+  struct InvalidAccess {};
 
-  // Increment the max timestamp and timestamp the accessed line.
-  ++c->ts_max[set];
-  c->ts_array[idx] = c->ts_max[set];
-}
+  // Every level in the memory hierarchy is one of these.
+  class MemSysDev {
+   public:
+    virtual ~MemSysDev() {}
 
-// Access the cache.
-static inline int ac_cache(struct cache *c, addr_t a, int wr)
-{
-  addr_t set = (a>>c->blocksz_bits) & ((1<<c->set_bits)-1);
-  int idx = set * c->ways;
-
-  int i;
-  for (i = idx; i < idx + c->ways; i++) {
-    addr_t tag = c->tags[i];
-    // Read left side as "the MSBs of the tag array entry and address match"
-    if (!((tag ^ a) >> c->blocksz_bits) && (tag & CACHE_ATTR_VALID)) {
-      if (wr) c->tags[i] |= CACHE_ATTR_DIRTY;
-      upd_lru(c, set, i);
-      //puts("Hit.");
-      return 0;
-    }
+    virtual void access(addr_t addr, bool wr) = 0;
+    virtual void invalidate(addr_t addr) = 0;
   };
 
-  // There has been a miss. Find the line with the minimum timestamp or without
-  // its valid bit set.
-  if (c->tags[idx] & CACHE_ATTR_VALID) {
-    unsigned min_ts = c->ts_array[idx];
-    for (i = idx+1; i < idx + c->ways; i++) {
-      if (!(c->tags[i] & CACHE_ATTR_VALID)) {
-        idx = i;
-        break;
-      } else if (c->ts_array[i] < min_ts) {
-        idx = i; min_ts = c->ts_array[i];
+  class MemSysDevSet {
+   public:
+    virtual ~MemSysDevSet() {}
+    virtual MemSysDev &getMemSysDev(size_t i)=0;
+  };
+
+  // Place one of these at any level in the hierarchy to get a read/write trace
+  // at that level.
+  class Tracer : public MemSysDev {
+   public:
+    Tracer(std::ostream &tf) : tracefile(tf) {}
+
+    void access(addr_t addr, bool wr) {
+      tracefile << std::dec << addr << (wr?" W\n":" R\n");
+    }
+
+    void invalidate(addr_t addr) { throw InvalidAccess(); }
+   private:
+    std::ostream &tracefile;
+  };
+
+  // Caches, private or shared, of any dimension
+  template
+    <typename CPROT_T, int WAYS, int L2SETS, int L2LINESZ, bool SHARED=false>
+  class Cache : public MemSysDev
+  {
+   public:
+    Cache(MemSysDev &ll) : peers(NULL), lowerLevel(&ll), id(0) 
+    {
+      initArrays();
+    }
+
+    Cache(std::vector<Cache> &peers, MemSysDev &ll, int id) :
+      peers(&peers), lowerLevel(&ll), id(id)
+    {
+      initArrays();
+    }
+
+    void access(addr_t addr, bool wr) {
+      if (SHARED) spin_lock(&accessLock);
+
+      addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
+             set(tag%(1<<L2SETS));
+      
+      spin_lock(&setLocks[set]);
+      addr_t idx;
+      for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
+        if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
+          // TODO: Record hit. (not of the chart-topping variety)
+          updateRepl(set, idx);
+          spin_unlock(&setLocks[set]);
+          goto finish;
+        }
       }
+
+      // Miss. TODO: Tell the coherence protocol here was a read miss and see
+      //             if we get the line from a peer cache.
+        
+      // TODO: Record miss.
+
+      lowerLevel->access(addr, wr);
+      idx = findVictim(set);
+      updateRepl(set, idx); // MRU insertion policy.
+      tagarray[idx] = (tag<<L2LINESZ)|0x01; // TODO: Init state TBD by CP
+      
+      spin_unlock(&setLocks[set]); // TODO: move to after finish?
+        
+
+    finish:
+      if (SHARED) spin_unlock(&accessLock);
     }
-  }
-#ifdef DBG
-  printf("Miss. Using way %u of %u, valid = %u, set=%u, cache=%p\n",
-         idx%c->ways, c->ways, c->tags[idx] & CACHE_ATTR_VALID, idx/c->ways, c);
-#endif
-  if (c->next == NULL) {
-    if (c->tags[idx] & CACHE_ATTR_VALID) {
-      unsigned long long ev_addr =
-        (c->tags[idx] & ~(addr_t)((1<<c->blocksz_bits)-1));
-      fprintf(stderr, "%llu, W\n", ev_addr);
+
+    void invalidate(addr_t addr) {
+      if (SHARED) spin_lock(&accessLock);
+
+      // TODO
+
+      if (SHARED) spin_unlock(&accessLock);
     }
-    fprintf(stderr, "%llu, R\n", a & ~(addr_t)((1<<c->blocksz_bits)-1));
-  }
+   private:
+    std::vector<Cache> *peers;
+    MemSysDev *lowerLevel;
+    int id;
 
-  if (c->tags[idx] & CACHE_ATTR_VALID && c->next != NULL) {
-    // Do a proper eviction and actually write the line back.
-    ac_cache(c->next, c->tags[idx] & ~(addr_t)((1<<c->blocksz_bits)-1), 1);
-  }
+     uint64_t tagarray[(size_t)WAYS<<L2SETS];
+     timestamp_t tsarray[(size_t)WAYS<<L2SETS];
+     timestamp_t tsmax[1l<<L2SETS];
+     spinlock_t setLocks[1l<<L2SETS];
 
-  c->tags[idx] = (a & ~(addr_t)((1<<c->blocksz_bits)-1)) | CACHE_ATTR_VALID;
-  if (wr) c->tags[idx] |= CACHE_ATTR_DIRTY;
+     spinlock_t accessLock; // One at a time in shared LLC
 
-  // And then update the LRU info.
-  upd_lru(c, set, idx);
+     void updateRepl(addr_t set, addr_t idx) {
+       // TODO: Handle timestamp overflow.
+       ASSERT(tsmax[set] != TIMESTAMP_MAX);
+       tsarray[idx] = ++tsmax[set];
+     }
 
-  // Do it all over again for the next level down.
-  if (!c->next) return 1;
-  return 1 + ac_cache(c->next, a, wr);
-} 
+     addr_t findVictim(addr_t set) {
+       size_t i = set*WAYS, maxIdx = i;
+       timestamp_t maxTs = tsarray[i];
+       for (i = set*WAYS + 1; i < (set+1)*WAYS; ++i) {
+         if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
+         if (tsarray[i] > maxTs) { maxIdx = i; maxTs = tsarray[i]; }
+       }
+       return maxIdx;
+     }
+
+     void initArrays() {
+       if (SHARED) spinlock_init(&accessLock);
+
+       for (size_t i = 0; i < (size_t)WAYS<<L2SETS; ++i) {
+         tsarray[i] = tagarray[i] = 0;
+       }
+
+       for (size_t i = 0; i < (size_t)(1<<L2SETS); ++i) {
+         tsmax[i] = 0;
+         spinlock_init(&setLocks[i]);
+       }
+     }
+  };
+
+  // Group of caches at the same level. Sets up the CachePeerDir and the
+  // coherence protocol.
+  template
+    <typename CPROT_T, int WAYS, int L2SETS, int L2LINESZ>
+    class CacheGrp : public MemSysDevSet
+  {
+   public:
+    CacheGrp(int n, MemSysDev &ll) {
+      for (int i = 0; i < n; ++i)
+        caches.push_back(CACHE(caches, ll, i));
+    }
+
+    CacheGrp(int n, MemSysDevSet &ll) {
+      for (int i = 0; i < n; ++i)
+        caches.push_back(CACHE(caches, ll.getMemSysDev(i), i));
+    }
+
+    Cache<CPROT_T, WAYS, L2SETS, L2LINESZ> &getCache(size_t i) {
+      return caches[i];
+    }
+
+    MemSysDev &getMemSysDev(size_t i) { return getCache(i); }
+
+   private:
+    typedef Cache<CPROT_T, WAYS, L2SETS, L2LINESZ> CACHE;
+
+    std::vector<CACHE> caches;
+  };
+
+  // A coherence protocol for levels below L1. Takes no action to maintain
+  // coherence.
+  class CPNull {
+  };
+
+  // Directory MOESI coherence protocol.
+  class CPDirMoesi {
+  };
+};
 
 #endif

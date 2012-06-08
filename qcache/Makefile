@@ -7,11 +7,15 @@
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
 QSIM_PREFIX ?= /usr/local
-CXXFLAGS ?= -O2 -I../distorm/ -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
+CXXFLAGS ?= -O2 -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
+#CXXFLAGS ?= -g -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
 LDLIBS ?= -lqsim -pthread -ldl
 
 main: qcache.o main.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ qcache.o main.o $(LDLIBS)
+
+main.o: qcache.h
+qcache.o: qcache.cpp qcache.h
 
 clean:
 	rm -f qcache.o main.o main
