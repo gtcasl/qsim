@@ -34,22 +34,28 @@ public:
     osd.set_app_end_cb(this, &CallbackAdaptor::app_end_cb);
   }
 
+  ~CallbackAdaptor() {
+    std::cout << icount << " instructions.\n";
+    osd.unset_inst_cb(icb_handle);
+    osd.unset_mem_cb(mcb_handle);
+  }
+
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, 
                const uint8_t *b, enum inst_type t)
   {
-    ++icount;
+    if (!running) return;
+    if (c == 0) ++icount;
     l1i.getCache(c).access(p, false);
   }
 
   void mem_cb(int c, uint64_t va, uint64_t pa, uint8_t sz, int wr) {
+    if (!running) return;
     l1d.getCache(c).access(pa, wr);
   }
 
-  void app_end_cb(int core) {
+  int app_end_cb(int core) {
     running = false;
-
-    osd.unset_inst_cb(icb_handle);
-    osd.unset_mem_cb(mcb_handle);
+    return 1;
   }
 
   bool running;
@@ -89,7 +95,10 @@ void *thread_main(void *arg_vp) {
   pthread_barrier_wait(&b1);
 
   while (cba_p->running) {
-    osd_p->run(arg->cpu, 1000000);
+    for (unsigned i = 0; i < 100; ++i) {
+      if (osd_p->idle(arg->cpu)) osd_p->run(arg->cpu, 100);
+      else osd_p->run(arg->cpu, 10000);
+    }
 
     pthread_barrier_wait(&b0);
     if (arg->cpu == 0) {
@@ -122,10 +131,10 @@ int main(int argc, char** argv) {
   // Build a Westmere-like 3-level cache hierarchy. Typedefs for these (which
   // determine the cache parameters) are at the top of the file.
   Qcache::Tracer tracer(*traceOut);
-  l3_t l3(tracer);
-  l2_t l2(osd.get_n(), l3);
-  l1d_t l1_d(osd.get_n(), l2);
-  l1i_t l1_i(osd.get_n(), l2);
+  l3_t l3(tracer, "L3");
+  l2_t l2(osd.get_n(), l3, "L2");
+  l1d_t l1_d(osd.get_n(), l2, "L1d");
+  l1i_t l1_i(osd.get_n(), l2, "L1i");
 
   pthread_barrier_init(&b0, NULL, osd.get_n());
   pthread_barrier_init(&b1, NULL, osd.get_n());

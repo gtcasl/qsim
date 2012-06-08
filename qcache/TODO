@@ -1,18 +1,14 @@
 Qcache Todo List
 ----------------
 
-- Write basic access() function for Cache.
-- Write invalidate() function for Cache.
 - Do basic performance evaluation and testing with a null coherence protocol.
 
 - Write a directory class and a directory MOESI protocol.
-  - Per-line locking.
+  - Per-block locking.
   - No line can be evicted or have its state changed without locking. (Updating
     LRU information is fine)
   - Constraints:
     -Locking order: Block Locks(in directory), Set Locks in Core Order
-
-- Mechanism to report results.
 
 - Start some documentation. E.g., note that private L2 cache is not shared even 
   though it shares accesses from L1i and L1d. Why? Those accesses will never be

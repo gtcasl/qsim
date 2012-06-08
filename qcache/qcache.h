@@ -72,18 +72,27 @@ namespace Qcache {
   class Cache : public MemSysDev
   {
    public:
-    Cache(MemSysDev &ll) : peers(NULL), lowerLevel(&ll), id(0) 
+    Cache(MemSysDev &ll, const char *n = "Unnamed") :
+      peers(NULL), lowerLevel(&ll), id(0), name(n), accesses(0), misses(0)
     {
       initArrays();
     }
 
-    Cache(std::vector<Cache> &peers, MemSysDev &ll, int id) :
-      peers(&peers), lowerLevel(&ll), id(id)
+    Cache(std::vector<Cache> &peers, MemSysDev &ll, int id,
+        const char *n = "Unnamed") :
+      peers(&peers), lowerLevel(&ll), id(id), name(n), accesses(0), misses(0)
     {
       initArrays();
+    }
+
+    ~Cache() {
+      if (accesses == 0) return;
+      std::cout << name << ", " << id << ", " << accesses << ", " << misses 
+                << '\n';
     }
 
     void access(addr_t addr, bool wr) {
+      ++accesses;
       if (SHARED) spin_lock(&accessLock);
 
       addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
@@ -93,19 +102,19 @@ namespace Qcache {
       addr_t idx;
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
-          // TODO: Record hit. (not of the chart-topping variety)
           updateRepl(set, idx);
           spin_unlock(&setLocks[set]);
           goto finish;
         }
       }
+      ++misses;
 
       // Miss. TODO: Tell the coherence protocol here was a read miss and see
       //             if we get the line from a peer cache.
         
       // TODO: Record miss.
 
-      lowerLevel->access(addr, wr);
+      lowerLevel->access(tag<<L2LINESZ, wr);
       idx = findVictim(set);
       updateRepl(set, idx); // MRU insertion policy.
       tagarray[idx] = (tag<<L2LINESZ)|0x01; // TODO: Init state TBD by CP
@@ -120,50 +129,61 @@ namespace Qcache {
     void invalidate(addr_t addr) {
       if (SHARED) spin_lock(&accessLock);
 
-      // TODO
+      addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
+             set(tag%(1<<L2SETS));
+
+      spin_lock(&setLocks[set]);
+      addr_t idx;
+      for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
+        if ((tagarray[idx]>>L2LINESZ)==tag) tagarray[idx] = 0;
+      }
+      spin_unlock(&setLocks[set]);
 
       if (SHARED) spin_unlock(&accessLock);
     }
    private:
     std::vector<Cache> *peers;
     MemSysDev *lowerLevel;
-    int id;
+    const char *name;
+    int id;   
 
-     uint64_t tagarray[(size_t)WAYS<<L2SETS];
-     timestamp_t tsarray[(size_t)WAYS<<L2SETS];
-     timestamp_t tsmax[1l<<L2SETS];
-     spinlock_t setLocks[1l<<L2SETS];
+    uint64_t tagarray[(size_t)WAYS<<L2SETS];
+    timestamp_t tsarray[(size_t)WAYS<<L2SETS];
+    timestamp_t tsmax[1l<<L2SETS];
+    spinlock_t setLocks[1l<<L2SETS];
 
-     spinlock_t accessLock; // One at a time in shared LLC
+    spinlock_t accessLock; // One at a time in shared LLC
 
-     void updateRepl(addr_t set, addr_t idx) {
-       // TODO: Handle timestamp overflow.
-       ASSERT(tsmax[set] != TIMESTAMP_MAX);
-       tsarray[idx] = ++tsmax[set];
-     }
+    uint64_t accesses, misses;
 
-     addr_t findVictim(addr_t set) {
-       size_t i = set*WAYS, maxIdx = i;
-       timestamp_t maxTs = tsarray[i];
-       for (i = set*WAYS + 1; i < (set+1)*WAYS; ++i) {
-         if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
-         if (tsarray[i] > maxTs) { maxIdx = i; maxTs = tsarray[i]; }
-       }
-       return maxIdx;
-     }
+    void updateRepl(addr_t set, addr_t idx) {
+      // TODO: Handle timestamp overflow.
+      ASSERT(tsmax[set] != TIMESTAMP_MAX);
+      tsarray[idx] = ++tsmax[set];
+    }
 
-     void initArrays() {
-       if (SHARED) spinlock_init(&accessLock);
+    addr_t findVictim(addr_t set) {
+      size_t i = set*WAYS, maxIdx = i;
+      timestamp_t maxTs = tsarray[i];
+      for (i = set*WAYS + 1; i < (set+1)*WAYS; ++i) {
+        if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
+        if (tsarray[i] > maxTs) { maxIdx = i; maxTs = tsarray[i]; }
+      }
+      return maxIdx;
+    }
 
-       for (size_t i = 0; i < (size_t)WAYS<<L2SETS; ++i) {
-         tsarray[i] = tagarray[i] = 0;
-       }
+    void initArrays() {
+      if (SHARED) spinlock_init(&accessLock);
 
-       for (size_t i = 0; i < (size_t)(1<<L2SETS); ++i) {
-         tsmax[i] = 0;
-         spinlock_init(&setLocks[i]);
-       }
-     }
+      for (size_t i = 0; i < (size_t)WAYS<<L2SETS; ++i) {
+        tsarray[i] = tagarray[i] = 0;
+      }
+
+      for (size_t i = 0; i < (size_t)(1<<L2SETS); ++i) {
+        tsmax[i] = 0;
+        spinlock_init(&setLocks[i]);
+      }
+    }
   };
 
   // Group of caches at the same level. Sets up the CachePeerDir and the
@@ -173,14 +193,14 @@ namespace Qcache {
     class CacheGrp : public MemSysDevSet
   {
    public:
-    CacheGrp(int n, MemSysDev &ll) {
+    CacheGrp(int n, MemSysDev &ll, const char *name = "Unnamed") {
       for (int i = 0; i < n; ++i)
-        caches.push_back(CACHE(caches, ll, i));
+        caches.push_back(CACHE(caches, ll, i, name));
     }
 
-    CacheGrp(int n, MemSysDevSet &ll) {
+    CacheGrp(int n, MemSysDevSet &ll, const char *name = "Unnamed") {
       for (int i = 0; i < n; ++i)
-        caches.push_back(CACHE(caches, ll.getMemSysDev(i), i));
+        caches.push_back(CACHE(caches, ll.getMemSysDev(i), i, name));
     }
 
     Cache<CPROT_T, WAYS, L2SETS, L2LINESZ> &getCache(size_t i) {
@@ -198,10 +218,25 @@ namespace Qcache {
   // A coherence protocol for levels below L1. Takes no action to maintain
   // coherence.
   class CPNull {
+  public:
+    void lockAddr(addr_t addr)   {}
+    void unlockAddr(addr_t addr) {}
+    void addAddr(addr_t addr, int id) {}
+    void remAddr(addr_t addr, int id) {}
+    void hitAddr(int id, addr_t addr, uint64_t *line, bool wr) {}
+    void missAddr(int id, addr_t addr, bool wr) {}
+    void evAddr(int id, addr_t addr) {}
   };
 
   // Directory MOESI coherence protocol.
   class CPDirMoesi {
+    void lockAddr(addr_t addr)   {}
+    void unlockAddr(addr_t addr) {}
+    void addAddr(addr_t addr, int id) {}
+    void remAddr(addr_t addr, int id) {}
+    void hitAddr(int id, addr_t addr, uint64_t *line, bool wr) {}
+    void missAddr(int id, addr_t addr, bool wr) {}
+    void evAddr(int id, addr_t addr) {}
   };
 };
 
