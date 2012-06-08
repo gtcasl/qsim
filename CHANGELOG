@@ -166,6 +166,10 @@
 * Server exits when final client disconnects.
 
 * App start and end callbacks can now return nonzero to cause run() to exit
-  prematurely. Used by qsim_load to run in blocks of 1000 instructions instead
+  prematurely. Used by load_file to run in blocks of 1000 instructions instead
   of advancing one instruction at a time, for a speedup of the initialization
   phase of over 5.
+
+* Both Qsim::load_file() and qsim-fastforwarder now run idle guest cores two
+  orders of magnitude less frequently than active ones. The result is faster
+  times for both mkstate.sh and load_file().

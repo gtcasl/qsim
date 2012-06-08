@@ -11,6 +11,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
+#include <vector>
 #include "statesaver.h"
 
 // The following two defines can be used to create instruction traces. DEBUG
@@ -78,10 +79,23 @@ int main(int argc, char** argv) {
   osd.set_magic_cb(&magic_cb_s, &Magic_cb_s::magic_cb_f);
 
   std::cout << "Fast forwarding...\n";
+
+  // The thread will be "idle" during initialization. The "slow cycles"
+  // mechanism is a dirty hack that keeps timer interrupts from happening
+  // before the core is fully booted.
+  std::vector<int> slow_cycles(osd.get_n(), 10);
+  slow_cycles[0] = 70000;
   do {
     for (unsigned i = 0; i < 100 && !magic_cb_s.app_started; i++) {
       for (unsigned j = 0; j < cpus && !magic_cb_s.app_started; j++) {
-        if (osd.booted(j)) osd.run(j, 10000);
+        if (osd.booted(j)) {
+          if (osd.idle(j) && !slow_cycles[j]) {
+              osd.run(j, 100);
+	  } else {
+            if (osd.idle(j)) --slow_cycles[j];
+            osd.run(j, 10000);
+	  }
+        }
 
         // So we don't immediately run the app start callback on load
         if (magic_cb_s.app_started) osd.run(j, 1);
