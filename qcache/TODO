@@ -2,6 +2,8 @@ Qcache Todo List
 ----------------
 
 - Do basic performance evaluation and testing with a null coherence protocol.
+  - Doing so with no coherence protocol at all. (The interface hasn't really
+    been defined)
 
 - Write a directory class and a directory MOESI protocol.
   - Per-block locking.
@@ -9,6 +11,37 @@ Qcache Todo List
     LRU information is fine)
   - Constraints:
     -Locking order: Block Locks(in directory), Set Locks in Core Order
+
+  - Access pseudocode:
+    * lock set
+    * do lookup
+    * hit?
+      o unlock set
+      o tell coherence protocol about hit
+    * miss?
+      o retry: select victim
+      o unlock set
+      o lock block and victim block in order
+      o lock set
+      o block in array?
+        + Unlock set
+        + Tell coherence protocol about hit
+      o still not in array?
+        + is the victim a valid block and no longer there?
+          - unlock set
+          - unlock block and victim block in order
+          - lock set
+          - goto retry
+        + is the victim either unused or still there? (else)
+          - evict victim and add new line to array in its place.
+          - add new line to array
+          - unlock set
+          - tell coherence protocol about eviction
+          - tell coherence protocol about miss
+      o unlock victim block and block in order
+
+- Our protocol still needs to be able to determine the state of the line when it
+  is written, before it has consulted the other caches.
 
 - Start some documentation. E.g., note that private L2 cache is not shared even 
   though it shares accesses from L1i and L1d. Why? Those accesses will never be
