@@ -40,8 +40,17 @@ Qcache Todo List
           - tell coherence protocol about miss
       o unlock victim block and block in order
 
+  - Start with a directory MSI protocol and build from there.
+
+- Problem: How do we decide whether to lock a line before performing a lookup?
+  - Sometimes cprot->hitAddr() is called while holding a lock on the address
+    now. This should perhaps not always be the case.
+
 - Our protocol still needs to be able to determine the state of the line when it
   is written, before it has consulted the other caches.
+  - No we don't. It's fine. No lookup is going to see the state when it is
+    STATE_X. We still have the address locks and we are thread of the cache's
+    CPU.
 
 - Start some documentation. E.g., note that private L2 cache is not shared even 
   though it shares accesses from L1i and L1d. Why? Those accesses will never be
