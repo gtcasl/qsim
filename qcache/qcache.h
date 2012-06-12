@@ -108,19 +108,19 @@ namespace Qcache {
 
       addr &= ~stateMask; // Throw away address LSBs.
 
-      cprot->lockAddr(addr); // TODO: XX: Only lock when necessary!
+      cprot->lockAddr(addr, id); // TODO: XX: Only lock when necessary!
       spin_lock(&setLocks[set]);
       addr_t idx;
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
           updateRepl(set, idx);
           spin_unlock(&setLocks[set]);
-          cprot->hitAddr(id, tag<<L2LINESZ, &tagarray[idx], wr);
-          cprot->unlockAddr(addr); // XX
+          cprot->hitAddr(id, addr, &tagarray[idx], wr);
+          cprot->unlockAddr(addr, id); // XX
           goto finish;
         }
       }
-      cprot->unlockAddr(addr); // XX
+      cprot->unlockAddr(addr, id); // XX
       ++misses;
 
       size_t vidx;
@@ -134,9 +134,9 @@ namespace Qcache {
         spin_unlock(&setLocks[set]);
         
         // Lock access block and victim block (if not an invalid line) in order
-        if (victimState && victimAddr < addr) cprot->lockAddr(victimAddr);
-        cprot->lockAddr(addr);
-        if (victimState && victimAddr > addr) cprot->lockAddr(victimAddr);
+        if (victimState && victimAddr < addr) cprot->lockAddr(victimAddr, id);
+        cprot->lockAddr(addr, id);
+        if (victimState && victimAddr > addr) cprot->lockAddr(victimAddr, id);
 
         spin_lock(&setLocks[set]);
         for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
@@ -154,7 +154,7 @@ namespace Qcache {
         if (!victimState && (tagarray[vidx] & stateMask)) {
           // Our invalid victim became valid.
           spin_unlock(&setLocks[set]);
-          cprot->unlockAddr(addr);
+          cprot->unlockAddr(addr, id);
           spin_lock(&setLocks[set]);
           continue;
 	}
@@ -162,9 +162,9 @@ namespace Qcache {
         if (victimState && (tagarray[vidx] & ~stateMask) != victimAddr) {
           // Victim has changed in the array.
           spin_unlock(&setLocks[set]);
-          if (victimAddr > addr) cprot->unlockAddr(victimAddr);
-          cprot->unlockAddr(addr);
-          if (victimAddr < addr) cprot->unlockAddr(victimAddr);
+          if (victimAddr > addr) cprot->unlockAddr(victimAddr, id);
+          cprot->unlockAddr(addr, id);
+          if (victimAddr < addr) cprot->unlockAddr(victimAddr, id);
           spin_lock(&setLocks[set]);
           continue;
 	}
@@ -180,9 +180,9 @@ namespace Qcache {
 
     missFinish:
       // Unlock access block and victim block in reverse order.
-      if (victimState && victimAddr > addr) cprot->unlockAddr(victimAddr);
-      cprot->unlockAddr(addr);
-      if (victimState && victimAddr < addr) cprot->unlockAddr(victimAddr);
+      if (victimState && victimAddr > addr) cprot->unlockAddr(victimAddr, id);
+      cprot->unlockAddr(addr, id);
+      if (victimState && victimAddr < addr) cprot->unlockAddr(victimAddr, id);
 
     finish:
       if (SHARED) spin_unlock(&accessLock);
@@ -330,8 +330,8 @@ namespace Qcache {
   public:
     CPNull(std::vector<CACHE> &caches) {}
 
-    void lockAddr(addr_t addr)   {}
-    void unlockAddr(addr_t addr) {}
+    void lockAddr(addr_t addr, int id)   {}
+    void unlockAddr(addr_t addr, int id) {}
     void addAddr(addr_t addr, int id) {}
     void remAddr(addr_t addr, int id) {}
     void hitAddr(int id, addr_t addr, uint64_t *line, bool wr) {}
@@ -342,14 +342,16 @@ namespace Qcache {
   // Directory for directory-based protocols.
   template <int L2LINESZ> class CoherenceDir {
   public:
-    void lockAddr(addr_t addr) {
+    void lockAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
       spin_lock(&banks[getBankIdx(addr)].getEntry(addr).lock);
+      banks[getBankIdx(addr)].getEntry(addr).lockHolder = id;
     }
 
-    void unlockAddr(addr_t addr) {
+    void unlockAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
       spin_unlock(&banks[getBankIdx(addr)].getEntry(addr).lock);
+      banks[getBankIdx(addr)].getEntry(addr).lockHolder = -1;
     }
 
     void addAddr(addr_t addr, int id) {
@@ -362,18 +364,21 @@ namespace Qcache {
       banks[getBankIdx(addr)].getEntry(addr).present.erase(id);
     }
 
-    std::set<int>::iterator idsBegin(addr_t addr) {
+    std::set<int>::iterator idsBegin(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
+      ASSERT(banks[getBankIdx(addr)].getEntry(addr).lockHolder == id);
       return banks[getBankIdx(addr)].getEntry(addr).present.begin();
     }
 
-    std::set<int>::iterator idsEnd(addr_t addr) {
+    std::set<int>::iterator idsEnd(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
+      ASSERT(banks[getBankIdx(addr)].getEntry(addr).lockHolder == id);
       return banks[getBankIdx(addr)].getEntry(addr).present.end();
     }
 
     std::set<int>::iterator clearIds(addr_t addr, int remaining) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
+      ASSERT(banks[getBankIdx(addr)].getEntry(addr).lockHolder == remaining);
       std::set<int> &p(banks[getBankIdx(addr)].getEntry(addr).present);
       p.clear();
       p.insert(remaining);
@@ -383,6 +388,7 @@ namespace Qcache {
     struct Entry {
       Entry(): present() { spinlock_init(&lock); }
       spinlock_t lock;
+      int lockHolder;
       std::set<int> present;
     };
 
@@ -427,8 +433,8 @@ namespace Qcache {
       STATE_S = 0x05
     };
 
-    void lockAddr(addr_t addr)   { dir.lockAddr(addr); }
-    void unlockAddr(addr_t addr) { dir.unlockAddr(addr); }
+    void lockAddr(addr_t addr, int id)   { dir.lockAddr(addr, id); }
+    void unlockAddr(addr_t addr, int id) { dir.unlockAddr(addr, id); }
     void addAddr(addr_t addr, int id) { dir.addAddr(addr, id); }
     void remAddr(addr_t addr, int id) { dir.remAddr(addr, id); }
 
@@ -438,8 +444,8 @@ namespace Qcache {
       } else if (getState(line) == STATE_S) {
         if (!wr) return;
         // Invalidate all of the remote lines.
-	for (std::set<int>::iterator it = dir.idsBegin(addr);
-            it != dir.idsEnd(addr); ++it)
+	for (std::set<int>::iterator it = dir.idsBegin(addr, id);
+	     it != dir.idsEnd(addr, id); ++it)
 	{
           if (*it == id) continue;
           caches[*it].cprotLookup(addr, STATE_I);
@@ -457,8 +463,8 @@ namespace Qcache {
 
       if (wr) {
         // Invalidate all of the remote lines.
-        for (std::set<int>::iterator it = dir.idsBegin(addr);
-             it != dir.idsEnd(addr); ++it)
+        for (std::set<int>::iterator it = dir.idsBegin(addr, id);
+             it != dir.idsEnd(addr, id); ++it)
 	{
           if (*it == id) continue;
           caches[*it].cprotLookup(addr, STATE_I);
