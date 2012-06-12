@@ -467,9 +467,13 @@ namespace Qcache {
                  spinlock_t *setLock, uint64_t *line, bool wr)
     {
       if (getState(line) == STATE_M) {
+        spin_unlock(setLock);
         return;
       } else if (getState(line) == STATE_S) {
-        if (!wr) return;
+        if (!wr) {
+          spin_unlock(setLock);
+          return;
+	}
 
         // Set my state to modified This is done with the setLock held in case
         // we do not have the address locked.
