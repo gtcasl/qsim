@@ -108,19 +108,15 @@ namespace Qcache {
 
       addr &= ~stateMask; // Throw away address LSBs.
 
-      cprot->lockAddr(addr, id); // TODO: XX: Only lock when necessary!
       spin_lock(&setLocks[set]);
       addr_t idx;
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
           updateRepl(set, idx);
-          spin_unlock(&setLocks[set]);
-          cprot->hitAddr(id, addr, true, &tagarray[idx], wr);
-          cprot->unlockAddr(addr, id); // XX
+          cprot->hitAddr(id, addr, false, &setLocks[set], &tagarray[idx], wr);
           goto finish;
         }
       }
-      cprot->unlockAddr(addr, id); // XX
       ++misses;
 
       size_t vidx;
@@ -143,8 +139,7 @@ namespace Qcache {
           if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
             // The block we were looking for made its way into the cache.
             updateRepl(set, idx);
-            spin_unlock(&setLocks[set]);
-            cprot->hitAddr(id, addr, true, &tagarray[idx], wr);
+            cprot->hitAddr(id, addr, true, &setLocks[set], &tagarray[idx], wr);
             goto missFinish;
           }
         }
@@ -342,10 +337,13 @@ namespace Qcache {
     void unlockAddr(addr_t addr, int id) {}
     void addAddr(addr_t addr, int id) {}
     void remAddr(addr_t addr, int id) {}
-    void hitAddr(int id, addr_t addr, bool locked, uint64_t *line, bool wr) {
+    void hitAddr(int id, addr_t addr, bool locked,
+                 spinlock_t *setLock, uint64_t *line, bool wr)
+    {
       if (wr) {
         *line = *line & ((~(uint64_t)0)<<L2LINESZ) | STATE_M;
       }
+      spin_unlock(setLock);
     }
 
     bool missAddr(int id, addr_t addr, uint64_t *line, bool wr) {
@@ -465,11 +463,24 @@ namespace Qcache {
     void addAddr(addr_t addr, int id) { dir.addAddr(addr, id); }
     void remAddr(addr_t addr, int id) { dir.remAddr(addr, id); }
 
-    void hitAddr(int id, addr_t addr, bool locked, uint64_t *line, bool wr) {
+    void hitAddr(int id, addr_t addr, bool locked,
+                 spinlock_t *setLock, uint64_t *line, bool wr)
+    {
       if (getState(line) == STATE_M) {
         return;
       } else if (getState(line) == STATE_S) {
         if (!wr) return;
+
+        // Set my state to modified This is done with the setLock held in case
+        // we do not have the address locked.
+        setState(line, STATE_M);
+        spin_unlock(setLock);
+
+        // If I don't hold the lock for this address, get it.
+        if (!locked) {
+          lockAddr(addr, id);
+	} 
+
         // Invalidate all of the remote lines.
 	for (std::set<int>::iterator it = dir.idsBegin(addr, id);
 	     it != dir.idsEnd(addr, id); ++it)
@@ -481,6 +492,10 @@ namespace Qcache {
           spin_unlock(l);
         }
         dir.clearIds(addr, id);
+
+        if (!locked) {
+          unlockAddr(addr, id);
+        }
       } else {
 	std::cerr << "Invalid state: " << getState(line) << '\n';
         ASSERT(false); // Invalid state.
