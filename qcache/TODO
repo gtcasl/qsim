@@ -43,8 +43,10 @@ Qcache Todo List
   - Start with a directory MSI protocol and build from there.
 
 - Problem: How do we decide whether to lock a line before performing a lookup?
-  - Sometimes cprot->hitAddr() is called while holding a lock on the address
-    now. This should perhaps not always be the case.
+  - cprot->hitAddr() is called while holding a lock on the address now. This
+    should perhaps not always be the case. The coherence protocol should
+    be able to better determine whether a lock should be acquired.
+    - Add a "lock held" argument to hitAddr()?
 
 - Our protocol still needs to be able to determine the state of the line when it
   is written, before it has consulted the other caches.

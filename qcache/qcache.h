@@ -115,7 +115,7 @@ namespace Qcache {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
           updateRepl(set, idx);
           spin_unlock(&setLocks[set]);
-          cprot->hitAddr(id, addr, &tagarray[idx], wr);
+          cprot->hitAddr(id, addr, true, &tagarray[idx], wr);
           cprot->unlockAddr(addr, id); // XX
           goto finish;
         }
@@ -144,7 +144,7 @@ namespace Qcache {
             // The block we were looking for made its way into the cache.
             updateRepl(set, idx);
             spin_unlock(&setLocks[set]);
-            cprot->hitAddr(id, addr, &tagarray[idx], wr);
+            cprot->hitAddr(id, addr, true, &tagarray[idx], wr);
             goto missFinish;
           }
         }
@@ -174,7 +174,11 @@ namespace Qcache {
       tagarray[vidx] = addr|0x01;
       updateRepl(set, vidx); // MRU insertion policy.
       spin_unlock(&setLocks[set]);
-      cprot->evAddr(id, victimAddr);
+      if (victimState) {
+        bool doWriteback = cprot->evAddr(id, victimAddr, victimState);
+        if (doWriteback) lowerLevel->access(victimAddr, true);
+      }
+
       if (!cprot->missAddr(id, addr, &tagarray[vidx], wr))
         lowerLevel->access(tag<<L2LINESZ, wr);
 
@@ -212,22 +216,20 @@ namespace Qcache {
 
    // When the coherence protocol needs to look up a line for any reason, this
    // is the function that should be called.
-   uint64_t *cprotLookup(addr_t addr, int state) {
+   uint64_t *cprotLookup(addr_t addr, spinlock_t *&lock) {
      ASSERT(!SHARED); // No coherence on shared caches.
 
      addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
             set(tag%(1<<L2SETS));
 
-     if (state == 0) {
-       spin_lock(&invalidatesLock);
-       ++invalidates;
-       spin_unlock(&invalidatesLock);
-     }
+     spin_lock(&invalidatesLock);
+     ++invalidates;
+     spin_unlock(&invalidatesLock);
 
+     spin_lock(&setLocks[set]);
      for (size_t idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
        if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
-         tagarray[idx] = tagarray[idx] & ((~(uint64_t)0)<<L2LINESZ)|state;
-         spin_unlock(&setLocks[set]);
+         lock = &setLocks[set];
          return &tagarray[idx];
        }
      }
@@ -325,18 +327,35 @@ namespace Qcache {
   };
 
   // A coherence protocol for levels below L1. Takes no action to maintain
-  // coherence.
+  // coherence, but does keep track of lines' modified-ness.
   template <int L2LINESZ, typename CACHE> class CPNull {
   public:
     CPNull(std::vector<CACHE> &caches) {}
+
+    enum State {
+      STATE_I = 0x00, // Invalid
+      STATE_P = 0x01, // Present
+      STATE_M = 0x02  // Modified
+    };
 
     void lockAddr(addr_t addr, int id)   {}
     void unlockAddr(addr_t addr, int id) {}
     void addAddr(addr_t addr, int id) {}
     void remAddr(addr_t addr, int id) {}
-    void hitAddr(int id, addr_t addr, uint64_t *line, bool wr) {}
-    bool missAddr(int id, addr_t addr, uint64_t *line, bool wr) {return false;}
-    void evAddr(int id, addr_t addr) {}
+    void hitAddr(int id, addr_t addr, bool locked, uint64_t *line, bool wr) {
+      if (wr) {
+        *line = *line & ((~(uint64_t)0)<<L2LINESZ) | STATE_M;
+      }
+    }
+
+    bool missAddr(int id, addr_t addr, uint64_t *line, bool wr) {
+      *line = *line & ((~(uint64_t)0)<<L2LINESZ) | (wr?STATE_M:STATE_P);
+      return false;
+    }
+
+    bool evAddr(int id, addr_t addr, int state) { 
+      return state == STATE_M;
+    }
   };
 
   // Directory for directory-based protocols.
@@ -350,17 +369,25 @@ namespace Qcache {
 
     void unlockAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
-      spin_unlock(&banks[getBankIdx(addr)].getEntry(addr).lock);
+      ASSERT(id == banks[getBankIdx(addr)].getEntry(addr).lockHolder);
       banks[getBankIdx(addr)].getEntry(addr).lockHolder = -1;
+      spin_unlock(&banks[getBankIdx(addr)].getEntry(addr).lock);
     }
 
     void addAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
+      ASSERT(banks[getBankIdx(addr)].getEntry(addr).lockHolder == id);
       banks[getBankIdx(addr)].getEntry(addr).present.insert(id);
     }
 
     void remAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
+      if (banks[getBankIdx(addr)].getEntry(addr).lockHolder != id) {
+	std::cerr << "Error: Tried to remove on cache " << id 
+                  << " while lock held by " 
+                  << banks[getBankIdx(addr)].getEntry(addr).lockHolder << ".\n";
+        ASSERT(false);
+      }
       banks[getBankIdx(addr)].getEntry(addr).present.erase(id);
     }
 
@@ -438,7 +465,7 @@ namespace Qcache {
     void addAddr(addr_t addr, int id) { dir.addAddr(addr, id); }
     void remAddr(addr_t addr, int id) { dir.remAddr(addr, id); }
 
-    void hitAddr(int id, addr_t addr, uint64_t *line, bool wr) {
+    void hitAddr(int id, addr_t addr, bool locked, uint64_t *line, bool wr) {
       if (getState(line) == STATE_M) {
         return;
       } else if (getState(line) == STATE_S) {
@@ -448,7 +475,10 @@ namespace Qcache {
 	     it != dir.idsEnd(addr, id); ++it)
 	{
           if (*it == id) continue;
-          caches[*it].cprotLookup(addr, STATE_I);
+          spinlock_t *l;
+          uint64_t *invLine = caches[*it].cprotLookup(addr, l);
+          *invLine = 0;
+          spin_unlock(l);
         }
         dir.clearIds(addr, id);
       } else {
@@ -461,22 +491,31 @@ namespace Qcache {
       setState(line, wr?STATE_M:STATE_S);
       addAddr(addr, id);
 
-      if (wr) {
-        // Invalidate all of the remote lines.
-        for (std::set<int>::iterator it = dir.idsBegin(addr, id);
-             it != dir.idsEnd(addr, id); ++it)
-	{
-          if (*it == id) continue;
-          caches[*it].cprotLookup(addr, STATE_I);
-	}
-        dir.clearIds(addr, id);
-      }
+      bool forwarded = false;
+   
+      // Invalidate all of the remote lines.
+      for (std::set<int>::iterator it = dir.idsBegin(addr, id);
+           it != dir.idsEnd(addr, id); ++it)
+      {
+        if (*it == id) continue;
 
-      return false;
+        forwarded = true;
+
+        if (wr) {
+          spinlock_t *l;
+          uint64_t *invLine = caches[*it].cprotLookup(addr, l);
+          *invLine = 0;
+          spin_unlock(l);
+        }
+      }
+      dir.clearIds(addr, id);
+
+      return forwarded;
     }
 
-    void evAddr(int id, addr_t addr) {
+    bool evAddr(int id, addr_t addr, int state) {
       remAddr(addr, id);
+      return state == STATE_M;
     }
 
   private:
