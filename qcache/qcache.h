@@ -14,6 +14,8 @@
 
 #include <stdlib.h>
 
+//#define DEBUG
+
 #if 1
 #define ASSERT(b) do { if (!(b)) { \
   std::cerr << "Error: Failed assertion at " << __FILE__ << ':' << std::dec \
@@ -26,6 +28,8 @@
 #endif
 
 namespace Qcache {
+  static pthread_mutex_t errLock = PTHREAD_MUTEX_INITIALIZER;
+
   const unsigned DIR_BANKS = 256; // # coherence directory banks
 
   typedef unsigned timestamp_t;
@@ -113,8 +117,12 @@ namespace Qcache {
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
           updateRepl(set, idx);
-          cprot->hitAddr(id, addr, false, &setLocks[set], &tagarray[idx], wr);
-          goto finish;
+          if (cprot->hitAddr(id, addr, false, &setLocks[set],
+                             &tagarray[idx], wr)) goto finish;
+          else {
+            spin_lock(&setLocks[set]);
+            break;
+	  }
         }
       }
       ++misses;
@@ -122,8 +130,10 @@ namespace Qcache {
       size_t vidx;
       addr_t victimAddr;
       int victimState;
+      uint64_t victimVal;
       for (;;) {
         vidx = findVictim(set);
+        victimVal = tagarray[vidx];
         victimAddr = tagarray[vidx] & ~stateMask;
         victimState = tagarray[vidx] & stateMask;
         ASSERT(victimState == 0 || victimAddr != addr);
@@ -154,7 +164,7 @@ namespace Qcache {
           continue;
 	}
 
-        if (victimState && (tagarray[vidx] & ~stateMask) != victimAddr) {
+        if (victimState && tagarray[vidx] != victimVal) {
           // Victim has changed in the array.
           spin_unlock(&setLocks[set]);
           if (victimAddr > addr) cprot->unlockAddr(victimAddr, id);
@@ -163,6 +173,13 @@ namespace Qcache {
           spin_lock(&setLocks[set]);
           continue;
 	}
+
+        #ifdef DEBUG
+        pthread_mutex_lock(&errLock);
+	std::cout << id << ": Found victim: 0x" << std::hex << tagarray[vidx]
+                  << '\n';
+        pthread_mutex_unlock(&errLock);
+        #endif
         
         break;
       }
@@ -237,6 +254,15 @@ namespace Qcache {
      return NULL;
    }
 
+   void dumpSet(addr_t addr) {
+     addr_t set((addr>>L2LINESZ)%(1<<L2SETS));
+
+     for (size_t idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
+       std::cerr << " 0x" << std::hex << tagarray[idx];
+     }
+     std::cerr << '\n';
+   }
+
    private:
     std::vector<Cache> *peers;
     MemSysDev *lowerLevel;
@@ -262,7 +288,7 @@ namespace Qcache {
 
     addr_t findVictim(addr_t set) {
       size_t i = set*WAYS, maxIdx = i;
-      timestamp_t maxTs = tsarray[i];
+     timestamp_t maxTs = tsarray[i];
       for (i = set*WAYS + 1; i < (set+1)*WAYS; ++i) {
         if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
         if (tsarray[i] > maxTs) { maxIdx = i; maxTs = tsarray[i]; }
@@ -337,13 +363,14 @@ namespace Qcache {
     void unlockAddr(addr_t addr, int id) {}
     void addAddr(addr_t addr, int id) {}
     void remAddr(addr_t addr, int id) {}
-    void hitAddr(int id, addr_t addr, bool locked,
+    bool hitAddr(int id, addr_t addr, bool locked,
                  spinlock_t *setLock, uint64_t *line, bool wr)
     {
       if (wr) {
         *line = *line & ((~(uint64_t)0)<<L2LINESZ) | STATE_M;
       }
       spin_unlock(setLock);
+      return true;
     }
 
     bool missAddr(int id, addr_t addr, uint64_t *line, bool wr) {
@@ -362,6 +389,11 @@ namespace Qcache {
     void lockAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
       spin_lock(&banks[getBankIdx(addr)].getEntry(addr).lock);
+      #ifdef DEBUG
+      pthread_mutex_lock(&errLock);
+      std::cout << id << ": Lock " << std::hex << addr << '\n';
+      pthread_mutex_unlock(&errLock);
+      #endif
       banks[getBankIdx(addr)].getEntry(addr).lockHolder = id;
     }
 
@@ -369,17 +401,44 @@ namespace Qcache {
       ASSERT(addr%(1<<L2LINESZ) == 0);
       ASSERT(id == banks[getBankIdx(addr)].getEntry(addr).lockHolder);
       banks[getBankIdx(addr)].getEntry(addr).lockHolder = -1;
+      #ifdef DEBUG
+      pthread_mutex_lock(&errLock);
+      std::cout << id << ": Unlock " << std::hex << addr << '\n';
+      pthread_mutex_unlock(&errLock);
+      #endif
       spin_unlock(&banks[getBankIdx(addr)].getEntry(addr).lock);
+
     }
 
     void addAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
       ASSERT(banks[getBankIdx(addr)].getEntry(addr).lockHolder == id);
+      ASSERT(!hasId(addr, id));
+#ifdef DEBUG
+      pthread_mutex_lock(&errLock);
+      std::cout << "0x" << std::hex << addr << ": add " << id << ';';
+      printEntry(addr, std::cout, id);
+      pthread_mutex_unlock(&errLock);
+#endif
       banks[getBankIdx(addr)].getEntry(addr).present.insert(id);
     }
 
     void remAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
+#ifdef DEBUG
+      pthread_mutex_lock(&errLock);
+      std::cout << "0x" << std::hex << addr << ": rem " << id << ';';
+      printEntry(addr, std::cout, id);
+      pthread_mutex_unlock(&errLock);
+#endif
+      if (!hasId(addr, id)) {
+	pthread_mutex_lock(&errLock);
+	std::cerr << "Tried to remove " << id << " from dir entry for 0x" 
+                  << std::hex << addr << ". Only has:";
+        printEntry(addr, std::cerr, id);
+        pthread_mutex_unlock(&errLock);
+        ASSERT(false);
+      }
       if (banks[getBankIdx(addr)].getEntry(addr).lockHolder != id) {
 	std::cerr << "Error: Tried to remove on cache " << id 
                   << " while lock held by " 
@@ -387,6 +446,13 @@ namespace Qcache {
         ASSERT(false);
       }
       banks[getBankIdx(addr)].getEntry(addr).present.erase(id);
+    }
+
+    bool hasId(addr_t addr, int id) {
+      ASSERT(addr%(1<<L2LINESZ) == 0);
+      ASSERT(banks[getBankIdx(addr)].getEntry(addr).lockHolder == id);
+      return banks[getBankIdx(addr)].getEntry(addr).present.find(id) !=
+               banks[getBankIdx(addr)].getEntry(addr).present.end();
     }
 
     std::set<int>::iterator idsBegin(addr_t addr, int id) {
@@ -404,9 +470,24 @@ namespace Qcache {
     std::set<int>::iterator clearIds(addr_t addr, int remaining) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
       ASSERT(banks[getBankIdx(addr)].getEntry(addr).lockHolder == remaining);
+#ifdef DEBUG
+      pthread_mutex_lock(&errLock);
+      std::cout << "0x" << std::hex << addr << ": clear " << remaining << ';';
+      printEntry(addr, std::cout, remaining);
+      pthread_mutex_unlock(&errLock);
+#endif
       std::set<int> &p(banks[getBankIdx(addr)].getEntry(addr).present);
       p.clear();
       p.insert(remaining);
+    }
+
+    void printEntry(addr_t addr, std::ostream &os, int id) {
+      for (std::set<int>::iterator it = idsBegin(addr, id);
+           it != idsEnd(addr, id); ++it)
+      {
+        os << ' ' << *it;
+      }
+      os << '\n';
     }
 
   private:
@@ -463,46 +544,79 @@ namespace Qcache {
     void addAddr(addr_t addr, int id) { dir.addAddr(addr, id); }
     void remAddr(addr_t addr, int id) { dir.remAddr(addr, id); }
 
-    void hitAddr(int id, addr_t addr, bool locked,
+    bool hitAddr(int id, addr_t addr, bool locked,
                  spinlock_t *setLock, uint64_t *line, bool wr)
     {
       if (getState(line) == STATE_M) {
-        spin_unlock(setLock);
-        return;
+	spin_unlock(setLock);
+        return true;
       } else if (getState(line) == STATE_S) {
-        if (!wr) {
-          spin_unlock(setLock);
-          return;
-	}
-
-        // Set my state to modified This is done with the setLock held in case
-        // we do not have the address locked.
-        setState(line, STATE_M);
         spin_unlock(setLock);
+        if (!wr) return true;
 
         // If I don't hold the lock for this address, get it.
         if (!locked) {
           lockAddr(addr, id);
-	} 
+	}
+
+        // Since we have to serialize on the address lock, it is still possible
+        // for a miss to occur
+        if (!dir.hasId(addr, id)) {
+          if (locked) {
+            pthread_mutex_lock(&errLock);
+	    std::cerr << "Hit 0x" << std::hex << addr << " on " << id
+                      << " missing from dir. Dir entry:";
+	    for (std::set<int>::iterator it = dir.idsBegin(addr, id);
+                 it != dir.idsEnd(addr, id); ++it)
+	    {
+	      std::cout << ' ' << *it;
+	    }
+	    std::cerr << '\n';
+	    std::cerr << "Cache set:"; caches[id].dumpSet(addr);
+            pthread_mutex_unlock(&errLock);
+            ASSERT(false);
+	  }
+          unlockAddr(addr, id);
+          return false;
+        }
 
         // Invalidate all of the remote lines.
+        int lockCount = 0;
+        spinlock_t *locks[16];
 	for (std::set<int>::iterator it = dir.idsBegin(addr, id);
 	     it != dir.idsEnd(addr, id); ++it)
 	{
           if (*it == id) continue;
           spinlock_t *l;
           uint64_t *invLine = caches[*it].cprotLookup(addr, l);
-          *invLine = 0;
-          spin_unlock(l);
+          *invLine = *invLine & ~(uint64_t)((1<<L2LINESZ)-1);
+          //spin_unlock(l);
+          locks[lockCount++] = l;
         }
         dir.clearIds(addr, id);
+        for (int i = lockCount-1; i >= 0; --i) spin_unlock(locks[i]);
+
+        #ifdef DEBUG
+        pthread_mutex_lock(&errLock);
+	std::cout << id << ": 0x" << std::hex << addr << " S->M\n";
+        pthread_mutex_unlock(&errLock);
+        #endif
+
+	// spin_lock(setLock); Unnecessary since we hold the address lock
+        setState(line, STATE_M);
+        // spin_unlock(setLock);
+
+        ASSERT(dir.hasId(addr, id));
 
         if (!locked) {
           unlockAddr(addr, id);
         }
+
+        return true;
       } else {
 	std::cerr << "Invalid state: " << getState(line) << '\n';
         ASSERT(false); // Invalid state.
+        return false;
       }
     }
 
@@ -512,7 +626,16 @@ namespace Qcache {
 
       bool forwarded = false;
    
+      #ifdef DEBUG
+      pthread_mutex_lock(&errLock);
+      std::cout << id << ": 0x" << std::hex << addr << " I->"
+                << (wr?"M\n":"S\n");
+      pthread_mutex_unlock(&errLock);
+      #endif
+
       // Invalidate all of the remote lines.
+      int lockCount = 0;
+      spinlock_t *locks[16];
       for (std::set<int>::iterator it = dir.idsBegin(addr, id);
            it != dir.idsEnd(addr, id); ++it)
       {
@@ -520,14 +643,20 @@ namespace Qcache {
 
         forwarded = true;
 
+        spinlock_t *l;
+        uint64_t *invLine = caches[*it].cprotLookup(addr, l);
         if (wr) {
-          spinlock_t *l;
-          uint64_t *invLine = caches[*it].cprotLookup(addr, l);
-          *invLine = 0;
-          spin_unlock(l);
+          *invLine = *invLine & ~(uint64_t)((1<<L2LINESZ)-1);
+        } else {
+          *invLine = *invLine & ~(uint64_t)((1<<L2LINESZ)-1) | STATE_S;
         }
+        //spin_unlock(l);
+        locks[lockCount++] = l;
       }
-      dir.clearIds(addr, id);
+      if (wr) dir.clearIds(addr, id);
+      for (int i = lockCount - 1; i >= 0; --i) spin_unlock(locks[i]);
+
+      ASSERT(dir.hasId(addr, id));
 
       return forwarded;
     }
