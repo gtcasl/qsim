@@ -15,6 +15,7 @@
 #include <qsim-load.h>
 
 #include "qcache.h"
+#include "qcache-msi.h"
 
 // <Coherence Protorol, Ways, log2(sets), log2(bytes/line)>
 // Last parameter of L3 cache type says that it's shared.
