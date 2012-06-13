@@ -9,16 +9,17 @@ export QSIM_PREFIX
 export LD_LIBRARY_PATH
 
 TARFILES=$BENCHMARK_DIR/*-tar/*.tar
-CORECOUNTS="1 2 4"
+THREADCOUNTS="1 2 4"
+GUESTCORECOUNT=64
 
 echo > $LOGFILE
 
 for TAR in $TARFILES; do
   APP=`echo $TAR | sed 's/\.tar//' | sed 's/^.*\///'`
   echo === $APP ===
-  for i in $CORECOUNTS; do
+  for i in $THREADCOUNTS; do
     echo -n "$i "
-    ./main ../state.$i $TAR TRACE.$APP.$i >> $LOGFILE
+    ./main ../state.$GUESTCORECOUNT $TAR $i TRACE.$APP.$i >> $LOGFILE
   done
   echo
 done

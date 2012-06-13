@@ -85,7 +85,8 @@ Qsim::OSDomain *osd_p;
 CallbackAdaptor *cba_p;
 
 struct thread_arg_t {
-  int cpu;
+  int cpuStart;
+  int cpuEnd;
   pthread_t thread;
 };
 
@@ -97,12 +98,14 @@ void *thread_main(void *arg_vp) {
 
   while (cba_p->running) {
     for (unsigned i = 0; i < 100; ++i) {
-      if (osd_p->idle(arg->cpu)) osd_p->run(arg->cpu, 100);
-      else osd_p->run(arg->cpu, 10000);
+      for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
+        if (osd_p->idle(c)) osd_p->run(c, 100);
+        else osd_p->run(c, 10000);
+      }
     }
 
     pthread_barrier_wait(&b0);
-    if (arg->cpu == 0) {
+    if (arg->cpuStart == 0) {
       if (!cba_p->running) {
         running = false;
       } else {
@@ -116,9 +119,11 @@ void *thread_main(void *arg_vp) {
 }
 
 int main(int argc, char** argv) {
+  int threads;
+
   if (argc < 3) {
     std::cout << "Usage:\n  " << argv[0] << " <state file> "
-              << "<benchmark tar file> [trace file]\n";
+              << "<benchmark tar file> <# host threads> [trace file]\n";
     exit(1);
   }
 
@@ -128,9 +133,15 @@ int main(int argc, char** argv) {
   Qsim::load_file(osd, argv[2]);
   std::cout << "Benchmark loaded. Running.\n";
 
-  std::ostream *traceOut;
   if (argc >= 4) {
-    traceOut = new std::ofstream(argv[3]);
+    threads = atol(argv[3]);
+  } else {
+    threads = osd.get_n();
+  }
+
+  std::ostream *traceOut;
+  if (argc >= 5) {
+    traceOut = new std::ofstream(argv[4]);
   } else {
     traceOut = &std::cout;
   }
@@ -143,29 +154,36 @@ int main(int argc, char** argv) {
   l1d_t l1_d(osd.get_n(), l2, "L1d");
   l1i_t l1_i(osd.get_n(), l2, "L1i");
 
-  pthread_barrier_init(&b0, NULL, osd.get_n());
-  pthread_barrier_init(&b1, NULL, osd.get_n());
+  pthread_barrier_init(&b0, NULL, threads);
+  pthread_barrier_init(&b1, NULL, threads);
 
   CallbackAdaptor cba(osd, l1_i, l1_d);
 
   osd_p = &osd;
   cba_p = &cba;
 
-  std::vector<thread_arg_t> targs(osd.get_n());  
+  std::vector<thread_arg_t> targs(threads);  
+
+  if (osd.get_n() % threads) {
+    std::cerr << "Error: number of host threads must divide evenly into"
+                 " number of guest threads.\n";
+    exit(1);
+  }
 
   unsigned long long start_usec = utime();
-  for (unsigned i = 0; i < osd.get_n(); ++i) {
-    targs[i].cpu = i;
+  for (unsigned i = 0; i < threads; ++i) {
+    targs[i].cpuStart = i * (osd.get_n() / threads);
+    targs[i].cpuEnd = (i + 1) * (osd.get_n() / threads);
     pthread_create(&targs[i].thread, NULL, thread_main, (void*)&targs[i]);
   }
 
-  for (unsigned i = 0; i < osd.get_n(); ++i)
+  for (unsigned i = 0; i < threads; ++i)
     pthread_join(targs[i].thread, NULL);
   unsigned long long end_usec = utime();
 
   std::cout << "Total time: " << std::dec << end_usec - start_usec << "us\n";
 
-  if (argc >= 4) {
+  if (argc >= 5) {
     delete traceOut;
   }
 
