@@ -51,6 +51,7 @@ namespace Qcache {
 
     virtual void access(addr_t addr, bool wr) = 0;
     virtual void invalidate(addr_t addr) = 0;
+    virtual bool isShared() { return false; }
   };
 
   class MemSysDevSet {
@@ -191,8 +192,9 @@ namespace Qcache {
         if (doWriteback) lowerLevel->access(victimAddr, true);
       }
 
-      if (!cprot->missAddr(id, addr, &tagarray[vidx], wr))
-        lowerLevel->access(tag<<L2LINESZ, wr);
+      if (cprot->missAddr(id, addr, &tagarray[vidx], wr)) {
+        lowerLevel->access(tag<<L2LINESZ, false);
+      }
 
     missFinish:
       // Unlock access block and victim block in reverse order.
@@ -205,13 +207,7 @@ namespace Qcache {
     }
 
     void invalidate(addr_t addr) {
-      if (SHARED) spin_lock(&accessLock);
-
-      ASSERT(false); // TODO: Make this function coherence-compatible
-
-      spin_lock(&invalidatesLock);
-      ++invalidates;
-      spin_unlock(&invalidatesLock);
+      ASSERT(!SHARED);
 
       addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
              set(tag%(1<<L2SETS));
@@ -219,16 +215,27 @@ namespace Qcache {
       spin_lock(&setLocks[set]);
       addr_t idx;
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
-        if ((tagarray[idx]>>L2LINESZ)==tag) tagarray[idx] = 0;
+        if ((tagarray[idx]>>L2LINESZ)==tag) {
+          tagarray[idx] = 0;
+          // No need to get invalidates lock since we are not shared and are
+          // not accessed by the coherence protocol.
+          ++invalidates;
+        }
       }
       spin_unlock(&setLocks[set]);
+    }
 
-      if (SHARED) spin_unlock(&accessLock);
+    bool isShared() { return SHARED; }
+
+    void invalidateLowerLevel(addr_t addr) {
+      ASSERT(!SHARED);
+
+      if (!lowerLevel->isShared()) lowerLevel->invalidate(addr);
     }
 
    // When the coherence protocol needs to look up a line for any reason, this
    // is the function that should be called.
-   uint64_t *cprotLookup(addr_t addr, spinlock_t *&lock) {
+   uint64_t *cprotLookup(addr_t addr, spinlock_t *&lock, bool inv) {
      ASSERT(!SHARED); // No coherence on shared caches.
 
      addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
@@ -581,20 +588,17 @@ namespace Qcache {
         }
 
         // Invalidate all of the remote lines.
-        int lockCount = 0;
-        spinlock_t *locks[16];
 	for (std::set<int>::iterator it = dir.idsBegin(addr, id);
 	     it != dir.idsEnd(addr, id); ++it)
 	{
           if (*it == id) continue;
           spinlock_t *l;
-          uint64_t *invLine = caches[*it].cprotLookup(addr, l);
+          uint64_t *invLine = caches[*it].cprotLookup(addr, l, true);
           *invLine = *invLine & ~(uint64_t)((1<<L2LINESZ)-1);
-          //spin_unlock(l);
-          locks[lockCount++] = l;
+          caches[*it].invalidateLowerLevel(addr);
+          spin_unlock(l);
         }
         dir.clearIds(addr, id);
-        for (int i = lockCount-1; i >= 0; --i) spin_unlock(locks[i]);
 
         #ifdef DEBUG
         pthread_mutex_lock(&errLock);
@@ -602,9 +606,7 @@ namespace Qcache {
         pthread_mutex_unlock(&errLock);
         #endif
 
-	// spin_lock(setLock); Unnecessary since we hold the address lock
         setState(line, STATE_M);
-        // spin_unlock(setLock);
 
         ASSERT(dir.hasId(addr, id));
 
@@ -634,8 +636,6 @@ namespace Qcache {
       #endif
 
       // Invalidate all of the remote lines.
-      int lockCount = 0;
-      spinlock_t *locks[16];
       for (std::set<int>::iterator it = dir.idsBegin(addr, id);
            it != dir.idsEnd(addr, id); ++it)
       {
@@ -644,17 +644,16 @@ namespace Qcache {
         forwarded = true;
 
         spinlock_t *l;
-        uint64_t *invLine = caches[*it].cprotLookup(addr, l);
+        uint64_t *remLine = caches[*it].cprotLookup(addr, l, wr);
         if (wr) {
-          *invLine = *invLine & ~(uint64_t)((1<<L2LINESZ)-1);
+          *remLine = *remLine & ~(uint64_t)((1<<L2LINESZ)-1);
+          caches[*it].invalidateLowerLevel(addr);
         } else {
-          *invLine = *invLine & ~(uint64_t)((1<<L2LINESZ)-1) | STATE_S;
+          *remLine = *remLine & ~(uint64_t)((1<<L2LINESZ)-1) | STATE_S;
         }
-        //spin_unlock(l);
-        locks[lockCount++] = l;
+        spin_unlock(l);
       }
       if (wr) dir.clearIds(addr, id);
-      for (int i = lockCount - 1; i >= 0; --i) spin_unlock(locks[i]);
 
       ASSERT(dir.hasId(addr, id));
 
