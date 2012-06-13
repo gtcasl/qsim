@@ -1,5 +1,5 @@
-#ifndef __QCACHE_MSI_H
-#define __QCACHE_MSI_H
+#ifndef __QCACHE_MESI_H
+#define __QCACHE_MESI_H
 
 #include <iostream>
 #include <iomanip>
@@ -18,16 +18,17 @@
 #include "qcache-dir.h"
 
 namespace Qcache {
-  // Directory MSI coherence protocol.
-  template <int L2LINESZ, typename CACHE> class CPDirMsi {
+  // Directory MESI coherence protocol.
+  template <int L2LINESZ, typename CACHE> class CPDirMesi {
   public:
-    CPDirMsi(std::vector<CACHE> &caches): caches(caches) {}
+    CPDirMesi(std::vector<CACHE> &caches): caches(caches) {}
 
     enum State {
       STATE_I = 0x00,
       STATE_X = 0x01, // Initial state
       STATE_M = 0x02,
-      STATE_S = 0x03
+      STATE_E = 0x03,
+      STATE_S = 0x04
     };
 
     void lockAddr(addr_t addr, int id)   { dir.lockAddr(addr, id); }
@@ -38,10 +39,13 @@ namespace Qcache {
     bool hitAddr(int id, addr_t addr, bool locked,
                  spinlock_t *setLock, uint64_t *line, bool wr)
     {
-      if (getState(line) == STATE_M) {
+      if (getState(line) == STATE_M || (getState(line) == STATE_E)) {
+        if (getState(line) == STATE_E && wr) {
+          setState(line, STATE_M);
+	}
 	spin_unlock(setLock);
         return true;
-      } else if (getState(line) == STATE_S) {
+      } else if (getState(line)) {
         spin_unlock(setLock);
         if (!wr) return true;
 
@@ -107,7 +111,7 @@ namespace Qcache {
     }
 
     bool missAddr(int id, addr_t addr, uint64_t *line, bool wr) {
-      setState(line, wr?STATE_M:STATE_S);
+      State st;
       addAddr(addr, id);
 
       bool forwarded = false;
@@ -120,11 +124,13 @@ namespace Qcache {
       #endif
 
       // Invalidate all of the remote lines.
+      bool shared(false);
       for (std::set<int>::iterator it = dir.idsBegin(addr, id);
            it != dir.idsEnd(addr, id); ++it)
       {
         if (*it == id) continue;
 
+        shared = true;
         forwarded = true;
 
         spinlock_t *l;
@@ -138,6 +144,12 @@ namespace Qcache {
         spin_unlock(l);
       }
       if (wr) dir.clearIds(addr, id);
+
+      if (wr)          st = STATE_M;
+      else if (shared) st = STATE_S;
+      else             st = STATE_E;
+
+      setState(line, st);
 
       ASSERT(dir.hasId(addr, id));
 

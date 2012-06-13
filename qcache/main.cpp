@@ -15,12 +15,12 @@
 #include <qsim-load.h>
 
 #include "qcache.h"
-#include "qcache-msi.h"
+#include "qcache-mesi.h"
 
 // <Coherence Protorol, Ways, log2(sets), log2(bytes/line)>
 // Last parameter of L3 cache type says that it's shared.
 typedef Qcache::CacheGrp<Qcache::CPNull,   4,  7, 6      > l1i_t;
-typedef Qcache::CacheGrp<Qcache::CPDirMsi, 8,  6, 6      > l1d_t;
+typedef Qcache::CacheGrp<Qcache::CPDirMesi,8,  6, 6      > l1d_t;
 typedef Qcache::CacheGrp<Qcache::CPNull,   8,  8, 6      > l2_t;
 typedef Qcache::Cache   <Qcache::CPNull,  24, 14, 6, true> l3_t;
 
