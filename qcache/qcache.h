@@ -242,7 +242,7 @@ namespace Qcache {
             set(tag%(1<<L2SETS));
 
      spin_lock(&invalidatesLock);
-     ++invalidates;
+     if (inv) ++invalidates;
      spin_unlock(&invalidatesLock);
 
      spin_lock(&setLocks[set]);
