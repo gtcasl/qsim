@@ -192,7 +192,7 @@ namespace Qcache {
         if (doWriteback) lowerLevel->access(victimAddr, true);
       }
 
-      if (cprot->missAddr(id, addr, &tagarray[vidx], wr)) {
+      if (!cprot->missAddr(id, addr, &tagarray[vidx], wr)) {
         lowerLevel->access(tag<<L2LINESZ, false);
       }
 

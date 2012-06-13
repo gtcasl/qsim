@@ -116,6 +116,12 @@ void *thread_main(void *arg_vp) {
 }
 
 int main(int argc, char** argv) {
+  if (argc < 3) {
+    std::cout << "Usage:\n  " << argv[0] << " <state file> "
+              << "<benchmark tar file> [trace file]\n";
+    exit(1);
+  }
+
   Qsim::OSDomain osd(argv[1]);
   std::cout << "State loaded. Loading benchmark.\n";
   osd.connect_console(std::cout);
