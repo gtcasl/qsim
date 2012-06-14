@@ -17,12 +17,27 @@
 #include "qcache.h"
 #include "qcache-mesi.h"
 
+#include <sys/types.h>
+#include <unistd.h>
+#include <sched.h>
+
 // <Coherence Protorol, Ways, log2(sets), log2(bytes/line)>
 // Last parameter of L3 cache type says that it's shared.
 typedef Qcache::CacheGrp<Qcache::CPNull,   4,  7, 6      > l1i_t;
 typedef Qcache::CacheGrp<Qcache::CPDirMesi,8,  6, 6      > l1d_t;
 typedef Qcache::CacheGrp<Qcache::CPNull,   8,  8, 6      > l2_t;
 typedef Qcache::Cache   <Qcache::CPNull,  24, 14, 6, true> l3_t;
+
+// This is a sad little hack that ensures our N threads are packed into the N
+// lowest-ID'd CPUs. On our test machine, this keeps the threads on as few
+// sockets as possible, without scheduling any pair of threads to the same
+// hyperthreaded core (as long as there are enough real cores available).
+void setCpuAff(int threads) {
+  cpu_set_t mask;
+  CPU_ZERO(&mask);
+  for (int i = 0; i < threads; ++i) CPU_SET(i, &mask);
+  sched_setaffinity(getpid(), threads, &mask);
+}
 
 class CallbackAdaptor {
 public:
@@ -102,6 +117,7 @@ void *thread_main(void *arg_vp) {
         if (osd_p->idle(c)) osd_p->run(c, 100);
         else osd_p->run(c, 10000);
       }
+      if (!cba_p->running) break;
     }
 
     pthread_barrier_wait(&b0);
@@ -169,6 +185,8 @@ int main(int argc, char** argv) {
                  " number of guest threads.\n";
     exit(1);
   }
+
+  setCpuAff(threads);
 
   unsigned long long start_usec = utime();
   for (unsigned i = 0; i < threads; ++i) {
