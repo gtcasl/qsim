@@ -19,7 +19,7 @@ for TAR in $TARFILES; do
   echo === $APP ===
   for i in $THREADCOUNTS; do
     echo -n "$i "
-    ./main ../state.$GUESTCORECOUNT $TAR $i TRACE.$APP.$i >> $LOGFILE
+    ./qcache ../state.$GUESTCORECOUNT $TAR $i TRACE.$APP.$i >> $LOGFILE
   done
   echo
 done

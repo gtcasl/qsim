@@ -11,11 +11,11 @@ CXXFLAGS ?= -g -O3 -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
 #CXXFLAGS ?= -g -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
 LDLIBS ?= -lqsim -pthread -ldl
 
-main: qcache.o main.o
+qcache: qcache.o main.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ qcache.o main.o $(LDLIBS)
 
 main.o: qcache.h
 qcache.o: qcache.cpp qcache.h
 
 clean:
-	rm -f qcache.o main.o main
+	rm -f qcache.o main.o qcache
