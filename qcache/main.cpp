@@ -21,6 +21,14 @@
 #include <unistd.h>
 #include <sched.h>
 
+//#define ICOUNT
+
+#ifdef ICOUNT
+  #define ICOUNT_MAX_CORES 256
+  uint64_t icount[ICOUNT_MAX_CORES];
+  uint64_t idlecount[ICOUNT_MAX_CORES];
+#endif
+
 // <Coherence Protorol, Ways, log2(sets), log2(bytes/line)>
 // Last parameter of L3 cache type says that it's shared.
 typedef Qcache::CacheGrp<Qcache::CPNull,   4,  7, 6      > l1i_t;
@@ -42,16 +50,20 @@ void setCpuAff(int threads) {
 class CallbackAdaptor {
 public:
   CallbackAdaptor(Qsim::OSDomain &osd, l1i_t &l1i, l1d_t &l1d):
-    running(true), icount(0), l1i(l1i), l1d(l1d), osd(osd)
+    running(true), l1i(l1i), l1d(l1d), osd(osd)
   {
-    
     icb_handle = osd.set_inst_cb(this, &CallbackAdaptor::inst_cb);
     mcb_handle = osd.set_mem_cb(this, &CallbackAdaptor::mem_cb);
     osd.set_app_end_cb(this, &CallbackAdaptor::app_end_cb);
   }
 
   ~CallbackAdaptor() {
-    std::cout << icount << " instructions.\n";
+    #ifdef ICOUNT
+    for (unsigned i = 0; i < osd.get_n(); ++i) {
+      std::cout << "Instructions/idle for CPU " << i << ", " << icount[i]
+                << ", " << idlecount[i] << '\n';
+    }
+    #endif
     osd.unset_inst_cb(icb_handle);
     osd.unset_mem_cb(mcb_handle);
   }
@@ -60,7 +72,10 @@ public:
                const uint8_t *b, enum inst_type t)
   {
     if (!running) return;
-    if (c == 0) ++icount;
+    #ifdef ICOUNT
+    ++icount[c];
+    if (osd.idle(c)) ++idlecount[c];
+    #endif
     l1i.getCache(c).access(p, false);
   }
 
@@ -78,8 +93,6 @@ public:
 
   
 private:
-  unsigned long long icount;
-
   l1i_t &l1i;
   l1d_t &l1d;
 
@@ -95,7 +108,7 @@ static inline unsigned long long utime() {
 }
 
 
-pthread_barrier_t b0, b1;
+//pthread_barrier_t b0, b1;
 Qsim::OSDomain *osd_p;
 CallbackAdaptor *cba_p;
 
@@ -109,7 +122,7 @@ void *thread_main(void *arg_vp) {
   bool running = true;
   thread_arg_t *arg((thread_arg_t*)arg_vp);
 
-  pthread_barrier_wait(&b1);
+  //pthread_barrier_wait(&b1);
 
   while (cba_p->running) {
     for (unsigned i = 0; i < 100; ++i) {
@@ -120,7 +133,7 @@ void *thread_main(void *arg_vp) {
       if (!cba_p->running) break;
     }
 
-    pthread_barrier_wait(&b0);
+    //pthread_barrier_wait(&b0);
     if (arg->cpuStart == 0) {
       if (!cba_p->running) {
         running = false;
@@ -128,7 +141,7 @@ void *thread_main(void *arg_vp) {
         osd_p->timer_interrupt();
       }
     }
-    pthread_barrier_wait(&b1);  
+    //pthread_barrier_wait(&b1);  
   }
 
   return 0;
@@ -170,8 +183,8 @@ int main(int argc, char** argv) {
   l1d_t l1_d(osd.get_n(), l2, "L1d");
   l1i_t l1_i(osd.get_n(), l2, "L1i");
 
-  pthread_barrier_init(&b0, NULL, threads);
-  pthread_barrier_init(&b1, NULL, threads);
+  //pthread_barrier_init(&b0, NULL, threads);
+  //pthread_barrier_init(&b1, NULL, threads);
 
   CallbackAdaptor cba(osd, l1_i, l1_d);
 
