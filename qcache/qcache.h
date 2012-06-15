@@ -288,8 +288,30 @@ namespace Qcache {
     spinlock_t invalidatesLock; // Some counters need locks
 
     void updateRepl(addr_t set, addr_t idx) {
-      // TODO: Handle timestamp overflow.
-      ASSERT(tsmax[set] != TIMESTAMP_MAX);
+      // Handle timestamp overflows by re-numbering the lines in place.
+      if (tsmax[set] == TIMESTAMP_MAX) {
+        tsmax[set] = WAYS-1;
+	std::vector<bool> visited(WAYS);
+        visited[idx%WAYS] = true;
+        tsarray[idx] = WAYS-1;
+        for (unsigned c = 0; c < WAYS-1; ++c) {
+          unsigned sIdx, mIdx;
+          timestamp_t min;
+          for (unsigned i = set*WAYS; i < (set+1)*WAYS; ++i)
+            if (!visited[i%WAYS]) { sIdx = i; break; }
+
+          mIdx = sIdx;
+          min = tsarray[sIdx];
+          for (unsigned i = sIdx+1; i < (set+1)*WAYS; ++i) {
+            if (!visited[i%WAYS] && tsarray[i] < min) {
+              min = tsarray[i]; mIdx = i;
+            }
+          }
+          visited[mIdx%WAYS] = true;
+          tsarray[mIdx%WAYS] = c;
+	}
+      }
+
       tsarray[idx] = ++tsmax[set];
     }
 
