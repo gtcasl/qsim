@@ -9,8 +9,8 @@ export QSIM_PREFIX
 export LD_LIBRARY_PATH
 
 TARFILES=$BENCHMARK_DIR/*-tar/*.tar
-THREADCOUNTS="1 2 4"
-GUESTCORECOUNT=64
+THREADCOUNTS="2"
+GUESTCORECOUNT=4
 
 echo > $LOGFILE
 
@@ -19,7 +19,7 @@ for TAR in $TARFILES; do
   echo === $APP ===
   for i in $THREADCOUNTS; do
     echo -n "$i "
-    ./qcache ../state.$GUESTCORECOUNT $TAR $i TRACE.$APP.$i >> $LOGFILE
+    ./qcache ../bumstate.$GUESTCORECOUNT $TAR $i TRACE.$APP.$i >> $LOGFILE
   done
   echo
 done

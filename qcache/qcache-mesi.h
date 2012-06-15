@@ -1,5 +1,5 @@
-#ifndef __QCACHE_MESI_H
-#define __QCACHE_MESI_H
+#if !__QCACHE_MESI_H || __QCACHE_DEF_MSI
+#define __QCACHE_MESI_H 1
 
 #include <iostream>
 #include <iomanip>
@@ -19,9 +19,21 @@
 
 namespace Qcache {
   // Directory MESI coherence protocol.
-  template <int L2LINESZ, typename CACHE> class CPDirMesi {
+  template <int L2LINESZ, typename CACHE> class
+#ifdef __QCACHE_DEF_MSI
+    CPDirMsi
+#else
+    CPDirMesi
+#endif
+  {
+
   public:
-    CPDirMesi(std::vector<CACHE> &caches): caches(caches) {}
+#ifdef __QCACHE_DEF_MSI
+    CPDirMsi(std::vector<CACHE>&caches):
+#else
+    CPDirMesi(std::vector<CACHE> &caches):
+#endif
+      caches(caches) {}
 
     enum State {
       STATE_I = 0x00,
@@ -136,18 +148,22 @@ namespace Qcache {
         spinlock_t *l;
         uint64_t *remLine = caches[*it].cprotLookup(addr, l, wr);
         if (wr) {
-          *remLine = *remLine & ~(uint64_t)((1<<L2LINESZ)-1);
+          setState(remLine, STATE_I);
           caches[*it].invalidateLowerLevel(addr);
         } else {
-          *remLine = *remLine & ~(uint64_t)((1<<L2LINESZ)-1) | STATE_S;
+          setState(remLine, STATE_S);
         }
         spin_unlock(l);
       }
       if (wr) dir.clearIds(addr, id);
 
       if (wr)          st = STATE_M;
+#ifdef __QCACHE_DEF_MSI
+      else             st = STATE_S;
+#else
       else if (shared) st = STATE_S;
       else             st = STATE_E;
+#endif
 
       setState(line, st);
 

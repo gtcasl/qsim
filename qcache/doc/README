@@ -1,0 +1,151 @@
+QSim Cache Model
+================
+
+The QSim cache model is a parallel functional model of a multiprocessor cache
+with directory-based coherence, designed for reasonable (~10MIPS per host
+thread) performance on modern multicore processors. The key feature of QCache is
+that it enables the simulation of hundreds of "guest" cores on a smaller number
+of host cores, while providing a model of all levels of cache.
+
+1 - Getting Started
+-------------------
+
+Building QCache is a simple matter of running "make" with the QSIM_PREFIX
+environment variable set correctly. QCache has no dependencies which QSim does
+not have other than the QSim library itself. Building QCache with the default
+makefile produces an executable called "qcache".
+
+1.1 - Configuring QCache
+------------------------
+
+1.1.1 - Cache Parameters
+------------------------
+
+The parameters of the simulated cache are all configured at compile time for
+the sake of performance. The set of typedefs at the top of main.cpp contains all
+of the most important configuration parameters, provided as template parameters.
+
+The four default typedefs are:
+
+  typedef Qcache::CacheGrp<Qcache::CPNull,   4,  7, 6      > l1i_t;
+  typedef Qcache::CacheGrp<Qcache::CPDirMesi,8,  6, 6      > l1d_t;
+  typedef Qcache::CacheGrp<Qcache::CPNull,   8,  9, 6      > l2_t;
+  typedef Qcache::Cache   <Qcache::CPNull,  24, 14, 6, true> l3_t;
+
+These define the classes of each type of cache to be a specific instance of the
+Qcache::Cache or Qcache::CacheGrp template. The arguments to these templates
+are:
+
+  template <template<int, typename> class CPROT_T, int WAYS, int L2SETS, 
+           int L2LINESZ, bool SHARED=false>
+    class Cache : public MemSysDev;
+
+  template
+    <template<int, typename> class CPROT_T, int WAYS, int L2SETS, int L2LINESZ>
+    class CacheGrp : public MemSysDevSet;
+
+CPROT_T  - Coherence Protocol type. Provided by Qcache::CPDirMesi
+           (qcache-mesi.h), Qcache::CPDirMsi(qcache-msi.h), or Qcache::CPNull
+           (qcache.h). Should only be set to a template other than
+           Qcache::CPNull for the L1 data cache.
+WAYS     - Number of ways in the cache.
+L2SETS   - Base 2 logarithm of number of sets in the cache. 2 for 4 sets, 3 for
+           8 sets, etc.
+L2LINESZ - Base 2 logarithm of cache line size. Should be at least 3 as this is
+           also the number of bits used to store the cache line state. Also
+           cache lines smaller than 8 bytes lead to incorrect behavior. There is
+           no mechanism to perform multiple cache accesses for a single load or
+           store.
+SHARED   - Set this to true for shared caches. Inserts appropriate locking and 
+           coherence behavior for shared caches.
+
+With this in mind, it should become clear that the four typedefs above define:
+
+  L1i - Non-coherent, 4 ways, 2^7 sets, 2^6 bytes per line (32kB)
+  L1d - Directory MESI, 8 ways, 2^6 sets, 2^6 bytes per line (32kB)
+  L2  - 8 ways, 2^9 sets, 2^6 bytes per line (256kB)
+  L3  - 24 ways, 2^14 sets, 2^6 bytes per line, shared (24MB)
+
+1.1.2 - Cache Hierarchy
+-----------------------
+
+In order to change the organization of the cache hierarchy, it is necessary to
+go deeper into the code, to where objects of these types are instantiated. The
+representative lines from the default main.cpp are:
+
+  Qcache::Tracer tracer(*traceOut);
+  l3_t l3(tracer, "L3");
+  l2_t l2(osd.get_n(), l3, "L2");
+  l1d_t l1_d(osd.get_n(), l2, "L1d");
+  l1i_t l1_i(osd.get_n(), l2, "L1i");
+
+The arguments to these constructors are:
+
+  Qcache::Tracer(std::ostream &tracefile);
+  Qcache::Cache(Qcache::MemSysDev &lowerLevel, const char *name);
+  Qcache::CacheGrp(int num, Qcache::MemSysDev &lowerLevel, const char *name);
+
+The hierarchy is built from a Qcache::Tracer object connected to groups of
+ higher-level caches. In Qcache, these caches cannot be an arbitrary tree. In
+order for coherence to work correctly, all of the L1 caches must be members of
+the same CacheGrp, and shared caches must be shared by all higher-level caches.
+
+1.2 - Running QCache
+--------------------
+
+Running "qcache" with no commandline arguments provides a brief usage guide:
+
+  qcache <state file> <benchmark tar file> <# host threads> [trace file]
+
+The number of guest threads is determined by the state file used for input. The
+number of host threads must divide evenly into this number. This makes using
+core counts with a few large prime factors difficult, but why not use powers of
+two like everybody else?
+
+2 - Algorithms
+--------------
+
+. . . TODO . . .
+
+3 - Code Organization
+---------------------
+
+3.1 - Files
+-----------
+
+main.cpp      - Main "driver" program. Instantiates QSim OSDomain and caches.
+qcache.h      - Defines MemSysDev class, as well as class templates for Cache,
+                CacheGrp, and CPNull.
+qcache.cpp    - Defines static/global variables for QCache. Currently, this is a
+                single global mutex used for error reporting.
+qcache-dir.h  - Defines CoherenceDir template, used by the following coherence
+                ptotocols.
+qcache-msi.h  - MSI coherence protocol, the CPDirMsi class template.
+qcache-mesi.h - MESI coherence protocol, the CPDirMesi class template.
+
+The file qcache-msi.h is really just a wrapper for including qcache-mesi.h with
+a single minor change to disable the 
+
+3.2 - Classes and Templates
+---------------------------
+
+The class hierarchy in QCache is fairly flat. Due to the use of templates, the
+coherence protocols can be thought of as subclasses of an implied (duck-typed)
+coherence protocol class. The only class hierarchy is used for memory system
+devices. Since lower levels of the cache hierarchy are only consulted during
+misses, this was assumed to be an acceptable overhead in exchange for the
+simplicity afforded.
+
+  Qcache::MemSysDev         -
+
+    Qcache::Cache<...>      -
+
+    Qcache::Tracer          -
+
+  Qcache::CacheGrp<...>     -
+
+  Qcache::CoherenceDir<...> -
+
+  Qcache::CPNull<...>       -
+  Qcache::CPDirMsi<...>     -
+  Qcache::CPDirMesi<...>    -
