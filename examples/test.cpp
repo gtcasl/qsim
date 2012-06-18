@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
   for (unsigned k = 0; k < 370; k++) {
     for (unsigned i = 0; i < 100; i++) {
       for (unsigned j = 0; j < n_cpus; j++) {
-        if (cd->booted(j)) cd->run(j, 10000);
+        if (cd->runnable(j)) cd->run(j, 10000);
       }
       //if (app_started) break; 
     }

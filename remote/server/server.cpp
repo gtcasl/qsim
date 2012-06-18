@@ -127,7 +127,7 @@ public:
                   break;
         case 'b': { uint16_t i;
                     sbs >> i;
-                    sbs << (osd->booted(i)?'T':'F');
+                    sbs << (osd->runnable(i)?'T':'F');
                   }
                   break;
         case 's': { char d;

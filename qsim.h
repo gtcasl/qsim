@@ -259,7 +259,10 @@ namespace Qsim {
     void interrupt(unsigned i, uint8_t vec) { cpus[i]->interrupt(vec); }
 
     // Return true if CPU i has been bootstrapped.
-    bool booted(unsigned i) const { return running[i]; }
+    bool runnable(unsigned i) const { return running[i]; }
+    bool booted(unsigned i) const __attribute__ ((deprecated)) {
+      return runnable(i);
+    }
 
     // Return true if CPU i is executing in its idle loop.
     bool idle(unsigned i) const { return idlevec[i]; }

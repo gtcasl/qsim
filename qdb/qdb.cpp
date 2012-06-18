@@ -466,7 +466,7 @@ void *CPUThread::thread_main(void *arg) {
       pthread_cond_wait(&(this_->wake_up_thread), &(this_->countdown_mutex));
     pthread_mutex_unlock(&(this_->countdown_mutex));
 
-    if (cd->booted(this_->cpu_id)) do {
+    if (cd->runnable(this_->cpu_id)) do {
       // Run CPU until next timer interrupt or the countdown expires, whichever
       // comes first.
       uint64_t tickcount = this_->tickcount;
@@ -485,7 +485,7 @@ void *CPUThread::thread_main(void *arg) {
       pthread_mutex_unlock(&(this_->countdown_mutex));
     } while (check_running(this_));
 
-    if (this_->tickcount == 0 || !cd->booted(this_->cpu_id)) {
+    if (this_->tickcount == 0 || !cd->runnable(this_->cpu_id)) {
       // Barrier 1: before the interrupt
       pthread_barrier_wait(&before_int);
 

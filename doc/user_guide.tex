@@ -845,11 +845,11 @@ within this \texttt{OSDomain} to share their memory region (see
 Run the emulator on CPU \texttt{i} for \texttt{n} instructions or until an
 exception condition occurs. Returns the number of instructions for which the
 CPU actually ran. Exception conditions are caused by callbacks that return
-nonzero and by the CPU being not yet booted. Since the callbacks are managed by
-the client program and whether the CPU has been booted can be determined
-through other means (see \texttt{OSDomain::booted()}, page 
-\pageref{func:booted}), a direct method of determining which condition
-terminated the \texttt{run} is not necessary.
+nonzero and by the CPU not currently being in a runnable state. Since the
+callbacks are managed by the client program and whether the CPU is running
+can be determined through other means (see \texttt{OSDomain::runnable()}, page 
+\pageref{func:runnable}), a direct method of determining which condition
+terminated the \texttt{run} is not provided.
 
 \label{func:connect_console} \begin{verbatim}
     void connect_console(std::ostream &s);
@@ -872,11 +872,16 @@ of simulation time can be communicated to the guest.
 Interrupt CPU \texttt{i}, causing it to run the interrupt service routine
 pointed to by vector \texttt{vec}.
 
-\label{func:booted} \begin{verbatim}
+\label{func:booted} \label{func:runnable} \begin{verbatim}
     bool booted(unsigned i);
+    bool runnable(unsigned i);
 \end{verbatim}
 Returns \texttt{true} if CPU \texttt{i} has been brought up by the operating
-system, and \texttt{false} otherwise.
+system and remains runnable, and \texttt{false} otherwise. CPUs are no longer
+runnable after the application's end has been reached, and the
+\texttt{booted()} function will return false in that case as well. These
+functions have the exact same function and the \texttt{booted()} alias is
+provided for compatibility reasons only. Its use causes a warning.
 
 \label{func:save_state} \begin{verbatim}
     void save_state(const char* state_file);

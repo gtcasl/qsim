@@ -155,7 +155,7 @@
   result is a massive space savings in state files (with 3GB of guest RAM,
   files were 3GB, now they're ~28MB).
 
-0.1.5
+0.2
 
 * Improved multithreaded support in QEMU. The global lock has been replaced
   with smaller-grained readers/writer locks interleaved on cache line
@@ -173,3 +173,11 @@
 * Both Qsim::load_file() and qsim-fastforwarder now run idle guest cores two
   orders of magnitude less frequently than active ones. The result is faster
   times for both mkstate.sh and load_file().
+
+* Completely rewritten, parallel, coherent version of qcache.
+
+* Now uses optional QSIM_TMP environment variable to locate the temporary
+  files.
+
+* OSDomain::booted() deprecated in favor of identical function
+  OSDomain::runnable(); renamed to make its function more apparent.

@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
   do {
     for (unsigned i = 0; i < 100 && !magic_cb_s.app_started; i++) {
       for (unsigned j = 0; j < cpus && !magic_cb_s.app_started; j++) {
-        if (osd.booted(j)) {
+        if (osd.runnable(j)) {
           if (osd.idle(j) && !slow_cycles[j]) {
               osd.run(j, 100);
 	  } else {
