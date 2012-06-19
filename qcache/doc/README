@@ -107,6 +107,19 @@ two like everybody else?
 
 . . . TODO . . .
 
+2.1 - Synchronization
+---------------------
+
+There are two basic kinds of lock in the QSim cache model. There are "block"
+locks associated with each cache block in the guest physical memory. These are
+maintained as part of the coherence directory structure. There are also "set"
+locks associated with each set in the cache. In order to do a lookup or modify
+a set, a set lock must be held.
+
+The locking order is first the block locks in order of cache ID and then any
+one set lock. No two set locks ever need to be held simultaneously. Block locks
+may need to be held simultaneously, e.g., when a line is being evicted.
+
 3 - Code Organization
 ---------------------
 
