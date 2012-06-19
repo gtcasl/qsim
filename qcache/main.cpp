@@ -22,6 +22,7 @@
 #include <sched.h>
 
 //#define ICOUNT
+#define CPULOCK
 
 #ifdef ICOUNT
   #define ICOUNT_MAX_CORES 256
@@ -40,12 +41,14 @@ typedef Qcache::Cache   <Qcache::CPNull,  24, 14, 6, true> l3_t;
 // lowest-ID'd CPUs. On our test machine, this keeps the threads on as few
 // sockets as possible, without scheduling any pair of threads to the same
 // hyperthreaded core (as long as there are enough real cores available).
+#ifdef CPULOCK
 void setCpuAff(int threads) {
   cpu_set_t mask;
   CPU_ZERO(&mask);
   for (int i = 0; i < threads; ++i) CPU_SET(i, &mask);
   sched_setaffinity(getpid(), threads, &mask);
 }
+#endif
 
 class CallbackAdaptor {
 public:
@@ -199,7 +202,9 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
+#ifdef CPULOCK
   setCpuAff(threads);
+#endif
 
   unsigned long long start_usec = utime();
   for (unsigned i = 0; i < threads; ++i) {
@@ -213,6 +218,8 @@ int main(int argc, char** argv) {
   unsigned long long end_usec = utime();
 
   std::cout << "Total time: " << std::dec << end_usec - start_usec << "us\n";
+
+  Qcache::printResults = true;
 
   if (argc >= 5) {
     delete traceOut;
