@@ -22,7 +22,7 @@
 #include <sched.h>
 
 //#define ICOUNT
-#define CPULOCK
+//#define CPULOCK
 
 #ifdef ICOUNT
   #define ICOUNT_MAX_CORES 256
@@ -74,7 +74,7 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, 
                const uint8_t *b, enum inst_type t)
   {
-    if (!running) return;
+    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
     #ifdef ICOUNT
     ++icount[c];
     if (osd.idle(c)) ++idlecount[c];
@@ -83,7 +83,7 @@ public:
   }
 
   void mem_cb(int c, uint64_t va, uint64_t pa, uint8_t sz, int wr) {
-    if (!running) return;
+    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
     l1d.getCache(c).access(pa, wr);
   }
 

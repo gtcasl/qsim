@@ -15,8 +15,9 @@
 #include <stdlib.h>
 
 //#define DEBUG
+#define ENABLE_ASSERTIONS
 
-#if 1
+#ifdef ENABLE_ASSERTIONS
 #define ASSERT(b) do { if (!(b)) { \
   std::cerr << "Error: Failed assertion at " << __FILE__ << ':' << std::dec \
             << __LINE__ << '\n'; \
@@ -29,6 +30,7 @@
 
 namespace Qcache {
   extern pthread_mutex_t errLock;
+  extern bool printResults;
 
   const unsigned DIR_BANKS = 256; // # coherence directory banks
 
@@ -84,6 +86,8 @@ namespace Qcache {
    public:
      Cache(MemSysDev &ll, const char *n = "Unnamed",
            CPROT_T<L2LINESZ, Cache> *cp = NULL) :
+      tagarray(size_t(WAYS)<<L2SETS), tsarray(size_t(WAYS)<<L2SETS),
+      tsmax(1l<<L2SETS),
       peers(NULL), lowerLevel(&ll), cprot(cp), id(0), name(n),
       accesses(0), misses(0), invalidates(0)
     {
@@ -92,6 +96,8 @@ namespace Qcache {
 
     Cache(std::vector<Cache> &peers, MemSysDev &ll, int id,
           const char *n = "Unnamed", CPROT_T<L2LINESZ, Cache> *cp = NULL) :
+      tagarray(WAYS<<L2SETS), tsarray((size_t)WAYS<<L2SETS),
+      tsmax(size_t(1)<<L2SETS),
       peers(&peers), lowerLevel(&ll), cprot(cp), id(id), name(n),
       accesses(0), misses(0), invalidates(0)
     {
@@ -99,7 +105,7 @@ namespace Qcache {
     }
 
     ~Cache() {
-      if (accesses == 0) return;
+      if (!printResults) return;
       std::cout << name << ", " << id << ", " << accesses << ", " << misses 
                 << ", " << invalidates << '\n';
     }
@@ -277,10 +283,10 @@ namespace Qcache {
     int id;
     CPROT_T<L2LINESZ, Cache> *cprot;
 
-    uint64_t tagarray[(size_t)WAYS<<L2SETS];
-    timestamp_t tsarray[(size_t)WAYS<<L2SETS];
-    timestamp_t tsmax[1l<<L2SETS];
-    spinlock_t setLocks[1l<<L2SETS];
+    std::vector<uint64_t> tagarray;
+    std::vector<timestamp_t> tsarray;
+    std::vector<timestamp_t> tsmax;
+    spinlock_t setLocks[size_t(1)<<L2SETS];
 
     spinlock_t accessLock; // One at a time in shared LLC
 
@@ -316,13 +322,13 @@ namespace Qcache {
     }
 
     addr_t findVictim(addr_t set) {
-      size_t i = set*WAYS, maxIdx = i;
-     timestamp_t maxTs = tsarray[i];
+      size_t i = set*WAYS, minIdx = i;
+     timestamp_t minTs = tsarray[i];
       for (i = set*WAYS + 1; i < (set+1)*WAYS; ++i) {
         if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
-        if (tsarray[i] > maxTs) { maxIdx = i; maxTs = tsarray[i]; }
+        if (tsarray[i] < minTs) { minIdx = i; minTs = tsarray[i]; }
       }
-      return maxIdx;
+      return minIdx;
     }
 
     void initArrays() {
