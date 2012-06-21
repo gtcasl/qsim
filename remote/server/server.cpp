@@ -204,7 +204,7 @@ public:
   }
 
   int atomic_cb(int cpu_id) {
-    if (!active || !atomic_cb_f) return 1;
+    if (!active || !atomic_cb_f) return 0;
 
     SockBinStream sbs(&sock);
     uint16_t i = cpu_id;
@@ -300,12 +300,13 @@ public:
     sbs << 'r' << i << r << s << t;
   }
 
-  void app_end_cb(int cpu_id) {
-    if (!app_end_cb_f) return;
+  int app_end_cb(int cpu_id) {
+    if (!app_end_cb_f) return 0;
 
     SockBinStream sbs(&sock);
     uint16_t i(cpu_id);
     sbs << 'e' << i;
+    return get_cb_rval();
   }
 
 private:
@@ -317,7 +318,8 @@ private:
 };
 
 int CallbackAdaptor::atomic_cb(int c) {
-  if (runmap[c]) runmap[c]->atomic_cb(c);
+  if (runmap[c]) return runmap[c]->atomic_cb(c);
+  else return 0;
 }
 
 void CallbackAdaptor::inst_cb
@@ -327,7 +329,8 @@ void CallbackAdaptor::inst_cb
 }
 
 int CallbackAdaptor::int_cb(int c, uint8_t v) {
-  if (runmap[c]) runmap[c]->int_cb(c, v);
+  if (runmap[c]) return runmap[c]->int_cb(c, v);
+  else return 0;
 }
 
 void CallbackAdaptor::mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int t) {
@@ -335,7 +338,8 @@ void CallbackAdaptor::mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int t) {
 }
 
 int CallbackAdaptor::magic_cb(int c, uint64_t a) {
-  if (runmap[c]) runmap[c]->magic_cb(c, a);
+  if (runmap[c]) return runmap[c]->magic_cb(c, a);
+  else return 0;
 }
 
 void CallbackAdaptor::io_cb(int c, uint64_t p, uint8_t s, int t, uint32_t v) {
@@ -347,8 +351,8 @@ void CallbackAdaptor::reg_cb(int c, int r, uint8_t s, int t) {
 }
 
 int CallbackAdaptor::app_end_cb(int c) {
-  if (runmap[c]) runmap[c]->app_end_cb(c);
-  return 0;
+  if (runmap[c]) return runmap[c]->app_end_cb(c);
+  else return 0;
 }
 
 int CallbackAdaptor::app_start_cb(int c) {

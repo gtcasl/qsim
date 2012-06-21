@@ -11,7 +11,10 @@
 namespace Qsim {
 class Client {
 public:
- Client(int fd) : sbs(new QsimNet::SockHandle(fd)) { wait_for_dot(); }
+ Client(int fd) : sbs(new QsimNet::SockHandle(fd)), started(false) {
+   wait_for_dot();
+  }
+
   ~Client() {
     sbs << 'x';
     uint8_t reply;
@@ -24,6 +27,13 @@ public:
   }
 
   unsigned run(unsigned short cpu, unsigned insts) {
+    if (!started) {
+      for (unsigned I = 0; I < start_cbs.size(); ++I) {
+        (*start_cbs[I])(cpu);
+      }
+      started = true;
+    }
+
     uint16_t i(cpu);
     uint32_t n(insts);
     sbs << 'r' << i << n;
@@ -43,11 +53,13 @@ public:
     wait_for_dot();
   }
 
-  bool booted(unsigned cpu) {
+  bool runnable(unsigned cpu) {
     uint16_t i(cpu);
     sbs << 'b' << i;
     return get_bool_rval();
   }
+
+  bool booted(unsigned cpu) { return runnable(cpu); }
 
   bool idle(unsigned cpu) {
     return idle_map[cpu];
@@ -129,6 +141,22 @@ public:
     reg_cbs.push_back(new Qsim::OSDomain::reg_cb_obj<T>(p, f));
   }
 
+  template <typename T>
+    void set_app_start_cb
+      (T *p, typename Qsim::OSDomain::start_cb_obj<T>::start_cb_t f)
+  {
+    start_cbs.push_back(new Qsim::OSDomain::start_cb_obj<T>(p, f));
+  }
+
+  template <typename T>
+    void set_app_end_cb
+      (T *p, typename Qsim::OSDomain::end_cb_obj<T>::end_cb_t f)
+  {
+    sbs << 's' << 'e'; wait_for_dot();
+    end_cbs.push_back(new Qsim::OSDomain::end_cb_obj<T>(p, f));
+  }
+    
+
 private:
   bool get_bool_rval() {
     char c;
@@ -156,6 +184,8 @@ private:
   std::vector<Qsim::OSDomain::magic_cb_obj_base*>  magic_cbs;
   std::vector<Qsim::OSDomain::io_cb_obj_base*>     io_cbs;
   std::vector<Qsim::OSDomain::reg_cb_obj_base*>    reg_cbs;
+  std::vector<Qsim::OSDomain::start_cb_obj_base*>  start_cbs;
+  std::vector<Qsim::OSDomain::end_cb_obj_base*>    end_cbs;
 
   std::map<int, int> tid_map;
   std::map<int, Qsim::OSDomain::cpu_mode> mode_map;
@@ -163,6 +193,7 @@ private:
   std::map<int, bool> idle_map;
 
   QsimNet::SockBinStream sbs;
+  bool started;
 };
 
 class ClientQueue : public std::queue<Qsim::QueueItem> {

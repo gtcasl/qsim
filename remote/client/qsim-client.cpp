@@ -42,7 +42,7 @@ void Qsim::Client::process_callbacks() {
                 sbs >> i >> vaddr >> paddr >> len >> type_b;
                 enum inst_type type((enum inst_type)type_b);
                 QsimNet::recvdata(sbs.sock, (char *)bytes, len);
-                for (unsigned I = 0; I < inst_cbs.size(); I++)
+                for (unsigned I = 0; I < inst_cbs.size(); ++I)
                   (*inst_cbs[I])(i, vaddr, paddr, len, inst_bytes, type);
               }
               break;
@@ -50,7 +50,7 @@ void Qsim::Client::process_callbacks() {
                 uint8_t vec;
                 sbs >> i >> vec;
                 char response = 'F';
-                for (unsigned I = 0; I < inst_cbs.size(); I++)
+                for (unsigned I = 0; I < inst_cbs.size(); ++I)
                   if ((*int_cbs[I])(i, vec)) response = 'T';
                 sbs << response;
               }
@@ -59,7 +59,7 @@ void Qsim::Client::process_callbacks() {
                 uint64_t vaddr, paddr;
                 uint8_t size, type;
                 sbs >> i >> vaddr >> paddr >> size >> type;
-                for (unsigned I = 0; I < mem_cbs.size(); I++)
+                for (unsigned I = 0; I < mem_cbs.size(); ++I)
                   (*mem_cbs[I])(i, vaddr, paddr, size, type);
               }
               break;
@@ -67,7 +67,7 @@ void Qsim::Client::process_callbacks() {
                 uint64_t rax;
                 sbs >> i >> rax;
                 char response = 'F';
-                for (unsigned I = 0; I < magic_cbs.size(); I++)
+                for (unsigned I = 0; I < magic_cbs.size(); ++I)
                   if ((*magic_cbs[I])(i, rax)) response = 'T';
                 sbs << response;
               }
@@ -77,7 +77,7 @@ void Qsim::Client::process_callbacks() {
                 uint8_t size, type;
                 uint32_t val;
                 sbs >> i >> port >> size >> type >> val;
-                for (unsigned I = 0; I < io_cbs.size(); I++)
+                for (unsigned I = 0; I < io_cbs.size(); ++I)
                   (*io_cbs[I])(i, port, size, type, val);
               }
               break;
@@ -85,8 +85,16 @@ void Qsim::Client::process_callbacks() {
                 uint32_t reg;
                 uint8_t size, type;
                 sbs >> i >> reg >> size >> type;
-                for (unsigned I = 0; I < reg_cbs.size(); I++)
+                for (unsigned I = 0; I < reg_cbs.size(); ++I)
                   (*reg_cbs[I])(i, reg, size, type);
+              }
+              break;
+    case 'e': { uint16_t i;
+                sbs >> i;
+                char response = 'F';
+                for (unsigned I = 0; I < end_cbs.size(); ++I)
+                  if ((*end_cbs[I])(i)) response = 'T';
+                sbs << response;
               }
               break;
     case 'u': { char c;
