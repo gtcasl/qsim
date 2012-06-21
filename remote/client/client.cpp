@@ -17,7 +17,7 @@ struct CbTester {
             enum inst_type t)
   {
     static unsigned count = 0;
-    if (count++ == 0) count = 0; else return;
+    if (count++ == 1000000) count = 0; else return;
     cout << "Instruction, CPU " << cpu << " va=0x" << std::hex << va << ": ";
     for (unsigned i = 0; i < l; i++) 
       cout << std::hex << std::setw(0) << std::setfill('0') << (b[i]&0xff) 
@@ -27,7 +27,7 @@ struct CbTester {
 
   void mem(int cpu, uint64_t va, uint64_t pa, uint8_t s, int t) {
     static unsigned count = 0; 
-    if (count++ == 0) count = 0; else return;
+    if (count++ == 1000000) count = 0; else return;
     cout << "Memory op, CPU " << cpu << " va=0x" << std::hex << va << " size="
          << (s&0xff) << ' ' << (t?'W':'R') << '\n';
   }
