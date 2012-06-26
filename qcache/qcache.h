@@ -51,8 +51,8 @@ namespace Qcache {
    public:
     virtual ~MemSysDev() {}
 
-    virtual void access(addr_t addr, bool wr) = 0;
-    virtual void invalidate(addr_t addr) = 0;
+    virtual void access(addr_t addr, bool wr) { throw InvalidAccess(); }
+    virtual void invalidate(addr_t addr) { throw InvalidAccess(); }
     virtual bool isShared() { return false; }
   };
 
@@ -72,22 +72,80 @@ namespace Qcache {
       tracefile << std::dec << addr << (wr?" W\n":" R\n");
     }
 
-    void invalidate(addr_t addr) { throw InvalidAccess(); }
    private:
     std::ostream &tracefile;
+  };
+
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplLRU {
+  public:
+    ReplLRU(std::vector<addr_t> &ta) :
+      tagarray(&ta[0]), tsarray(size_t(WAYS)<<L2SETS), tsmax(size_t(1)<<L2SETS)
+    {}
+
+    void updateRepl(addr_t set, addr_t idx, bool hit, bool wr) {
+      // Handle timestamp overflows by re-numbering the lines in place. 
+      if (tsmax[set] == TIMESTAMP_MAX) {
+        tsmax[set] = WAYS-1;
+	std::vector<bool> visited(WAYS);
+        visited[idx%WAYS] = true;
+        tsarray[idx] = WAYS-1;
+        for (unsigned c = 0; c < WAYS-1; ++c) {
+          unsigned sIdx, mIdx;
+          timestamp_t min;
+          for (unsigned i = set*WAYS; i < (set+1)*WAYS; ++i)
+            if (!visited[i%WAYS]) { sIdx = i; break; }
+
+          mIdx = sIdx;
+          min = tsarray[sIdx];
+          for (unsigned i = sIdx+1; i < (set+1)*WAYS; ++i) {
+            if (!visited[i%WAYS] && tsarray[i] < min) {
+              min = tsarray[i]; mIdx = i;
+            }
+          }
+          visited[mIdx%WAYS] = true;
+          tsarray[mIdx%WAYS] = c;
+        }
+      }
+
+      tsarray[idx] = ++tsmax[set];
+    }
+
+    addr_t findVictim(addr_t set) {
+      size_t i = set*WAYS, minIdx = i;
+      timestamp_t minTs = tsarray[i];
+      for (i = set*WAYS + 1; i < (set+1)*WAYS; ++i) {
+        if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
+        if (tsarray[i] < minTs) { minIdx = i; minTs = tsarray[i]; }
+      }
+      return minIdx;
+    }
+  private:
+    typedef unsigned timestamp_t;
+    #define TIMESTAMP_MAX UINT_MAX
+
+    addr_t *tagarray;
+    std::vector<timestamp_t> tsarray, tsmax;
+  };
+
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplRand {
+    ReplRand(std::vector<addr_t> &ta): tagarray(&ta[0]) {}
+  public:
+    
+  private:
+    addr_t *tagarray;
   };
 
   // Caches, private or shared, of any dimension
   template
     <template<int, typename> class CPROT_T,
-     int WAYS, int L2SETS, int L2LINESZ, bool SHARED=false>
+    int WAYS, int L2SETS, int L2LINESZ, template<int, int, int> class REPL_T,
+    bool SHARED=false>
   class Cache : public MemSysDev
   {
    public:
      Cache(MemSysDev &ll, const char *n = "Unnamed",
            CPROT_T<L2LINESZ, Cache> *cp = NULL) :
-      tagarray(size_t(WAYS)<<L2SETS), tsarray(size_t(WAYS)<<L2SETS),
-      tsmax(1l<<L2SETS),
+      tagarray(size_t(WAYS)<<L2SETS), repl(tagarray),
       peers(NULL), lowerLevel(&ll), cprot(cp), id(0), name(n),
       accesses(0), misses(0), invalidates(0)
     {
@@ -96,8 +154,7 @@ namespace Qcache {
 
     Cache(std::vector<Cache> &peers, MemSysDev &ll, int id,
           const char *n = "Unnamed", CPROT_T<L2LINESZ, Cache> *cp = NULL) :
-      tagarray(WAYS<<L2SETS), tsarray((size_t)WAYS<<L2SETS),
-      tsmax(size_t(1)<<L2SETS),
+      tagarray(WAYS<<L2SETS), repl(tagarray),
       peers(&peers), lowerLevel(&ll), cprot(cp), id(id), name(n),
       accesses(0), misses(0), invalidates(0)
     {
@@ -123,7 +180,7 @@ namespace Qcache {
       addr_t idx;
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
-          updateRepl(set, idx);
+          repl.updateRepl(set, idx, true, wr);
           if (cprot->hitAddr(id, addr, false, &setLocks[set],
                              &tagarray[idx], wr)) goto finish;
           else {
@@ -139,7 +196,7 @@ namespace Qcache {
       int victimState;
       uint64_t victimVal;
       for (;;) {
-        vidx = findVictim(set);
+        vidx = repl.findVictim(set);
         victimVal = tagarray[vidx];
         victimAddr = tagarray[vidx] & ~stateMask;
         victimState = tagarray[vidx] & stateMask;
@@ -155,7 +212,7 @@ namespace Qcache {
         for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
           if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
             // The block we were looking for made its way into the cache.
-            updateRepl(set, idx);
+            repl.updateRepl(set, idx, true, wr);
             cprot->hitAddr(id, addr, true, &setLocks[set], &tagarray[idx], wr);
             goto missFinish;
           }
@@ -191,7 +248,7 @@ namespace Qcache {
         break;
       }
       tagarray[vidx] = addr|0x01;
-      updateRepl(set, vidx); // MRU insertion policy.
+      repl.updateRepl(set, vidx, false, wr);
       spin_unlock(&setLocks[set]);
       if (victimState) {
         bool doWriteback = cprot->evAddr(id, victimAddr, victimState);
@@ -281,76 +338,38 @@ namespace Qcache {
     MemSysDev *lowerLevel;
     const char *name;
     int id;
-    CPROT_T<L2LINESZ, Cache> *cprot;
+
+    friend class REPL_T<WAYS, L2SETS, L2LINESZ>;
 
     std::vector<uint64_t> tagarray;
-    std::vector<timestamp_t> tsarray;
-    std::vector<timestamp_t> tsmax;
     spinlock_t setLocks[size_t(1)<<L2SETS];
+
+    CPROT_T<L2LINESZ, Cache> *cprot;
+    REPL_T<WAYS, L2SETS, L2LINESZ> repl;
 
     spinlock_t accessLock; // One at a time in shared LLC
 
     uint64_t accesses, misses, invalidates;
     spinlock_t invalidatesLock; // Some counters need locks
 
-    void updateRepl(addr_t set, addr_t idx) {
-      // Handle timestamp overflows by re-numbering the lines in place.
-      if (tsmax[set] == TIMESTAMP_MAX) {
-        tsmax[set] = WAYS-1;
-	std::vector<bool> visited(WAYS);
-        visited[idx%WAYS] = true;
-        tsarray[idx] = WAYS-1;
-        for (unsigned c = 0; c < WAYS-1; ++c) {
-          unsigned sIdx, mIdx;
-          timestamp_t min;
-          for (unsigned i = set*WAYS; i < (set+1)*WAYS; ++i)
-            if (!visited[i%WAYS]) { sIdx = i; break; }
-
-          mIdx = sIdx;
-          min = tsarray[sIdx];
-          for (unsigned i = sIdx+1; i < (set+1)*WAYS; ++i) {
-            if (!visited[i%WAYS] && tsarray[i] < min) {
-              min = tsarray[i]; mIdx = i;
-            }
-          }
-          visited[mIdx%WAYS] = true;
-          tsarray[mIdx%WAYS] = c;
-	}
-      }
-
-      tsarray[idx] = ++tsmax[set];
-    }
-
-    addr_t findVictim(addr_t set) {
-      size_t i = set*WAYS, minIdx = i;
-     timestamp_t minTs = tsarray[i];
-      for (i = set*WAYS + 1; i < (set+1)*WAYS; ++i) {
-        if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
-        if (tsarray[i] < minTs) { minIdx = i; minTs = tsarray[i]; }
-      }
-      return minIdx;
-    }
-
     void initArrays() {
       if (SHARED) spinlock_init(&accessLock);
 
       spinlock_init(&invalidatesLock);
 
-      for (size_t i = 0; i < (size_t)WAYS<<L2SETS; ++i) {
-        tsarray[i] = tagarray[i] = 0;
-      }
+      for (size_t i = 0; i < (size_t)WAYS<<L2SETS; ++i)
+        tagarray[i] = 0;
 
-      for (size_t i = 0; i < (size_t)(1<<L2SETS); ++i) {
-        tsmax[i] = 0;
+      for (size_t i = 0; i < (size_t)(1<<L2SETS); ++i)
         spinlock_init(&setLocks[i]);
-      }
     }
   };
 
   // Group of caches at the same level. Sets up the cache peer pointers and the
   // coherence protocol.
   template
-    <template<int, typename> class CPROT_T, int WAYS, int L2SETS, int L2LINESZ>
+    <template<int, typename> class CPROT_T, int WAYS, int L2SETS, int L2LINESZ,
+     template<int, int, int> class REPL_T>
     class CacheGrp : public MemSysDevSet
   {
    public:
@@ -368,14 +387,14 @@ namespace Qcache {
         caches.push_back(CACHE(caches, ll.getMemSysDev(i), i, name, &cprot));
     }
 
-    Cache<CPROT_T, WAYS, L2SETS, L2LINESZ> &getCache(size_t i) {
+    Cache<CPROT_T, WAYS, L2SETS, L2LINESZ, REPL_T> &getCache(size_t i) {
       return caches[i];
     }
 
     MemSysDev &getMemSysDev(size_t i) { return getCache(i); }
 
    private:
-    typedef Cache<CPROT_T, WAYS, L2SETS, L2LINESZ> CACHE;
+    typedef Cache<CPROT_T, WAYS, L2SETS, L2LINESZ, REPL_T> CACHE;
 
     std::vector<CACHE> caches;
 

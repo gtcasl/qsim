@@ -22,7 +22,7 @@
 #include <sched.h>
 
 //#define ICOUNT
-//#define CPULOCK
+#define CPULOCK
 
 #ifdef ICOUNT
   #define ICOUNT_MAX_CORES 256
@@ -32,10 +32,14 @@
 
 // <Coherence Protorol, Ways, log2(sets), log2(bytes/line)>
 // Last parameter of L3 cache type says that it's shared.
-typedef Qcache::CacheGrp<Qcache::CPNull,   4,  7, 6      > l1i_t;
-typedef Qcache::CacheGrp<Qcache::CPDirMesi,8,  6, 6      > l1d_t;
-typedef Qcache::CacheGrp<Qcache::CPNull,   8,  8, 6      > l2_t;
-typedef Qcache::Cache   <Qcache::CPNull,  24, 14, 6, true> l3_t;
+
+using Qcache::ReplLRU; using Qcache::CacheGrp;  using Qcache::Cache;
+using Qcache::CPNull;  using Qcache::CPDirMesi;
+
+typedef Qcache::CacheGrp<CPNull,   4,  7, 6, ReplLRU      > l1i_t;
+typedef Qcache::CacheGrp<CPDirMesi,8,  6, 6, ReplLRU      > l1d_t;
+typedef Qcache::CacheGrp<CPNull,   8,  8, 6, ReplLRU      > l2_t;
+typedef Qcache::Cache   <CPNull,  24, 14, 6, ReplLRU, true> l3_t;
 
 // This is a sad little hack that ensures our N threads are packed into the N
 // lowest-ID'd CPUs. On our test machine, this keeps the threads on as few
