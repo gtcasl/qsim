@@ -16,6 +16,8 @@ namespace Qcache {
        tagarray(&ta[0]), tsarray(size_t(WAYS)<<L2SETS),
        tsmax(size_t(1)<<L2SETS) {}
 
+    #define TIMESTAMP_MAX INT_MAX
+
     void updateRepl(addr_t set, addr_t idx, bool hit, bool wr) {
       const int BIP_ALPHA = (RAND_MAX+1l)/64;
 
@@ -45,9 +47,9 @@ namespace Qcache {
 
       tsarray[idx] = ++tsmax[set];
 
-      if (IP != INSERT_LRU) {
+      if (IP != INSERT_MRU) {
         if (IP == INSERT_BIP && rand() <= BIP_ALPHA) return;
-        tsarray[idx] = 0;        
+        tsarray[idx] = -tsarray[idx];        
       }
     }
 
@@ -63,8 +65,7 @@ namespace Qcache {
     }
 
    private:
-    typedef unsigned timestamp_t;
-      #define TIMESTAMP_MAX UINT_MAX
+    typedef int timestamp_t;
 
     addr_t *tagarray;
     std::vector<timestamp_t> tsarray, tsmax;
@@ -84,17 +85,17 @@ namespace Qcache {
     QCACHE_REPL_PASSTHROUGH_FUNCS
     
   private:
-    ReplLRUBase<WAYS, L2SETS, L2LINESZ, INSERT_LRU> r;
+    ReplLRUBase<WAYS, L2SETS, L2LINESZ, INSERT_MRU> r;
   };
 
-  template <int WAYS, int L2SETS, int L2LINESZ> class ReplLRU_MIP {
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplLRU_LIP {
   public:
-    ReplLRU_MIP(std::vector<addr_t> &ta):  r(ta) { }
+    ReplLRU_LIP(std::vector<addr_t> &ta):  r(ta) { }
 
     QCACHE_REPL_PASSTHROUGH_FUNCS
 
   private:
-    ReplLRUBase<WAYS, L2SETS, L2LINESZ, INSERT_MRU> r;
+    ReplLRUBase<WAYS, L2SETS, L2LINESZ, INSERT_LRU> r;
   };
 
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplLRU_BIP {

@@ -34,9 +34,6 @@ namespace Qcache {
 
   const unsigned DIR_BANKS = 256; // # coherence directory banks
 
-  typedef unsigned timestamp_t;
-  #define TIMESTAMP_MAX UINT_MAX
-
   typedef pthread_spinlock_t spinlock_t;
   #define spinlock_init(s) do { pthread_spin_init((s), 0); } while (0)
   #define spin_lock(s) do { pthread_spin_lock((s)); } while (0)
