@@ -129,11 +129,23 @@ namespace Qcache {
   };
 
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplRand {
-    ReplRand(std::vector<addr_t> &ta): tagarray(&ta[0]) {}
   public:
+    ReplRand(std::vector<addr_t> &ta): tagarray(&ta[0]) {}
+
     void updateRepl(addr_t set, addr_t idx, bool hit, bool wr) {}
 
     addr_t findVictim(addr_t set) {
+      // First: look for invalid lines.
+      for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i)
+        if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
+
+      // If none are found, go rando. This is designed to be highly uniform,
+      // since favoring certain ways could have interesting consequences.
+      int way;
+      do { way = rand(); } while (way > RAND_MAX/WAYS*WAYS);
+      way %= WAYS;
+    
+      return set*WAYS + way;
     }
     
   private:
