@@ -113,6 +113,7 @@ namespace Qcache {
     addr_t findVictim(addr_t set) {
       size_t i = set*WAYS, minIdx = i;
       timestamp_t minTs = tsarray[i];
+      if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
       for (i = set*WAYS + 1; i < (set+1)*WAYS; ++i) {
         if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
         if (tsarray[i] < minTs) { minIdx = i; minTs = tsarray[i]; }
@@ -130,6 +131,10 @@ namespace Qcache {
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplRand {
     ReplRand(std::vector<addr_t> &ta): tagarray(&ta[0]) {}
   public:
+    void updateRepl(addr_t set, addr_t idx, bool hit, bool wr) {}
+
+    addr_t findVictim(addr_t set) {
+    }
     
   private:
     addr_t *tagarray;
