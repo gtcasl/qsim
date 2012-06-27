@@ -107,6 +107,47 @@ namespace Qcache {
      ReplLRUBase<WAYS, L2SETS, L2LINESZ, INSERT_BIP> r;
   };
 
+  #define RRIP_MAX_STATE 3
+
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplRRIP {
+  public:
+    ReplRRIP(std::vector<addr_t> &ta) :
+      tagarray(&ta[0]), ctr(size_t(WAYS)<<L2SETS) {}
+
+    void updateRepl(addr_t set, addr_t idx, bool h, bool w) {
+      if (h) ctr[idx] = 0;
+      else   ctr[idx] = RRIP_MAX_STATE-1; // SRRIP for now.
+    }
+
+    addr_t findVictim(addr_t set) {
+      // Look for an invalid line.
+      for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i)
+        if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
+
+      // Look for counters in max state
+      for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i)
+        if (ctr[i] == RRIP_MAX_STATE) return i;
+
+      // Increment all of the counters
+      for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i) {
+        ASSERT(ctr[i] < RRIP_MAX_STATE);
+        ++ctr[i];
+      }
+
+      // Default to random
+      int way;
+      do { way = rand(); } while (way > RAND_MAX/WAYS*WAYS);
+      way %= WAYS;
+
+      return set*WAYS + way;
+    }
+    
+  private:
+    addr_t *tagarray;
+
+    //unsigned char ctr[WAYS<<L2SETS];
+    std::vector<unsigned char> ctr;
+  };
 };
 
 #endif
