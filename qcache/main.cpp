@@ -15,7 +15,7 @@
 #include <qsim-load.h>
 
 #include "qcache.h"
-#include "qcache-mesi.h"
+#include "qcache-moesi.h"
 #include "qcache-repl.h"
 
 #include <sys/types.h>
@@ -31,20 +31,21 @@
   uint64_t idlecount[ICOUNT_MAX_CORES];
 #endif
 
-using Qcache::ReplLRU;     using Qcache::CacheGrp;  using Qcache::Cache;
-using Qcache::CPNull;      using Qcache::CPDirMesi; using Qcache::ReplRand;
-using Qcache::ReplLRU_BIP; using Qcache::ReplDRRIP; using Qcache::ReplLRU_DIP;
+using Qcache::ReplLRU;     using Qcache::CacheGrp;   using Qcache::Cache;
+using Qcache::CPNull;      using Qcache::CPDirMoesi; using Qcache::ReplRand;
+using Qcache::ReplLRU_BIP; using Qcache::ReplDRRIP;  using Qcache::ReplLRU_DIP;
+using Qcache::ReplLRU_LIP; using Qcache::ReplSRRIP;  using Qcache::ReplBRRIP;
 
 // <Coherence Protocol, Ways, log2(sets), log2(bytes/line), Replacement Policy>
 // Last parameter of L3 cache type says that it's shared.   
 
-typedef Qcache::CacheGrp<CPNull,    4,  7, 6, ReplLRU        > l1i_t;
-typedef Qcache::CacheGrp<CPDirMesi, 8,  6, 6, ReplLRU        > l1d_t;
-typedef Qcache::CacheGrp<CPNull,    8,  8, 6, ReplLRU        > l2_t;
-typedef Qcache::Cache   <CPNull,   24, 14, 6, ReplDRRIP, true> l3_t;
+typedef Qcache::CacheGrp<CPNull,     4,  7, 6, ReplLRU         > l1i_t;
+typedef Qcache::CacheGrp<CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
+typedef Qcache::CacheGrp<CPNull,     8,  8, 6, ReplLRU         > l2_t;
+typedef Qcache::Cache   <CPNull,    24, 14, 6, ReplDRRIP,  true> l3_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
-//typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplDRRIP, true> l3_t;
+//typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
 
 // This is a sad little hack that ensures our N threads are packed into the N
 // lowest-ID'd CPUs. On our test machine, this keeps the threads on as few
@@ -87,7 +88,7 @@ public:
     #ifdef ICOUNT
     ++icount[c];
     if (osd.idle(c)) ++idlecount[c];
-    if (icount[c] == 100000000) {
+    if (icount[c] == 1000000000) {
       running = false;
       return;
     }

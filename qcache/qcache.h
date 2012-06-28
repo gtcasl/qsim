@@ -314,6 +314,7 @@ namespace Qcache {
     int id;
 
     friend class REPL_T<WAYS, L2SETS, L2LINESZ>;
+    friend class CPROT_T<L2LINESZ, Cache>;
 
     std::vector<uint64_t> tagarray;
     spinlock_t setLocks[size_t(1)<<L2SETS];

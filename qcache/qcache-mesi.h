@@ -1,4 +1,4 @@
-#if !__QCACHE_MESI_H || __QCACHE_DEF_MSI
+#if !__QCACHE_MESI_H || __QCACHE_DEF_MSI || __QCACHE_DEF_MOESI
 #define __QCACHE_MESI_H 1
 
 #include <iostream>
@@ -23,7 +23,11 @@ namespace Qcache {
 #ifdef __QCACHE_DEF_MSI
     CPDirMsi
 #else
+#ifdef __QCACHE_DEF_MOESI
+    CPDirMoesi
+#else
     CPDirMesi
+#endif
 #endif
   {
 
@@ -31,7 +35,11 @@ namespace Qcache {
 #ifdef __QCACHE_DEF_MSI
     CPDirMsi(std::vector<CACHE>&caches):
 #else
+#ifdef __QCACHE_DEF_MOESI
+    CPDirMoesi(std::vector<CACHE> &caches):
+#else
     CPDirMesi(std::vector<CACHE> &caches):
+#endif
 #endif
       caches(caches) {}
 
@@ -39,8 +47,9 @@ namespace Qcache {
       STATE_I = 0x00,
       STATE_X = 0x01, // Initial state
       STATE_M = 0x02,
-      STATE_E = 0x03,
-      STATE_S = 0x04
+      STATE_O = 0x03,
+      STATE_E = 0x04,
+      STATE_S = 0x05
     };
 
     void lockAddr(addr_t addr, int id)   { dir.lockAddr(addr, id); }
@@ -94,7 +103,7 @@ namespace Qcache {
           if (*it == id) continue;
           spinlock_t *l;
           uint64_t *invLine = caches[*it].cprotLookup(addr, l, true);
-          *invLine = *invLine & ~(uint64_t)((1<<L2LINESZ)-1);
+          setState(invLine, STATE_I);
           caches[*it].invalidateLowerLevel(addr);
           spin_unlock(l);
         }
@@ -135,7 +144,7 @@ namespace Qcache {
       pthread_mutex_unlock(&errLock);
       #endif
 
-      // Invalidate all of the remote lines.
+      // Change state of remote lines.
       bool shared(false);
       for (std::set<int>::iterator it = dir.idsBegin(addr, id);
            it != dir.idsEnd(addr, id); ++it)
@@ -151,7 +160,20 @@ namespace Qcache {
           setState(remLine, STATE_I);
           caches[*it].invalidateLowerLevel(addr);
         } else {
+#ifdef __QCACHE_DEF_MOESI
+          // MOESI doesn't have to do a writeback yet.
+          if (getState(remLine) == STATE_M || getState(remLine) == STATE_E)
+            setState(remLine, STATE_O);
+          else
+            setState(remLine, STATE_S);
+#else
+          // This line has to be written back.
+          if (getState(remLine) == STATE_M && caches[*it].lowerLevel) {
+            caches[*it].lowerLevel->access(addr, true);
+          }
+
           setState(remLine, STATE_S);
+#endif
         }
         spin_unlock(l);
       }
@@ -174,7 +196,7 @@ namespace Qcache {
 
     bool evAddr(int id, addr_t addr, int state) {
       remAddr(addr, id);
-      return state == STATE_M;
+      return state == STATE_M || state == STATE_O;
     }
 
   private:
