@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 //#define DEBUG
-#define ENABLE_ASSERTIONS
+//#define ENABLE_ASSERTIONS
 
 #ifdef ENABLE_ASSERTIONS
 #define ASSERT(b) do { if (!(b)) { \
