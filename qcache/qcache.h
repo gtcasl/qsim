@@ -131,7 +131,8 @@ namespace Qcache {
     ~Cache() {
       if (!printResults) return;
       std::cout << name << ", " << id << ", " << accesses << ", " << misses 
-                << ", " << invalidates << '\n';
+                << ", " << invalidates << ", " << (100.0*misses)/accesses
+                << "%\n";
     }
 
     bool access(addr_t addr, bool wr) {
