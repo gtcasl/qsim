@@ -22,7 +22,7 @@
 #include <unistd.h>
 #include <sched.h>
 
-//#define ICOUNT
+#define ICOUNT
 #define CPULOCK
 
 #ifdef ICOUNT
@@ -33,15 +33,16 @@
 
 using Qcache::ReplLRU;     using Qcache::CacheGrp;  using Qcache::Cache;
 using Qcache::CPNull;      using Qcache::CPDirMesi; using Qcache::ReplRand;
-using Qcache::ReplLRU_BIP;
+using Qcache::ReplLRU_BIP; using Qcache::ReplRRIP;  using Qcache::ReplLRU_DIP;
 
 // <Coherence Protocol, Ways, log2(sets), log2(bytes/line), Replacement Policy>
 // Last parameter of L3 cache type says that it's shared.   
 
-typedef Qcache::CacheGrp<CPNull,   4,  7, 6, ReplLRU          > l1i_t;
-typedef Qcache::CacheGrp<CPDirMesi,8,  6, 6, ReplLRU          > l1d_t;
-typedef Qcache::CacheGrp<CPNull,   8,  8, 6, ReplLRU_BIP      > l2_t;
-typedef Qcache::Cache   <CPNull,  24, 14, 6, ReplLRU_BIP, true> l3_t;
+typedef Qcache::CacheGrp<CPNull,    4,  7, 6, ReplLRU       > l1i_t;
+typedef Qcache::CacheGrp<CPDirMesi, 8,  6, 6, ReplLRU       > l1d_t;
+typedef Qcache::CacheGrp<CPNull,    8,  8, 6, ReplLRU       > l2_t;
+//typedef Qcache::Cache   <CPNull,   24, 14, 6, ReplLRU_BIP, true> l3_t;
+typedef Qcache::Cache   <CPNull,   16, 11, 6, ReplLRU_DIP, true> l3_t;
 
 // This is a sad little hack that ensures our N threads are packed into the N
 // lowest-ID'd CPUs. On our test machine, this keeps the threads on as few
@@ -84,6 +85,10 @@ public:
     #ifdef ICOUNT
     ++icount[c];
     if (osd.idle(c)) ++idlecount[c];
+    if (icount[c] == 100000000) {
+      running = false;
+      return;
+    }
     #endif
     l1i.getCache(c).access(p, false);
   }

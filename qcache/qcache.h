@@ -48,7 +48,11 @@ namespace Qcache {
    public:
     virtual ~MemSysDev() {}
 
-    virtual void access(addr_t addr, bool wr) { throw InvalidAccess(); }
+    virtual bool access(addr_t addr, bool wr) {
+      throw InvalidAccess();
+      return false;
+    }
+
     virtual void invalidate(addr_t addr) { throw InvalidAccess(); }
     virtual bool isShared() { return false; }
   };
@@ -65,8 +69,9 @@ namespace Qcache {
    public:
     Tracer(std::ostream &tf) : tracefile(tf) {}
 
-    void access(addr_t addr, bool wr) {
+    bool access(addr_t addr, bool wr) {
       tracefile << std::dec << addr << (wr?" W\n":" R\n");
+      return false;
     }
 
    private:
@@ -129,7 +134,9 @@ namespace Qcache {
                 << ", " << invalidates << '\n';
     }
 
-    void access(addr_t addr, bool wr) {
+    bool access(addr_t addr, bool wr) {
+      bool hit = false;
+
       ++accesses;
       if (SHARED) spin_lock(&accessLock);
 
@@ -143,6 +150,7 @@ namespace Qcache {
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
           repl.updateRepl(set, idx, true, wr);
+          hit = true;
           if (cprot->hitAddr(id, addr, false, &setLocks[set],
                              &tagarray[idx], wr)) goto finish;
           else {
@@ -176,6 +184,7 @@ namespace Qcache {
             // The block we were looking for made its way into the cache.
             repl.updateRepl(set, idx, true, wr);
             cprot->hitAddr(id, addr, true, &setLocks[set], &tagarray[idx], wr);
+            hit = true;
             goto missFinish;
           }
         }
@@ -214,10 +223,10 @@ namespace Qcache {
       spin_unlock(&setLocks[set]);
       if (victimState) {
         bool doWriteback = cprot->evAddr(id, victimAddr, victimState);
-        if (doWriteback) lowerLevel->access(victimAddr, true);
+        if (doWriteback && lowerLevel) lowerLevel->access(victimAddr, true);
       }
 
-      if (!cprot->missAddr(id, addr, &tagarray[vidx], wr)) {
+      if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && lowerLevel) {
         lowerLevel->access(tag<<L2LINESZ, false);
       }
 
@@ -229,6 +238,8 @@ namespace Qcache {
 
     finish:
       if (SHARED) spin_unlock(&accessLock);
+
+      return hit;
     }
 
     void invalidate(addr_t addr) {
@@ -255,7 +266,7 @@ namespace Qcache {
     void invalidateLowerLevel(addr_t addr) {
       ASSERT(!SHARED);
 
-      if (!lowerLevel->isShared()) lowerLevel->invalidate(addr);
+      if (lowerLevel && !lowerLevel->isShared()) lowerLevel->invalidate(addr);
     }
 
    // When the coherence protocol needs to look up a line for any reason, this

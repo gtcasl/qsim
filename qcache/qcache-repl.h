@@ -1,20 +1,80 @@
 #ifndef __QCACHE_REPL_H
 #define __QCACHE_REPL_H
 
+#include <map>
+
 #include "qcache.h"
 
 namespace Qcache {
   enum InsertionPolicy {
-    INSERT_LRU, INSERT_MRU, INSERT_BIP
+    INSERT_LRU, INSERT_MRU, INSERT_BIP, INSERT_DIP
+  };
+
+  template
+    <int WAYS, int L2SAMPSETS, int L2LINESZ, int L2SETS, int PSEL_BITS,
+      template<int, int, int> class POLICY_0,
+      template<int, int, int> class POLICY_1>
+  class SetDueler {
+  public:
+    SetDueler(): cache0(*(MemSysDev*)0, "DuelingCache0"),
+                 cache1(*(MemSysDev*)0, "DuelingCache1")
+    {
+      // TODO: Find a way to eliminate the repetition in the following code.
+
+      // Randomly sample the sets to pick some "leader" sets.
+      while (sample0.size() < (1<<L2SAMPSETS)) {
+        unsigned idx = rand()%(1<<L2SETS), tidx = sample0.size();
+        if (sample0.find(idx) != sample0.end()) continue;
+        sample0[idx] = tidx;
+      }
+
+      while(sample1.size() < (1<<L2SAMPSETS)) {
+        unsigned idx = rand()%(1<<L2SAMPSETS), tidx = sample0.size();
+        if (sample1.find(idx) != sample1.end()) continue;
+        sample1[idx] = tidx;
+      }
+    }
+
+    unsigned access(addr_t addr, addr_t idx, bool wr) {
+      // TODO: I typed this all twice, but it's basically copypasted. This can
+      //       be prettified, I'm sure.
+      if (sample0.find(idx) != sample0.end()) {
+        // Re-mangle address to map to toy cache.
+        addr_t taddr( ((addr>>(L2LINESZ+L2SETS))<<L2SAMPSETS) | sample0[idx] );
+
+        if (cache0.access(taddr, wr) && psel > 0) --psel;   
+      }
+
+      if (sample1.find(idx) != sample1.end()) {
+        // Re-mangle address to map to toy cache.
+        addr_t taddr( ((addr>>(L2LINESZ+L2SETS))<<L2SAMPSETS) | sample1[idx] );
+
+        if (cache1.access(taddr, wr) && psel < (1<<PSEL_BITS) - 1) ++psel;
+      }
+
+      choice = (1<<(PSEL_BITS-1))&psel;
+    }
+
+    bool choice;
+
+    
+
+  private:
+    // Map from real cache index to toy cache index.
+    std::map<addr_t, unsigned> sample0, sample1;
+
+    Cache<CPNull, WAYS, L2SAMPSETS, 0, POLICY_0> cache0;
+    Cache<CPNull, WAYS, L2SAMPSETS, 0, POLICY_1> cache1;
+    unsigned psel;
   };
 
   template
     <int WAYS, int L2SETS, int L2LINESZ, InsertionPolicy IP>
   class ReplLRUBase {
    public:
-     ReplLRUBase(std::vector<addr_t> &ta) :
+  ReplLRUBase(std::vector<addr_t> &ta, bool *dipChoice = NULL) :
        tagarray(&ta[0]), tsarray(size_t(WAYS)<<L2SETS),
-       tsmax(size_t(1)<<L2SETS) {}
+       tsmax(size_t(1)<<L2SETS), dipChoice(dipChoice) {}
 
     #define TIMESTAMP_MAX INT_MAX
 
@@ -49,6 +109,7 @@ namespace Qcache {
 
       if (IP != INSERT_MRU) {
         if (IP == INSERT_BIP && rand() <= BIP_ALPHA) return;
+        if (IP == INSERT_DIP && *dipChoice && rand() <= BIP_ALPHA) return;
         tsarray[idx] = -tsarray[idx];        
       }
     }
@@ -68,6 +129,7 @@ namespace Qcache {
     typedef int timestamp_t;
 
     addr_t *tagarray;
+    bool *dipChoice;
     std::vector<timestamp_t> tsarray, tsmax;
   };
 
@@ -106,6 +168,27 @@ namespace Qcache {
 
    private:
      ReplLRUBase<WAYS, L2SETS, L2LINESZ, INSERT_BIP> r;
+  };
+
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplLRU_DIP {
+  public:
+    ReplLRU_DIP(std::vector<addr_t> &ta):
+      r(ta, &dueler.choice), tagarray(&ta[0]) {}
+
+    void updateRepl(addr_t set, addr_t idx, bool hit, bool wr) {
+      addr_t addr = tagarray[idx];
+      dueler.access(addr, idx, wr);
+      r.updateRepl(set, idx, hit, wr);
+    }
+ 
+    addr_t findVictim(addr_t set) {
+      return r.findVictim(set);
+    }
+
+  private:
+    SetDueler<WAYS, 5, L2LINESZ, L2SETS, 5, ReplLRU, ReplLRU_BIP> dueler;
+    ReplLRUBase<WAYS, L2SETS, L2LINESZ, INSERT_DIP> r;
+    addr_t *tagarray;
   };
 
   #define RRIP_MAX_STATE 3
