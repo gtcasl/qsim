@@ -14,4 +14,4 @@ user_guide.pdf: user_guide.tex qemu_diagram.pdf mod_qemu.pdf qsim_diagram.pdf \
 	fig2mpdf $<
 
 clean:
-	rm -f *.pdf *.aux *.log *~ *\#
+	rm -f *.pdf *.aux *.log *.toc *~ *\#
