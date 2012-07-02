@@ -41,11 +41,11 @@ using Qcache::ReplLRU_LIP; using Qcache::ReplSRRIP;  using Qcache::ReplBRRIP;
 
 typedef Qcache::CacheGrp<CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp<CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
-typedef Qcache::CacheGrp<CPNull,     8,  8, 6, ReplLRU         > l2_t;
-typedef Qcache::Cache   <CPNull,    24, 14, 6, ReplDRRIP,  true> l3_t;
+typedef Qcache::Cache   <CPNull,    24, 14, 6, ReplDRRIP,  true> l2_t;
 
-// Tiny 512k LLC to use (without L2) when validating replacement policies
-//typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
+// Tiny 512k LLC to use (without private L2) when validating replacement
+// policies:
+// typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l2_t;
 
 // This is a sad little hack that ensures our N threads are packed into the N
 // lowest-ID'd CPUs. On our test machine, this keeps the threads on as few
@@ -125,7 +125,6 @@ static inline unsigned long long utime() {
 }
 
 
-//pthread_barrier_t b0, b1;
 Qsim::OSDomain *osd_p;
 CallbackAdaptor *cba_p;
 
@@ -134,6 +133,8 @@ struct thread_arg_t {
   int cpuEnd;
   pthread_t thread;
 };
+
+// pthread_barrier_t b0, b1;
 
 void *thread_main(void *arg_vp) {
   bool running = true;
@@ -192,16 +193,16 @@ int main(int argc, char** argv) {
     traceOut = &std::cout;
   }
 
-  // Build a Westmere-like 3-level cache hierarchy. Typedefs for these (which
+  // Build an old-fashioned 2-level cache hierarchy. Typedefs for these (which
   // determine the cache parameters) are at the top of the file.
+  //
+  // In order to build a correct 3-level hierarchy with private L2s, there will
+  // have to be a way for the L2 to participate along with the L1 in the
+  // coherence protocol, which is not currently supported.
   Qcache::Tracer tracer(*traceOut);
-  l3_t l3(tracer, "L3");
-  l2_t l2(osd.get_n(), l3, "L2");
+  l3_t l2(tracer, "L3");
   l1d_t l1_d(osd.get_n(), l2, "L1d");
   l1i_t l1_i(osd.get_n(), l2, "L1i");
-
-  //pthread_barrier_init(&b0, NULL, threads);
-  //pthread_barrier_init(&b1, NULL, threads);
 
   CallbackAdaptor cba(osd, l1_i, l1_d);
 
@@ -219,6 +220,9 @@ int main(int argc, char** argv) {
 #ifdef CPULOCK
   setCpuAff(threads);
 #endif
+
+  // pthread_barrier_init(&b0, NULL, osd.get_n());
+  // pthread_barrier_init(&b1, NULL, osd.get_n()+1);
 
   unsigned long long start_usec = utime();
   for (unsigned i = 0; i < threads; ++i) {
