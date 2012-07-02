@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
   // have to be a way for the L2 to participate along with the L1 in the
   // coherence protocol, which is not currently supported.
   Qcache::Tracer tracer(*traceOut);
-  l3_t l2(tracer, "L3");
+  l2_t l2(tracer, "L3");
   l1d_t l1_d(osd.get_n(), l2, "L1d");
   l1i_t l1_i(osd.get_n(), l2, "L1i");
 

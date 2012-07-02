@@ -301,29 +301,6 @@ namespace Qcache {
   private:
     ReplRRIPBase<WAYS, L2SETS, L2LINESZ, INSERT_DIP> r;  
   };
-
-#if 0
-  template <int WAYS, int L2SETS, int L2LINESZ> class ReplDRRIP {
-   public:
-    ReplDRRIP(std::vector<addr_t> &ta):
-      r(ta, &dueler.choice), tagarray(&ta[0]) {}
-
-    void updateRepl(addr_t set, addr_t idx, bool hit, bool wr) {
-      addr_t addr = tagarray[idx];
-      dueler.access(addr, idx, wr);
-      r.updateRepl(set, idx, hit, wr);
-    }
-
-    addr_t findVictim(addr_t set) {
-      return r.findVictim(set);
-    }
-
-   private:
-    SetDueler<WAYS, 5, L2LINESZ, L2SETS, 5, ReplSRRIP, ReplBRRIP> dueler;
-    ReplRRIPBase<WAYS, L2SETS, L2LINESZ, INSERT_DIP> r;
-    addr_t *tagarray;
-  };
-#endif
 };
 
 #endif

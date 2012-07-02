@@ -105,8 +105,6 @@ two like everybody else?
 2 - Algorithms
 --------------
 
-. . . TODO . . .
-
 2.1 - Synchronization
 ---------------------
 
@@ -126,15 +124,21 @@ may need to be held simultaneously, e.g., when a line is being evicted.
 3.1 - Files
 -----------
 
-main.cpp      - Main "driver" program. Instantiates QSim OSDomain and caches.
-qcache.h      - Defines MemSysDev class, as well as class templates for Cache,
-                CacheGrp, and CPNull.
-qcache.cpp    - Defines static/global variables for QCache. Currently, this is a
-                single global mutex used for error reporting.
-qcache-dir.h  - Defines CoherenceDir template, used by the following coherence
-                ptotocols.
-qcache-msi.h  - MSI coherence protocol, the CPDirMsi class template.
-qcache-mesi.h - MESI coherence protocol, the CPDirMesi class template.
+main.cpp       - Main "driver" program. Instantiates QSim OSDomain and caches.
+qcache.h       - Defines MemSysDev class, as well as class templates for Cache,
+                 CacheGrp, and CPNull.
+qcache.cpp     - Defines static/global variables for QCache. Currently, this is
+                 a single global mutex used for error reporting.
+qcache-dir.h   - Defines CoherenceDir template, used by the following coherence
+                 ptotocols.
+qcache-msi.h   - MSI coherence protocol, the CPDirMsi class template. Sets a
+                 macro and re-includes qcache-mesi.h, where all three protocols
+                 are defined.
+qcache-mesi.h  - MESI coherence protocol, the CPDirMesi class template.
+qcache-moesi.h - MOESI coherence protocol, the CPDirMoesi class template. Sets a
+                 macro and re-includes qcache-moesi.h, where all three protocols
+                 are defined.
+qcache-repl.h  - Definitions of replacement policies, including 
 
 The file qcache-msi.h is really just a wrapper for including qcache-mesi.h with
 a single minor change to disable the 
@@ -149,16 +153,40 @@ devices. Since lower levels of the cache hierarchy are only consulted during
 misses, this was assumed to be an acceptable overhead in exchange for the
 simplicity afforded.
 
-  Qcache::MemSysDev         -
+  Qcache::MemSysDev         - "Memory system device" base class.
 
-    Qcache::Cache<...>      -
+    Qcache::Cache<...>      - Cache class template.
 
-    Qcache::Tracer          -
+    Qcache::Tracer          - Tracer. Used as the last level in the cache
+                              hierarchy when a trace is the desired output.
 
-  Qcache::CacheGrp<...>     -
+  Qcache::CacheGrp<...>     - Cache group. The set of all private caches at the
+                              same level of the hierarchy.
 
-  Qcache::CoherenceDir<...> -
+  Qcache::CoherenceDir<...> - Coherence directory; used by the directory
+                              coherence protocols.
 
-  Qcache::CPNull<...>       -
-  Qcache::CPDirMsi<...>     -
-  Qcache::CPDirMesi<...>    -
+  Qcache::CPNull<...>       - Null coherence protocol; implements non-coherent
+                              cache. Used for shared caches and uniprocessors.
+  Qcache::CPDirMsi<...>     - MSI coherence protocol.
+  Qcache::CPDirMesi<...>    - MESI coherence protocol. Always writes back lines
+                              on M->S transition.
+  Qcache::CPDirMoesi<...>   - MOESI coherence protocol. Only writes back lines
+                              on eviction.
+
+  Qcache::ReplRand<...>     - Random replacement.
+  Qcache::ReplLRU<...>      - LRU replacement with MRU insertion.
+  Qcache::ReplLRU_LIP<...>  - LRU replacement with LRU insertion policy.
+  Qcache::ReplLRU_BIP<...>  - LRU replacement with bimodal insertion policy.
+  Qcache::ReplLRU_DIP<...>  - LRU replacement with dynamic insertion policy.
+  Qcache::ReplSRRIP<...>    - Static re-reference interval predcition. (See
+                              Jaleel 2010)
+  Qcache::ReplBRRIP<...>    - Bimodal re-reference interval prediction.
+  Qcache::ReplDRRIP<...>    - Dynamic re-reference interval prediction.
+
+  Qcache::ReplLRUBase<...>  - Master class for LRU replacement policies. Imple-
+                              ment MIP, LIP, BIP, and DIP.
+  Qcache::ReplRRIPBase<...> - Master class for RRIP replacement policies. Imple-
+                              ments DRRIP, BRRIP, and SRRIP.
+  Qcache::SetDueler<...>    - Selects leader sets and keeps PSEL counter for set
+                              dueling.
