@@ -65,7 +65,9 @@ namespace Qcache {
       printEntry(addr, std::cout, id);
       pthread_mutex_unlock(&errLock);
 #endif
-      if (!hasId(addr, id)) {
+      if (!hasId(addr, id)) return; // This can happen now, because icache.
+#if 0
+      {
 	pthread_mutex_lock(&errLock);
 	std::cerr << "Tried to remove " << id << " from dir entry for 0x" 
                   << std::hex << addr << ". Only has:";
@@ -73,6 +75,7 @@ namespace Qcache {
         pthread_mutex_unlock(&errLock);
         ASSERT(false);
       }
+#endif
       if (banks[getBankIdx(addr)].getEntry(addr).lockHolder != id) {
 	std::cerr << "Error: Tried to remove on cache " << id 
                   << " while lock held by " 

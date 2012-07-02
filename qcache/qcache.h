@@ -14,6 +14,8 @@
 
 #include <stdlib.h>
 
+#include <typeinfo>
+
 //#define DEBUG
 //#define ENABLE_ASSERTIONS
 
@@ -40,21 +42,29 @@ namespace Qcache {
   #define spin_unlock(s) do { pthread_spin_unlock((s)); } while (0)
   typedef uint64_t addr_t;
 
-  // Things to throw when we're angry.
-  struct InvalidAccess {};
-
   // Every level in the memory hierarchy is one of these.
   class MemSysDev {
    public:
-    virtual ~MemSysDev() {}
+    ~MemSysDev() {}
 
-    virtual bool access(addr_t addr, bool wr) {
-      throw InvalidAccess();
-      return false;
+    virtual bool access(addr_t addr, bool wr) { ASSERT(false); }
+
+    virtual void invalidate(addr_t addr) { ASSERT(false); }
+
+    virtual uint64_t *cprotLookup(addr_t addr, spinlock_t *&l, bool inv,
+                                  bool lock=true)
+    {
+      ASSERT(false);
     }
 
-    virtual void invalidate(addr_t addr) { throw InvalidAccess(); }
-    virtual bool isShared() { return false; }
+    virtual void l1LockAddr(addr_t addr) { ASSERT(false); }
+    virtual void l1UnlockAddr(addr_t addr) { ASSERT(false); }
+    virtual void l1EvictAddr(addr_t addr) { ASSERT(false); }
+
+
+    virtual void setUpperLevel(MemSysDev *) {}
+
+    virtual bool isShared() { return true; }
   };
 
   class MemSysDevSet {
@@ -113,18 +123,43 @@ namespace Qcache {
      Cache(MemSysDev &ll, const char *n = "Unnamed",
            CPROT_T<L2LINESZ, Cache> *cp = NULL) :
       tagarray(size_t(WAYS)<<L2SETS), repl(tagarray),
-      peers(NULL), lowerLevel(&ll), cprot(cp), id(0), name(n),
+      peers(NULL), lowerLevel(&ll), upperLevel(NULL),
+      cprot(cp), id(0), name(n),
       accesses(0), misses(0), invalidates(0)
     {
       initArrays();
+      if (!lowerLevel->isShared()) {
+        std::cout << "Setting upper level of " << typeid(*lowerLevel).name() 
+                  << " to " << typeid(*this).name() << ", id = " << id << '\n';
+        lowerLevel->setUpperLevel(this);
+      }
     }
 
     Cache(std::vector<Cache> &peers, MemSysDev &ll, int id,
           const char *n = "Unnamed", CPROT_T<L2LINESZ, Cache> *cp = NULL) :
       tagarray(WAYS<<L2SETS), repl(tagarray),
-      peers(&peers), lowerLevel(&ll), cprot(cp), id(id), name(n),
+      peers(&peers), lowerLevel(&ll), upperLevel(NULL),
+      cprot(cp), id(id), name(n),
       accesses(0), misses(0), invalidates(0)
     {
+      initArrays();
+      if (!lowerLevel->isShared()) {
+        std::cout << "Setting upper level of " << typeid(*lowerLevel).name()
+                  << " to " << typeid(*this).name() << ", id = " << id << '\n';
+        lowerLevel->setUpperLevel(this);
+      }
+    }
+
+    Cache(const Cache &c):
+      tagarray(c.tagarray), repl(tagarray), peers(c.peers), cprot(c.cprot),
+      id(c.id), name(c.name), accesses(c.accesses), misses(c.misses),
+      invalidates(c.invalidates), lowerLevel(c.lowerLevel), 
+      upperLevel(c.upperLevel)
+    {
+      if (!lowerLevel->isShared()) {
+	std::cout << "MOVING!\n";
+        lowerLevel->setUpperLevel(this);
+      }
       initArrays();
     }
 
@@ -133,6 +168,21 @@ namespace Qcache {
       std::cout << name << ", " << id << ", " << accesses << ", " << misses 
                 << ", " << invalidates << ", " << (100.0*misses)/accesses
                 << "%\n";
+    }
+
+    void l1LockAddr(addr_t addr) {
+      if (!upperLevel) cprot->lockAddr(addr, id);
+      else upperLevel->l1LockAddr(addr);
+    }
+
+    void l1UnlockAddr(addr_t addr) {
+      if (!upperLevel) cprot->unlockAddr(addr, id);
+      else upperLevel->l1UnlockAddr(addr);
+    }
+
+    void l1EvictAddr(addr_t addr) {
+      if (!upperLevel) cprot->evAddr(id, addr);
+      else upperLevel->l1EvictAddr(addr);
     }
 
     bool access(addr_t addr, bool wr) {
@@ -151,92 +201,90 @@ namespace Qcache {
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
           repl.updateRepl(set, idx, true, wr);
-          hit = true;
-          if (cprot->hitAddr(id, addr, false, &setLocks[set],
-                             &tagarray[idx], wr)) goto finish;
-          else {
-            spin_lock(&setLocks[set]);
-            break;
-	  }
+          // Check with the coherence protocol-- we can still be invalidated!
+          hit = cprot->hitAddr(id, addr, false, &setLocks[set], &tagarray[idx],
+                               wr);
+          if (!hit) { spin_lock(&setLocks[set]); break; }
         }
       }
-      ++misses;
 
-      size_t vidx;
-      addr_t victimAddr;
-      int victimState;
-      uint64_t victimVal;
-      for (;;) {
-        vidx = repl.findVictim(set);
-        victimVal = tagarray[vidx];
-        victimAddr = tagarray[vidx] & ~stateMask;
-        victimState = tagarray[vidx] & stateMask;
+      if (!hit) {
+        ++misses;
+
+        size_t vidx(repl.findVictim(set));
+        addr_t victimAddr(tagarray[vidx]&~stateMask);
+        int victimState(tagarray[vidx]&stateMask);
+        uint64_t victimVal(tagarray[vidx]);
+
+        // Lock the victim address if this is the LLPC and there is a valid
+        // line to evict.
+        bool victimLocked(lowerLevel->isShared() && victimState);
+
+        ASSERT(vidx >= set*WAYS && vidx < (set+1)*WAYS);
         ASSERT(victimState == 0 || victimAddr != addr);
-        spin_unlock(&setLocks[set]);
         
-        // Lock access block and victim block (if not an invalid line) in order
-        if (victimState && victimAddr < addr) cprot->lockAddr(victimAddr, id);
-        cprot->lockAddr(addr, id);
-        if (victimState && victimAddr > addr) cprot->lockAddr(victimAddr, id);
+        spin_unlock(&setLocks[set]);
 
+        if (victimLocked) l1LockAddr(victimAddr);
         spin_lock(&setLocks[set]);
-        for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
-          if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
-            // The block we were looking for made its way into the cache.
-            repl.updateRepl(set, idx, true, wr);
-            cprot->hitAddr(id, addr, true, &setLocks[set], &tagarray[idx], wr);
-            hit = true;
-            goto missFinish;
-          }
+
+	// The victim state may have changed:
+        if ((tagarray[vidx]&stateMask) != victimState) {
+          // Nothing should ever cause the address of the victim to change.
+          ASSERT(victimAddr == (tagarray[vidx]&~stateMask));
+
+          // Update victim state.
+          victimState = (tagarray[vidx]&stateMask);
         }
 
-        // The block we were looking for is still not in the cache.
+        spin_unlock(&setLocks[set]);
 
-        if (!victimState && (tagarray[vidx] & stateMask)) {
-          // Our invalid victim became valid.
-          spin_unlock(&setLocks[set]);
-          cprot->unlockAddr(addr, id);
-          spin_lock(&setLocks[set]);
-          continue;
-	}
+        if (victimState) {
+          // Now it's "always write back evicted lines" to ensure the line is
+          // in the lower level private cache. Strictly inclusive caches would
+          // be a way to avoid this.  
+          bool doWriteback;
+          if (lowerLevel->isShared()) {
+            doWriteback = cprot->dirty(victimState);
+          } else {
+            doWriteback = true;
+          }
 
-        if (victimState && tagarray[vidx] != victimVal) {
-          // Victim has changed in the array.
-          spin_unlock(&setLocks[set]);
-          if (victimAddr > addr) cprot->unlockAddr(victimAddr, id);
-          cprot->unlockAddr(addr, id);
-          if (victimAddr < addr) cprot->unlockAddr(victimAddr, id);
-          spin_lock(&setLocks[set]);
-          continue;
-	}
+          if (doWriteback && lowerLevel) lowerLevel->access(victimAddr, true);
+        }
+
+        if (victimLocked) {
+          l1EvictAddr(victimAddr);
+          l1UnlockAddr(victimAddr);
+        }
+        
+        // Lock access block.
+        cprot->lockAddr(addr, id);
+        spin_lock(&setLocks[set]);
+
+        // An invalid victim shouldn't have magically become valid.
+        ASSERT(victimState || !(tagarray[vidx] & stateMask));
 
         #ifdef DEBUG
         pthread_mutex_lock(&errLock);
-	std::cout << id << ": Found victim: 0x" << std::hex << tagarray[vidx]
+        std::cout << id << ": Found victim: 0x" << std::hex << tagarray[vidx]
                   << '\n';
         pthread_mutex_unlock(&errLock);
         #endif
         
-        break;
-      }
-      tagarray[vidx] = addr|0x01;
-      repl.updateRepl(set, vidx, false, wr);
-      spin_unlock(&setLocks[set]);
-      if (victimState) {
-        bool doWriteback = cprot->evAddr(id, victimAddr, victimState);
-        if (doWriteback && lowerLevel) lowerLevel->access(victimAddr, true);
-      }
+        tagarray[vidx] = addr|0x01;
+        repl.updateRepl(set, vidx, false, wr);
+        spin_unlock(&setLocks[set]);
 
-      if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && lowerLevel) {
-        lowerLevel->access(tag<<L2LINESZ, false);
+        if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && lowerLevel) {
+          lowerLevel->access(tag<<L2LINESZ, false);
+        }
+        
+        if (!lowerLevel->isShared()) lowerLevel->invalidate(tag<<L2LINESZ);
+
+        // Unlock access block.
+        cprot->unlockAddr(addr, id);
       }
-
-    missFinish:
-      // Unlock access block and victim block in reverse order.
-      if (victimState && victimAddr > addr) cprot->unlockAddr(victimAddr, id);
-      cprot->unlockAddr(addr, id);
-      if (victimState && victimAddr < addr) cprot->unlockAddr(victimAddr, id);
-
     finish:
       if (SHARED) spin_unlock(&accessLock);
 
@@ -253,7 +301,7 @@ namespace Qcache {
       addr_t idx;
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag) {
-          tagarray[idx] = 0;
+          tagarray[idx] &= ~((1l<<L2LINESZ)-1);
           // No need to get invalidates lock since we are not shared and are
           // not accessed by the coherence protocol.
           ++invalidates;
@@ -272,30 +320,31 @@ namespace Qcache {
 
    // When the coherence protocol needs to look up a line for any reason, this
    // is the function that should be called.
-   uint64_t *cprotLookup(addr_t addr, spinlock_t *&lock, bool inv) {
+   uint64_t *cprotLookup(addr_t addr, spinlock_t *&lock, bool inv, bool l=true) {
      ASSERT(!SHARED); // No coherence on shared caches.
 
      addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
             set(tag%(1<<L2SETS));
 
-     spin_lock(&invalidatesLock);
-     if (inv) ++invalidates;
-     spin_unlock(&invalidatesLock);
-
-     spin_lock(&setLocks[set]);
+     lock = &setLocks[set];
+     if (l) spin_lock(&setLocks[set]);
      for (size_t idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
        if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
-         lock = &setLocks[set];
+
+	 spin_lock(&invalidatesLock);
+	 if (inv) ++invalidates;
+	 spin_unlock(&invalidatesLock);
+
          return &tagarray[idx];
        }
      }
 
-     // The directory in our protocols should ensure that execution never gets
-     // here. With snooping protocols, there might be a reason to remove this
-     // line and put the checks in the protocol itself. Whether this is a good
-     // idea is TBD.
-     ASSERT(false);
-     return NULL;
+     
+     spinlock_t *tmpLock;
+     uint64_t *rval = lowerLevel->cprotLookup(addr, tmpLock, inv, false);
+     //spin_unlock(tmpLock);
+
+     return rval;
    }
 
    void dumpSet(addr_t addr) {
@@ -307,9 +356,11 @@ namespace Qcache {
      std::cerr << '\n';
    }
 
+   void setUpperLevel(MemSysDev *uL) { upperLevel = uL; }
+
    private:
     std::vector<Cache> *peers;
-    MemSysDev *lowerLevel;
+    MemSysDev *lowerLevel, *upperLevel;
     const char *name;
     int id;
 
@@ -407,7 +458,9 @@ namespace Qcache {
       return false;
     }
 
-    bool evAddr(int id, addr_t addr, int state) { 
+    void evAddr(int id, addr_t addr) {}
+
+    bool dirty(int state) {
       return state == STATE_M;
     }
   };

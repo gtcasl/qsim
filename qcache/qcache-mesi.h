@@ -64,10 +64,10 @@ namespace Qcache {
         if (getState(line) == STATE_E && wr) {
           setState(line, STATE_M);
 	}
-	spin_unlock(setLock);
+	if (setLock) spin_unlock(setLock);
         return true;
       } else if (getState(line)) {
-        spin_unlock(setLock);
+        if (setLock) spin_unlock(setLock);
         if (!wr) return true;
 
         // If I don't hold the lock for this address, get it.
@@ -132,6 +132,12 @@ namespace Qcache {
     }
 
     bool missAddr(int id, addr_t addr, uint64_t *line, bool wr) {
+      if (dir.hasId(addr, id)) {
+        // It's in a lower-level private cache on the same core.
+        hitAddr(id, addr, true, NULL, line, wr);
+        return false;
+      }
+
       State st;
       addAddr(addr, id);
 
@@ -194,8 +200,11 @@ namespace Qcache {
       return forwarded;
     }
 
-    bool evAddr(int id, addr_t addr, int state) {
+    void evAddr(int id, addr_t addr) {
       remAddr(addr, id);
+    }
+
+    bool dirty(int state) {
       return state == STATE_M || state == STATE_O;
     }
 
