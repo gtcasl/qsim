@@ -87,7 +87,7 @@ public:
     #ifdef ICOUNT
     ++icount[c];
     if (osd.idle(c)) ++idlecount[c];
-    if (icount[c] == 100000000) {
+    if (icount[c] == 1000000000) {
       running = false;
       return;
     }

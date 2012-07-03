@@ -87,7 +87,7 @@ namespace Qcache {
    public:
     Tracer(std::ostream &tf) : tracefile(tf) {}
 
-    bool access(addr_t addr, bool wr, addr_t **lp = NULL) {
+    bool access(addr_t addr, int wr, addr_t **lp = NULL) {
       tracefile << std::dec << addr << (wr?" W\n":" R\n");
       return false;
     }
