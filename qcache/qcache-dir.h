@@ -41,7 +41,6 @@ namespace Qcache {
       pthread_mutex_unlock(&errLock);
       #endif
       spin_unlock(&banks[getBankIdx(addr)].getEntry(addr).lock);
-
     }
 
     void addAddr(addr_t addr, int id) {
@@ -65,23 +64,26 @@ namespace Qcache {
       printEntry(addr, std::cout, id);
       pthread_mutex_unlock(&errLock);
 #endif
-      if (!hasId(addr, id)) return; // This can happen now, because icache.
-#if 0
-      {
-	pthread_mutex_lock(&errLock);
-	std::cerr << "Tried to remove " << id << " from dir entry for 0x" 
-                  << std::hex << addr << ". Only has:";
-        printEntry(addr, std::cerr, id);
-        pthread_mutex_unlock(&errLock);
-        ASSERT(false);
+
+      if (!hasId(addr, id)) {
+        // This is an error condition, but may happen e.g. because of icache.
+        // It represents a possible lapse in correctness, and benchmarks that
+        // cause this condition to occur frequently will not generate reliable
+        // results.
+	std::cerr << "WARNING: attempt to evict line that was already absent "
+                     "from directory.\n";
+        return;
       }
-#endif
+
+#ifdef ENABLE_ASSERTIONS
       if (banks[getBankIdx(addr)].getEntry(addr).lockHolder != id) {
 	std::cerr << "Error: Tried to remove on cache " << id 
                   << " while lock held by " 
                   << banks[getBankIdx(addr)].getEntry(addr).lockHolder << ".\n";
         ASSERT(false);
       }
+#endif
+
       banks[getBankIdx(addr)].getEntry(addr).present.erase(id);
     }
 

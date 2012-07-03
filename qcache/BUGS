@@ -1,0 +1,36 @@
+Qcache Known Issues
+-------------------
+
+- The instruction cache does not participate in the coherence protocol, but
+  does bring lines into lower-level private caches. These lines are not in the
+  directory. Correctness issues then arise in self-modifying code (e.g. dynamic
+  recompilers).
+
+- The L1 icache MUST be initialized before the L1 d-cache, if there are mult-
+  iple levels of private cache. Failure to do so will probably cause failed
+  assertions or, with assertions disabled, incorrect results. This is because
+  caches maintain a pointer both to the level below and the level above, and
+  lower-level private caches use this pointer to talk to higher-level private
+  caches. Folding the instruction cache into the coherence protocol in some way
+  would prevent this.
+
+- The following race condition could occur:
+
+    Thread 1       |  Thread 2
+   ----------------+----------------
+    miss on X      |  miss on Y
+    lock X         |  lock Y
+    access L2      |  access L2
+      miss on X    |    miss on Y
+      victim: Y    |    victim: X
+      lock Y       |    lock X
+
+  Several solutions have been proposed and one should eventually be
+  implemented:
+
+  - Directory locking units corresponding to sets in L1
+    - Would require no locking at levels lower than L1, as long as L2SETS of
+      lower-level private caches <= L2SETS of L1.
+
+  - Deadlock detection
+    - Keep information on lock nest in the directory.
