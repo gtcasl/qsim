@@ -14,6 +14,10 @@ Qcache Known Issues
   caches. Folding the instruction cache into the coherence protocol in some way
   would prevent this.
 
+- Private caches are exclusive by design, and writebacks (which "miss" by
+  definition in an exclusive cache) are counted as accesses, even though they
+  do not cause additional delay (but may cause evictions).
+
 - The following race condition could occur:
 
     Thread 1       |  Thread 2
