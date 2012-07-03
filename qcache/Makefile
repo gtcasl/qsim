@@ -7,9 +7,9 @@
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
 QSIM_PREFIX ?= /usr/local
-#CXXFLAGS ?= -g -O3 -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
-CXXFLAGS ?= -g -O0 -DENABLE_ASSERTIONS -I$(QSIM_PREFIX)/include \
-            -L$(QSIM_PREFIX)/lib
+CXXFLAGS ?= -g -O3 -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
+#CXXFLAGS ?= -g -O0 -DDEBUG -DENABLE_ASSERTIONS -I$(QSIM_PREFIX)/include \
+#            -L$(QSIM_PREFIX)/lib
 LDLIBS ?= -lqsim -pthread -ldl
 
 qcache: qcache.o main.o

@@ -104,16 +104,9 @@ namespace Qcache {
           spinlock_t *l;
           uint64_t *invLine = caches[*it].cprotLookup(addr, l, true);
           setState(invLine, STATE_I);
-          caches[*it].invalidateLowerLevel(addr);
           spin_unlock(l);
         }
         dir.clearIds(addr, id);
-
-        #ifdef DEBUG
-        pthread_mutex_lock(&errLock);
-	std::cout << id << ": 0x" << std::hex << addr << " S->M\n";
-        pthread_mutex_unlock(&errLock);
-        #endif
 
         setState(line, STATE_M);
 
@@ -143,13 +136,6 @@ namespace Qcache {
 
       bool forwarded = false;
    
-      #ifdef DEBUG
-      pthread_mutex_lock(&errLock);
-      std::cout << id << ": 0x" << std::hex << addr << " I->"
-                << (wr?"M\n":"S\n");
-      pthread_mutex_unlock(&errLock);
-      #endif
-
       // Change state of remote lines.
       bool shared(false);
       for (std::set<int>::iterator it = dir.idsBegin(addr, id);
@@ -164,14 +150,16 @@ namespace Qcache {
         uint64_t *remLine = caches[*it].cprotLookup(addr, l, wr);
         if (wr) {
           setState(remLine, STATE_I);
-          caches[*it].invalidateLowerLevel(addr);
         } else {
 #ifdef __QCACHE_DEF_MOESI
           // MOESI doesn't have to do a writeback yet.
-          if (getState(remLine) == STATE_M || getState(remLine) == STATE_E)
+          if (getState(remLine) == STATE_M || getState(remLine) == STATE_E ||
+              getState(remLine) == STATE_O)
+          {
             setState(remLine, STATE_O);
-          else
+          } else {
             setState(remLine, STATE_S);
+          }
 #else
           // This line has to be written back.
           if (getState(remLine) == STATE_M && caches[*it].lowerLevel) {
@@ -212,7 +200,16 @@ namespace Qcache {
     CoherenceDir<L2LINESZ> dir;
 
     void setState(uint64_t *line, State state) {
-      *line = *line & ((~(uint64_t)0)<<L2LINESZ) | state;
+#ifdef DEBUG
+      pthread_mutex_lock(&errLock);
+      addr_t addr = *line & ~((1<<L2LINESZ)-1);
+      int curSt = *line & ((1<<L2LINESZ)-1), nextSt = int(state);
+      const char STATES[]  = {'I', 'X', 'M', 'O', 'E', 'S'};
+      std::cout << "0x" << std::hex << addr << ' '
+                << STATES[curSt] << "->" << STATES[nextSt] << '\n';
+      pthread_mutex_unlock(&errLock);
+#endif
+      *line = *line & ~(uint64_t)((1<<L2LINESZ)-1) | state;
       ASSERT(getState(line) == state);
     }
 

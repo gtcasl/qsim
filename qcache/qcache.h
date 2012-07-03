@@ -47,7 +47,9 @@ namespace Qcache {
    public:
     ~MemSysDev() {}
 
-    virtual bool access(addr_t addr, bool wr) { ASSERT(false); }
+    virtual bool access(addr_t addr, int wr, addr_t** lp = NULL) {
+      ASSERT(false);
+    }
 
     virtual void invalidate(addr_t addr) { ASSERT(false); }
 
@@ -65,6 +67,12 @@ namespace Qcache {
     virtual void setUpperLevel(MemSysDev *) {}
 
     virtual bool isShared() { return true; }
+
+    enum AccType {
+      READ = 0,
+      WRITE = 1,
+      WRITEBACK = 2
+    };
   };
 
   class MemSysDevSet {
@@ -79,7 +87,7 @@ namespace Qcache {
    public:
     Tracer(std::ostream &tf) : tracefile(tf) {}
 
-    bool access(addr_t addr, bool wr) {
+    bool access(addr_t addr, bool wr, addr_t **lp = NULL) {
       tracefile << std::dec << addr << (wr?" W\n":" R\n");
       return false;
     }
@@ -125,14 +133,10 @@ namespace Qcache {
       tagarray(size_t(WAYS)<<L2SETS), repl(tagarray),
       peers(NULL), lowerLevel(&ll), upperLevel(NULL),
       cprot(cp), id(0), name(n),
-      accesses(0), misses(0), invalidates(0)
+      accesses(0), misses(0), invalidates(0), writebacks(0)
     {
       initArrays();
-      if (!lowerLevel->isShared()) {
-        std::cout << "Setting upper level of " << typeid(*lowerLevel).name() 
-                  << " to " << typeid(*this).name() << ", id = " << id << '\n';
-        lowerLevel->setUpperLevel(this);
-      }
+      if (!lowerLevel->isShared()) lowerLevel->setUpperLevel(this);
     }
 
     Cache(std::vector<Cache> &peers, MemSysDev &ll, int id,
@@ -140,24 +144,20 @@ namespace Qcache {
       tagarray(WAYS<<L2SETS), repl(tagarray),
       peers(&peers), lowerLevel(&ll), upperLevel(NULL),
       cprot(cp), id(id), name(n),
-      accesses(0), misses(0), invalidates(0)
+      accesses(0), misses(0), invalidates(0), writebacks(0)
     {
       initArrays();
-      if (!lowerLevel->isShared()) {
-        std::cout << "Setting upper level of " << typeid(*lowerLevel).name()
-                  << " to " << typeid(*this).name() << ", id = " << id << '\n';
-        lowerLevel->setUpperLevel(this);
-      }
+      if (!lowerLevel->isShared()) lowerLevel->setUpperLevel(this);
     }
 
     Cache(const Cache &c):
       tagarray(c.tagarray), repl(tagarray), peers(c.peers), cprot(c.cprot),
       id(c.id), name(c.name), accesses(c.accesses), misses(c.misses),
-      invalidates(c.invalidates), lowerLevel(c.lowerLevel), 
+      invalidates(c.invalidates), writebacks(c.writebacks),
+      lowerLevel(c.lowerLevel), 
       upperLevel(c.upperLevel)
     {
       if (!lowerLevel->isShared()) {
-	std::cout << "MOVING!\n";
         lowerLevel->setUpperLevel(this);
       }
       initArrays();
@@ -166,8 +166,8 @@ namespace Qcache {
     ~Cache() {
       if (!printResults) return;
       std::cout << name << ", " << id << ", " << accesses << ", " << misses 
-                << ", " << invalidates << ", " << (100.0*misses)/accesses
-                << "%\n";
+                << ", " << writebacks << ", " << invalidates << ", "
+                << (100.0*misses)/accesses << "%\n";
     }
 
     void l1LockAddr(addr_t addr) {
@@ -185,11 +185,17 @@ namespace Qcache {
       else upperLevel->l1EvictAddr(addr);
     }
 
-    bool access(addr_t addr, bool wr) {
+    bool access(addr_t addr, int wr, addr_t **lineptr = NULL) {
       bool hit = false;
 
-      ++accesses;
+      addr_t *llLineptr;
+      bool wbState = false;
+
+      // Writebacks are not included in the miss or access count.
       if (SHARED) spin_lock(&accessLock);
+
+      ++accesses;
+      if (wr == WRITEBACK) ++writebacks;
 
       addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
              set(tag%(1<<L2SETS));
@@ -205,6 +211,7 @@ namespace Qcache {
           hit = cprot->hitAddr(id, addr, false, &setLocks[set], &tagarray[idx],
                                wr);
           if (!hit) { spin_lock(&setLocks[set]); break; }
+          else if (lineptr) *lineptr = &tagarray[idx];
         }
       }
 
@@ -247,10 +254,12 @@ namespace Qcache {
           if (lowerLevel->isShared()) {
             doWriteback = cprot->dirty(victimState);
           } else {
-            doWriteback = true;
+            doWriteback = wbState = true;
           }
 
-          if (doWriteback && lowerLevel) lowerLevel->access(victimAddr, true);
+          if (doWriteback && lowerLevel) {
+            lowerLevel->access(victimAddr, WRITEBACK, &llLineptr);
+          }
         }
 
         if (victimLocked) {
@@ -265,27 +274,32 @@ namespace Qcache {
         // An invalid victim shouldn't have magically become valid.
         ASSERT(victimState || !(tagarray[vidx] & stateMask));
 
-        #ifdef DEBUG
-        pthread_mutex_lock(&errLock);
-        std::cout << id << ": Found victim: 0x" << std::hex << tagarray[vidx]
-                  << '\n';
-        pthread_mutex_unlock(&errLock);
-        #endif
-        
+        if (wbState) {
+          *llLineptr &= ~stateMask;
+          *llLineptr |= tagarray[vidx] & stateMask;
+        }
+
         tagarray[vidx] = addr|0x01;
         repl.updateRepl(set, vidx, false, wr);
         spin_unlock(&setLocks[set]);
 
-        if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && lowerLevel) {
-          lowerLevel->access(tag<<L2LINESZ, false);
+        if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && wr != WRITEBACK)
+        {
+          lowerLevel->access(tag<<L2LINESZ, READ, &llLineptr);
+          if (!lowerLevel->isShared()) {
+            tagarray[vidx] &= ~stateMask;
+            tagarray[vidx] |= (*llLineptr & stateMask);
+          }
         }
         
         if (!lowerLevel->isShared()) lowerLevel->invalidate(tag<<L2LINESZ);
 
+        if (lineptr) *lineptr = &tagarray[vidx];
+
         // Unlock access block.
         cprot->unlockAddr(addr, id);
       }
-    finish:
+
       if (SHARED) spin_unlock(&accessLock);
 
       return hit;
@@ -312,12 +326,6 @@ namespace Qcache {
 
     bool isShared() { return SHARED; }
 
-    void invalidateLowerLevel(addr_t addr) {
-      ASSERT(!SHARED);
-
-      if (lowerLevel && !lowerLevel->isShared()) lowerLevel->invalidate(addr);
-    }
-
    // When the coherence protocol needs to look up a line for any reason, this
    // is the function that should be called.
    uint64_t *cprotLookup(addr_t addr, spinlock_t *&lock, bool inv, bool l=true) {
@@ -339,7 +347,7 @@ namespace Qcache {
        }
      }
 
-     
+     // The line may be in lower-level private caches.
      spinlock_t *tmpLock;
      uint64_t *rval = lowerLevel->cprotLookup(addr, tmpLock, inv, false);
      //spin_unlock(tmpLock);
@@ -375,7 +383,7 @@ namespace Qcache {
 
     spinlock_t accessLock; // One at a time in shared LLC
 
-    uint64_t accesses, misses, invalidates;
+    uint64_t accesses, misses, invalidates, writebacks;
     spinlock_t invalidatesLock; // Some counters need locks
 
     void initArrays() {
@@ -434,9 +442,12 @@ namespace Qcache {
     CPNull(std::vector<CACHE> &caches) {}
 
     enum State {
+      // The values given here make present and modified line up with shared
+      // and modified in M[[O]E]SI, respectively. This enables noncoherent
+      // reading of lines containing code.
       STATE_I = 0x00, // Invalid
-      STATE_P = 0x01, // Present
-      STATE_M = 0x02  // Modified
+      STATE_M = 0x02, // Present
+      STATE_P = 0x05  // Modified
     };
 
     void lockAddr(addr_t addr, int id)   {}
