@@ -70,7 +70,7 @@ namespace Qcache {
         // It represents a possible lapse in correctness, and benchmarks that
         // cause this condition to occur frequently will not generate reliable
         // results.
-	std::cerr << "WARNING: attempt to evict line that was already absent "
+	std::cout << "WARNING: attempt to evict line that was already absent "
                      "from directory.\n";
         return;
       }
