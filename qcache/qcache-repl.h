@@ -290,33 +290,35 @@ namespace Qcache {
     }
 
     addr_t findVictim(addr_t set) {
+      unsigned vCt = 0, vC[WAYS]; // Victim candidates
+
       // Look for an invalid line.
       for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i)
         if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
 
-      size_t victim;
+      while (vCt == 0) {
+        // Look for counters in max state
+        for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i)
+          if (ctr[i] == RRIP_MAX_STATE) {
+            vC[vCt++] = i;
+  	  }
 
-      // Look for counters in max state
-      for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i)
-        if (ctr[i] == RRIP_MAX_STATE) {
-          victim = i;
-          goto foundVictim;
-	}
+        if (vCt > 0) break;
 
-      // Increment all of the counters
-      for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i) {
-        ASSERT(ctr[i] < RRIP_MAX_STATE);
-        ++ctr[i];
+        // Increment all of the counters
+        for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i) {
+          ASSERT(ctr[i] < RRIP_MAX_STATE);
+          ++ctr[i];
+        }
       }
 
-      // Default to random
-      int way;
-      do { way = rand(); } while (way > RAND_MAX/WAYS*WAYS);
-      way %= WAYS;
+      // Random to break ties.
+      int vic;
+      do { vic = rand(); } while (vic > RAND_MAX/vCt*vCt);
+      vic %= vCt;
 
-      victim = set*WAYS + way;
+      unsigned victim = vC[vic];
 
-    foundVictim:
       if (IP == INSERT_EAF) eaf.add(tagarray[victim]&~((1ll<<L2LINESZ)-1));
 
       return victim;
