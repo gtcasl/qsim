@@ -15,7 +15,9 @@ LDLIBS ?= -lqsim -pthread -ldl
 qcache: qcache.o main.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ qcache.o main.o $(LDLIBS)
 
-main.o: qcache.h qcache-msi.h qcache-mesi.h qcache-dir.h qcache-repl.h
+main.o: qcache.h qcache-msi.h qcache-mesi.h qcache-dir.h qcache-repl.h \
+        qcache-bloom.h
+
 qcache.o: qcache.cpp qcache.h
 
 clean:
