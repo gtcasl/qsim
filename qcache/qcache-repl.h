@@ -6,8 +6,10 @@
 #include "qcache.h"
 #include "qcache-bloom.h"
 
-#define L2_EAF_SZ 10
-#define EAF_HASH_FUNCS 2
+#include <iostream>
+
+#define L2_EAF_SZ 20
+#define EAF_HASH_FUNCS 4
 #define EAF_CLEAR_INTERVAL 1000
 
 namespace Qcache {
@@ -134,7 +136,7 @@ namespace Qcache {
         }
       }
 
-      if (IP == INSERT_EAF) {
+      if (IP == INSERT_EAF && !hit /* ??? Clear interval in misses ??? */) {
         if (!hit) dipChoice = eaf.check(tagarray[idx]&~((1ll<<L2LINESZ)-1));
 
         if (++eafAcCtr == EAF_CLEAR_INTERVAL) {
@@ -161,7 +163,7 @@ namespace Qcache {
       }
 
       // A valid victim has been found.
-      if (IP == INSERT_EAF) eaf.add(tagarray[minIdx]&((1<<L2LINESZ)-1));
+      if (IP == INSERT_EAF) eaf.add(tagarray[minIdx]&~((1<<L2LINESZ)-1));
 
       return minIdx;
     }
@@ -263,7 +265,7 @@ namespace Qcache {
         }
       }
 
-      if (IP == INSERT_EAF) {
+      if (IP == INSERT_EAF && !h /*??? (see comment in LRU) ???*/ ) {
         if (!h) drripChoice = eaf.check(tagarray[idx]&~((1ll<<L2LINESZ)-1));
 
         if (++eafAcCtr == EAF_CLEAR_INTERVAL) {
