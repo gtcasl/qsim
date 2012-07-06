@@ -4,10 +4,15 @@
 #include <map>
 
 #include "qcache.h"
+#include "qcache-bloom.h"
+
+#define L2_EAF_SZ 10
+#define EAF_HASH_FUNCS 2
+#define EAF_CLEAR_INTERVAL 1000
 
 namespace Qcache {
   enum InsertionPolicy {
-    INSERT_LRU, INSERT_MRU, INSERT_BIP, INSERT_DIP
+    INSERT_LRU, INSERT_MRU, INSERT_BIP, INSERT_DIP, INSERT_EAF
   };
 
   template
@@ -82,9 +87,9 @@ namespace Qcache {
     <int WAYS, int L2SETS, int L2LINESZ, InsertionPolicy IP>
   class ReplLRUBase {
    public:
-  ReplLRUBase(std::vector<addr_t> &ta) :
+    ReplLRUBase(std::vector<addr_t> &ta) :
        tagarray(&ta[0]), tsarray(size_t(WAYS)<<L2SETS),
-       tsmax(size_t(1)<<L2SETS) {}
+       tsmax(size_t(1)<<L2SETS), eafAcCtr(0) {}
 
     #define TIMESTAMP_MAX INT_MAX
 
@@ -129,9 +134,19 @@ namespace Qcache {
         }
       }
 
+      if (IP == INSERT_EAF) {
+        if (!hit) dipChoice = eaf.check(tagarray[idx]&~((1ll<<L2LINESZ)-1));
+
+        if (++eafAcCtr == EAF_CLEAR_INTERVAL) {
+          eafAcCtr = 0;
+          eaf.clear();
+        }
+      }
+
       if (IP != INSERT_MRU && !hit) {
         if (IP == INSERT_BIP && rand() <= BIP_ALPHA) return;
-        if (IP == INSERT_DIP && (!dipChoice || rand() <= BIP_ALPHA)) return;
+        if ((IP == INSERT_DIP || IP == INSERT_EAF) && 
+            (!dipChoice || rand() <= BIP_ALPHA)) return;
         tsarray[idx] = -tsarray[idx];        
       }
     }
@@ -144,6 +159,10 @@ namespace Qcache {
         if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
         if (tsarray[i] < minTs) { minIdx = i; minTs = tsarray[i]; }
       }
+
+      // A valid victim has been found.
+      if (IP == INSERT_EAF) eaf.add(tagarray[minIdx]&((1<<L2LINESZ)-1));
+
       return minIdx;
     }
 
@@ -152,7 +171,11 @@ namespace Qcache {
 
     addr_t *tagarray;
     std::vector<timestamp_t> tsarray, tsmax;
+
     SetDueler<WAYS, 5, L2LINESZ, L2SETS, 5> dueler;
+
+    BloomFilter<L2_EAF_SZ, EAF_HASH_FUNCS, IP == INSERT_EAF> eaf;
+    unsigned eafAcCtr;
   };
 
   // I'm sorry. C++11 alias templates soon, but for compatibility, here's this:
@@ -204,6 +227,18 @@ namespace Qcache {
     addr_t *tagarray;
   };
 
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplLRU_EAF {
+  public:
+    ReplLRU_EAF(std::vector<addr_t> &ta):
+      r(ta), tagarray(&ta[0]) {}
+  
+    QCACHE_REPL_PASSTHROUGH_FUNCS
+  
+  private:
+    ReplLRUBase<WAYS, L2SETS, L2LINESZ, INSERT_EAF> r;
+    addr_t *tagarray;
+  };
+
   #define RRIP_MAX_STATE 3
 
   template <int WAYS, int L2SETS, int L2LINESZ, InsertionPolicy IP>
@@ -211,7 +246,7 @@ namespace Qcache {
   {
   public:
     ReplRRIPBase(std::vector<addr_t> &ta) :
-      tagarray(&ta[0]), ctr(size_t(WAYS)<<L2SETS) {}
+      tagarray(&ta[0]), ctr(size_t(WAYS)<<L2SETS), eafAcCtr(0) {}
 
     void updateRepl(addr_t set, addr_t idx, bool h, bool w) {
       const int BRRIP_ALPHA = (RAND_MAX+1l)/64;
@@ -228,13 +263,23 @@ namespace Qcache {
         }
       }
 
+      if (IP == INSERT_EAF) {
+        if (!h) drripChoice = eaf.check(tagarray[idx]&~((1ll<<L2LINESZ)-1));
+
+        if (++eafAcCtr == EAF_CLEAR_INTERVAL) {
+          eafAcCtr = 0;
+          eaf.clear();
+        }
+      }
+
       if (h) {
         ctr[idx] = 0;
       } else {
         if (IP==INSERT_LRU ||
-            (IP==INSERT_BIP || (IP==INSERT_DIP && drripChoice))
-             && rand() > BRRIP_ALPHA)
-        {
+            (IP==INSERT_BIP ||
+             ((IP==INSERT_DIP || IP==INSERT_EAF) && drripChoice))
+              && rand() > BRRIP_ALPHA)
+	{
           ctr[idx] = RRIP_MAX_STATE - 1;
         } else {
           ctr[idx] = RRIP_MAX_STATE - 2;
@@ -247,9 +292,14 @@ namespace Qcache {
       for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i)
         if (!(tagarray[i] & ((1<<L2LINESZ)-1))) return i;
 
+      size_t victim;
+
       // Look for counters in max state
       for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i)
-        if (ctr[i] == RRIP_MAX_STATE) return i;
+        if (ctr[i] == RRIP_MAX_STATE) {
+          victim = i;
+          goto foundVictim;
+	}
 
       // Increment all of the counters
       for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i) {
@@ -262,14 +312,23 @@ namespace Qcache {
       do { way = rand(); } while (way > RAND_MAX/WAYS*WAYS);
       way %= WAYS;
 
-      return set*WAYS + way;
+      victim = set*WAYS + way;
+
+    foundVictim:
+      if (IP == INSERT_EAF) eaf.add(tagarray[victim]&~((1ll<<L2LINESZ)-1));
+
+      return victim;
     }
     
   private:
     addr_t *tagarray;
 
     std::vector<unsigned char> ctr;
+
     SetDueler<WAYS, 5, L2LINESZ, L2SETS, 5> dueler;
+
+    BloomFilter<L2_EAF_SZ, EAF_HASH_FUNCS, IP == INSERT_EAF> eaf;
+    unsigned eafAcCtr;
   };
 
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplSRRIP {
@@ -301,6 +360,17 @@ namespace Qcache {
   private:
     ReplRRIPBase<WAYS, L2SETS, L2LINESZ, INSERT_DIP> r;  
   };
+
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplERRIP {
+  public:
+    ReplERRIP(std::vector<addr_t> &ta): r(ta) {}
+
+    QCACHE_REPL_PASSTHROUGH_FUNCS
+
+      private:
+    ReplRRIPBase<WAYS, L2SETS, L2LINESZ, INSERT_EAF> r;
+  };
+
 };
 
 #endif
