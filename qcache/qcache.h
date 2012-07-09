@@ -47,7 +47,9 @@ namespace Qcache {
    public:
     ~MemSysDev() {}
 
-    virtual bool access(addr_t addr, int wr, addr_t** lp = NULL) {
+    virtual bool access(addr_t addr, addr_t pc, int core, int wr,
+                        addr_t** lp=NULL)
+    {
       ASSERT(false);
     }
 
@@ -87,7 +89,7 @@ namespace Qcache {
    public:
     Tracer(std::ostream &tf) : tracefile(tf) {}
 
-    bool access(addr_t addr, int wr, addr_t **lp = NULL) {
+    bool access(addr_t addr, addr_t pc, int core, int wr, addr_t **lp = NULL) {
       tracefile << std::dec << addr << (wr?" W\n":" R\n");
       return false;
     }
@@ -100,7 +102,8 @@ namespace Qcache {
   public:
     ReplRand(std::vector<addr_t> &ta): tagarray(&ta[0]) {}
 
-    void updateRepl(addr_t set, addr_t idx, bool hit, bool wr) {}
+    void updateRepl(addr_t set, addr_t idx, bool hit, bool wr, bool wb,
+                    addr_t pc, int core) {}
 
     addr_t findVictim(addr_t set) {
       // First: look for invalid lines.
@@ -185,7 +188,9 @@ namespace Qcache {
       else upperLevel->l1EvictAddr(addr);
     }
 
-    bool access(addr_t addr, int wr, addr_t **lineptr = NULL) {
+    bool access(addr_t addr, addr_t pc, int core, int wr,
+                addr_t **lineptr=NULL)
+    {
       bool hit = false;
 
       addr_t *llLineptr;
@@ -206,7 +211,7 @@ namespace Qcache {
       addr_t idx;
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
-          repl.updateRepl(set, idx, true, wr);
+          repl.updateRepl(set, idx, true, wr, wr==WRITEBACK, pc, core);
           // Check with the coherence protocol-- we can still be invalidated!
           hit = cprot->hitAddr(id, addr, false, &setLocks[set], &tagarray[idx],
                                wr);
@@ -258,7 +263,7 @@ namespace Qcache {
           }
 
           if (doWriteback && lowerLevel) {
-            lowerLevel->access(victimAddr, WRITEBACK, &llLineptr);
+            lowerLevel->access(victimAddr, pc, core, WRITEBACK, &llLineptr);
           }
         }
 
@@ -280,12 +285,12 @@ namespace Qcache {
         }
 
         tagarray[vidx] = addr|0x01;
-        repl.updateRepl(set, vidx, false, wr);
+        repl.updateRepl(set, vidx, false, wr, wr==WRITEBACK, pc, core);
         spin_unlock(&setLocks[set]);
 
         if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && wr != WRITEBACK)
         {
-          lowerLevel->access(tag<<L2LINESZ, READ, &llLineptr);
+          lowerLevel->access(tag<<L2LINESZ, pc, core, READ, &llLineptr);
           if (!lowerLevel->isShared()) {
             tagarray[vidx] &= ~stateMask;
             tagarray[vidx] |= (*llLineptr & stateMask);

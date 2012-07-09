@@ -14,14 +14,14 @@
 
 namespace Qcache {
   enum InsertionPolicy {
-    INSERT_LRU, INSERT_MRU, INSERT_BIP, INSERT_DIP, INSERT_EAF
+    INSERT_LRU, INSERT_MRU, INSERT_BIP, INSERT_DIP, INSERT_TADIP, INSERT_EAF
   };
 
   template
     <int WAYS, int L2SAMPSETS, int L2LINESZ, int L2SETS, int PSEL_BITS>
   class SetDueler {
   public:
-    SetDueler(): psel(0), a0(0), m0(0), a1(0), m1(0) {
+    SetDueler(): a0(0), m0(0), a1(0), m1(0) {
       // TODO: Find a way to eliminate the repetition in the following code.
 
       // Randomly sample the sets to pick some "leader" sets.
@@ -61,27 +61,27 @@ namespace Qcache {
       return false;
     }
 
-    void incPsel() {
-      ++psel;
+    void incPsel(unsigned idx) {
+      ++psel[idx];
       ++m0;
-      if (psel > (1<<(PSEL_BITS-1))-1) psel = (1<<(PSEL_BITS-1))-1;
+      if (psel[idx] > (1<<(PSEL_BITS-1))-1) psel[idx] = (1<<(PSEL_BITS-1))-1;
     }
 
-    void decPsel() {
-      --psel;
+    void decPsel(unsigned idx) {
+      --psel[idx];
       ++m1;
-      if (psel < -(1<<(PSEL_BITS-1))) psel = -(1<<(PSEL_BITS-1));
+      if (psel[idx] < -(1<<(PSEL_BITS-1))) psel[idx] = -(1<<(PSEL_BITS-1));
     }
 
-    bool getChoice() {
-      return psel > 0;
+    bool getChoice(unsigned idx) {
+      return psel[idx] > 0;
     }
 
   private:
     // Map from real cache index to toy cache index.
     std::map<addr_t, unsigned> sample0, sample1;
 
-    int psel;
+    std::map<unsigned, int> psel;
     unsigned long long a0, m0, a1, m1;
   };
 
@@ -95,8 +95,12 @@ namespace Qcache {
 
     #define TIMESTAMP_MAX INT_MAX
 
-    void updateRepl(addr_t set, addr_t idx, bool hit, bool wr) {
+    void updateRepl(addr_t set, addr_t idx, bool hit, bool wr, bool wb,
+                    addr_t pc, int core)
+    {
       const int BIP_ALPHA = (RAND_MAX+1l)/64;
+
+      if (hit && wb) return;
 
       // Handle timestamp overflows by re-numbering the lines in place. 
       if (tsmax[set] == TIMESTAMP_MAX) {
@@ -125,14 +129,15 @@ namespace Qcache {
       tsarray[idx] = ++tsmax[set];
 
       bool dipChoice;
-      if (IP == INSERT_DIP) {
+      if (IP == INSERT_DIP || IP == INSERT_TADIP) {
+        unsigned idx(IP==INSERT_TADIP ? core : 0);
         // Do this lookup on every access only because we're keeping stats.
         if (dueler.inSample0(set)) {
-          if (!hit) { dueler.incPsel(); dipChoice = false; }
+          if (!hit) { dueler.incPsel(idx); dipChoice = false; }
 	} else if (dueler.inSample1(set)) {
-          if (!hit) { dueler.decPsel(); dipChoice = true; }
+          if (!hit) { dueler.decPsel(idx); dipChoice = true; }
 	} else {
-          dipChoice = dueler.getChoice();
+          dipChoice = dueler.getChoice(idx);
         }
       }
 
@@ -147,7 +152,7 @@ namespace Qcache {
 
       if (IP != INSERT_MRU && !hit) {
         if (IP == INSERT_BIP && rand() <= BIP_ALPHA) return;
-        if ((IP == INSERT_DIP || IP == INSERT_EAF) && 
+        if ((IP == INSERT_DIP || IP == INSERT_TADIP || IP == INSERT_EAF) && 
             (!dipChoice || rand() <= BIP_ALPHA)) return;
         tsarray[idx] = -tsarray[idx];        
       }
@@ -182,8 +187,10 @@ namespace Qcache {
 
   // I'm sorry. C++11 alias templates soon, but for compatibility, here's this:
   #define QCACHE_REPL_PASSTHROUGH_FUNCS \
-    void updateRepl(addr_t s, addr_t i, bool h, bool w) { \
-      r.updateRepl(s, i, h, w); \
+    void updateRepl(addr_t s, addr_t i, bool h, bool w, bool wb, addr_t pc, \
+                    int c) \
+    { \
+      r.updateRepl(s, i, h, w, wb, pc, c); \
     } \
     addr_t findVictim(addr_t set) { return r.findVictim(set); }
 
@@ -229,6 +236,18 @@ namespace Qcache {
     addr_t *tagarray;
   };
 
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplLRU_TADIP {
+  public:
+    ReplLRU_TADIP(std::vector<addr_t> &ta):
+      r(ta), tagarray(&ta[0]) {}
+ 
+    QCACHE_REPL_PASSTHROUGH_FUNCS
+
+  private:
+    ReplLRUBase<WAYS, L2SETS, L2LINESZ, INSERT_TADIP> r;
+    addr_t *tagarray;
+  };
+
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplLRU_EAF {
   public:
     ReplLRU_EAF(std::vector<addr_t> &ta):
@@ -250,18 +269,22 @@ namespace Qcache {
     ReplRRIPBase(std::vector<addr_t> &ta) :
       tagarray(&ta[0]), ctr(size_t(WAYS)<<L2SETS), eafAcCtr(0) {}
 
-    void updateRepl(addr_t set, addr_t idx, bool h, bool w) {
+    void updateRepl(addr_t set, addr_t idx, bool h, bool w, bool wb,
+                    addr_t pc, int core)
+    {
       const int BRRIP_ALPHA = (RAND_MAX+1l)/64;
 
       bool drripChoice;
-      if (IP == INSERT_DIP) {
+      if (IP == INSERT_DIP || IP == INSERT_TADIP) {
+        unsigned idx(IP==INSERT_TADIP ? core : 0);
+
         // Do this lookup on every access only because we're keeping stats.
         if (dueler.inSample0(set)) {
-          if (!h) { dueler.incPsel(); drripChoice = false; }
+          if (!h) { dueler.incPsel(idx); drripChoice = false; }
         } else if (dueler.inSample1(set)) {
-          if (!h) { dueler.decPsel(); drripChoice = true; }
+          if (!h) { dueler.decPsel(idx); drripChoice = true; }
         } else {
-          drripChoice = dueler.getChoice();
+          drripChoice = dueler.getChoice(idx);
         }
       }
 
@@ -275,12 +298,13 @@ namespace Qcache {
       }
 
       if (h) {
-        ctr[idx] = 0;
+        if (!wb) ctr[idx] = 0;
       } else {
         if (IP==INSERT_LRU ||
             (IP==INSERT_BIP ||
-             ((IP==INSERT_DIP || IP==INSERT_EAF) && drripChoice))
-              && rand() > BRRIP_ALPHA)
+             ((IP==INSERT_DIP || IP==INSERT_TADIP || IP==INSERT_EAF)
+              && drripChoice))
+                && rand() > BRRIP_ALPHA)
 	{
           ctr[idx] = RRIP_MAX_STATE - 1;
         } else {
@@ -299,9 +323,7 @@ namespace Qcache {
       while (vCt == 0) {
         // Look for counters in max state
         for (size_t i = set*WAYS; i < (set+1)*WAYS; ++i)
-          if (ctr[i] == RRIP_MAX_STATE) {
-            vC[vCt++] = i;
-  	  }
+          if (ctr[i] == RRIP_MAX_STATE) vC[vCt++] = i;
 
         if (vCt > 0) break;
 
@@ -364,6 +386,17 @@ namespace Qcache {
   private:
     ReplRRIPBase<WAYS, L2SETS, L2LINESZ, INSERT_DIP> r;  
   };
+
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplTADRRIP {
+  public:
+  ReplTADRRIP(std::vector<addr_t> &ta): r(ta) {}
+
+    QCACHE_REPL_PASSTHROUGH_FUNCS
+
+      private:
+    ReplRRIPBase<WAYS, L2SETS, L2LINESZ, INSERT_TADIP> r;
+  };
+
 
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplERRIP {
   public:

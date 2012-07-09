@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <sched.h>
 
-#define ICOUNT
+//#define ICOUNT
 #define CPULOCK
 
 #ifdef ICOUNT
@@ -34,6 +34,7 @@ using Qcache::ReplLRU;     using Qcache::CacheGrp;   using Qcache::Cache;
 using Qcache::CPNull;      using Qcache::CPDirMoesi; using Qcache::ReplRand;
 using Qcache::ReplLRU_BIP; using Qcache::ReplDRRIP;  using Qcache::ReplLRU_DIP;
 using Qcache::ReplLRU_LIP; using Qcache::ReplSRRIP;  using Qcache::ReplBRRIP;
+using Qcache::ReplLRU_EAF; using Qcache::ReplERRIP;
 
 // <Coherence Protocol, Ways, log2(sets), log2(bytes/line), Replacement Policy>
 // Last parameter of L3 cache type says that it's shared.
@@ -41,7 +42,7 @@ typedef Qcache::CacheGrp<CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp<CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
 //typedef Qcache::CacheGrp<CPNull, 8,  6, 6, ReplRand        > l1d_t;
 typedef Qcache::CacheGrp<CPNull,     8,  8, 6, ReplRand        > l2_t;
-typedef Qcache::Cache   <CPNull,    24, 14, 6, ReplDRRIP,  true> l3_t;
+typedef Qcache::Cache   <CPNull,    16, 9, 6, Qcache::ReplTADRRIP,  true> l3_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
@@ -87,17 +88,17 @@ public:
     #ifdef ICOUNT
     ++icount[c];
     if (osd.idle(c)) ++idlecount[c];
-    if (icount[c] == 1000000000) {
+    if (icount[c] == 10000000) {
       running = false;
       return;
     }
     #endif
-    l1i.getCache(c).access(p, false);
+    l1i.getCache(c).access(p, p, c, 0);
   }
 
   void mem_cb(int c, uint64_t va, uint64_t pa, uint8_t sz, int wr) {
     if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
-    l1d.getCache(c).access(pa, wr);
+    l1d.getCache(c).access(pa, osd.get_reg(c, QSIM_RIP), c, wr);
   }
 
   int app_end_cb(int core) {
@@ -106,7 +107,6 @@ public:
   }
 
   bool running;
-
   
 private:
   l1i_t &l1i;
@@ -195,9 +195,9 @@ int main(int argc, char** argv) {
   // determine the cache parameters) are at the top of the file.
   Qcache::Tracer tracer(*traceOut);
   l3_t l3(tracer, "L3");
-  l2_t l2(osd.get_n(), l3, "L2");
-  l1i_t l1_i(osd.get_n(), l2, "L1i");
-  l1d_t l1_d(osd.get_n(), l2, "L1d");
+  //l2_t l2(osd.get_n(), l3, "L2");
+  l1i_t l1_i(osd.get_n(), l3, "L1i");
+  l1d_t l1_d(osd.get_n(), l3, "L1d");
 
   //pthread_barrier_init(&b0, NULL, threads);
   //pthread_barrier_init(&b1, NULL, threads);
