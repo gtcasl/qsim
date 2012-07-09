@@ -14,7 +14,8 @@
 
 namespace Qcache {
   enum InsertionPolicy {
-    INSERT_LRU, INSERT_MRU, INSERT_BIP, INSERT_DIP, INSERT_TADIP, INSERT_EAF
+    INSERT_LRU, INSERT_MRU, INSERT_BIP, INSERT_DIP, INSERT_TADIP, INSERT_SHIP,
+    INSERT_EAF
   };
 
   template
@@ -83,6 +84,46 @@ namespace Qcache {
 
     std::map<unsigned, int> psel;
     unsigned long long a0, m0, a1, m1;
+  };
+
+  template <int WAYS, int L2SETS, int L2LINESZ, int L2SHCTSZ, 
+            unsigned SHCT_BITS>
+    class Shct
+  {
+  public:
+    Shct(): reref(WAYS<<L2LINESZ), rerefSig(WAYS<<L2LINESZ), c(1<<L2SHCTSZ) {}
+
+    bool check(addr_t pc) { return c[hash(pc)] != 0; }
+
+    void evict(size_t idx) {
+      unsigned shctIdx(rerefSig[idx]);
+
+      if (reref[idx]) { if (c[shctIdx] != ((1<<SHCT_BITS)-1)) ++c[shctIdx]; }
+      else            { if (c[shctIdx] != 0)                  --c[shctIdx]; }
+
+      reref[idx] = false;
+    }
+
+    void hit(size_t idx) {
+      reref[idx] = true;
+    }
+
+  private:
+    // The default hash function: repeated shift and xor
+    size_t hash(addr_t pc) {
+      size_t h(0);
+
+      for (unsigned i = 0; i < 4; ++i) {
+        h ^= pc&((1<<L2SHCTSZ)-1);
+        pc >>= L2SHCTSZ;
+      }
+
+      return h;
+    }
+
+    std::vector<bool> reref;
+    std::vector<unsigned> rerefSig;
+    std::vector<int> c;
   };
 
   template
@@ -297,10 +338,13 @@ namespace Qcache {
         }
       }
 
+      if (IP == INSERT_SHIP && h) { shct.hit(idx); }
+
       if (h) {
         if (!wb) ctr[idx] = 0;
       } else {
         if (IP==INSERT_LRU ||
+            IP==INSERT_SHIP && shct.check(pc) ||
             (IP==INSERT_BIP ||
              ((IP==INSERT_DIP || IP==INSERT_TADIP || IP==INSERT_EAF)
               && drripChoice))
@@ -342,6 +386,7 @@ namespace Qcache {
       unsigned victim = vC[vic];
 
       if (IP == INSERT_EAF) eaf.add(tagarray[victim]&~((1ll<<L2LINESZ)-1));
+      else if (IP == INSERT_SHIP) shct.evict(victim);
 
       return victim;
     }
@@ -355,6 +400,8 @@ namespace Qcache {
 
     BloomFilter<L2_EAF_SZ, EAF_HASH_FUNCS, IP == INSERT_EAF> eaf;
     unsigned eafAcCtr;
+
+    Shct<WAYS, L2LINESZ, L2SETS, 14, 2> shct;
   };
 
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplSRRIP {
@@ -397,6 +444,15 @@ namespace Qcache {
     ReplRRIPBase<WAYS, L2SETS, L2LINESZ, INSERT_TADIP> r;
   };
 
+  template <int WAYS, int L2SETS, int L2LINESZ> class ReplSHIP {
+  public:
+  ReplSHIP(std::vector<addr_t> &ta): r(ta) {}
+
+    QCACHE_REPL_PASSTHROUGH_FUNCS
+
+      private:
+    ReplRRIPBase<WAYS, L2SETS, L2LINESZ, INSERT_SHIP> r;
+  };
 
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplERRIP {
   public:
@@ -407,7 +463,6 @@ namespace Qcache {
       private:
     ReplRRIPBase<WAYS, L2SETS, L2LINESZ, INSERT_EAF> r;
   };
-
 };
 
 #endif
