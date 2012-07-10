@@ -23,6 +23,11 @@
 
 //#define ICOUNT
 #define CPULOCK
+#define PROFILE
+
+#ifdef PROFILE
+#include <qsim-prof.h>
+#endif
 
 #ifdef ICOUNT
   #define ICOUNT_MAX_CORES 256
@@ -42,7 +47,7 @@ typedef Qcache::CacheGrp<CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp<CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
 //typedef Qcache::CacheGrp<CPNull, 8,  6, 6, ReplRand        > l1d_t;
 typedef Qcache::CacheGrp<CPNull,     8,  8, 6, ReplRand        > l2_t;
-typedef Qcache::Cache   <CPNull,    16, 9, 6, Qcache::ReplTADRRIP,  true> l3_t;
+typedef Qcache::Cache   <CPNull,    16, 9, 6, Qcache::ReplSHIP,  true> l3_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
@@ -68,6 +73,10 @@ public:
     icb_handle = osd.set_inst_cb(this, &CallbackAdaptor::inst_cb);
     mcb_handle = osd.set_mem_cb(this, &CallbackAdaptor::mem_cb);
     osd.set_app_end_cb(this, &CallbackAdaptor::app_end_cb);
+
+    #ifdef PROFILE
+    Qsim::start_prof(osd, "QSIM_PROF", 10000000, 10);
+    #endif
   }
 
   ~CallbackAdaptor() {
@@ -77,8 +86,12 @@ public:
                 << ", " << idlecount[i] << '\n';
     }
     #endif
-    osd.unset_inst_cb(icb_handle);
-    osd.unset_mem_cb(mcb_handle);
+    //osd.unset_inst_cb(icb_handle);
+    //osd.unset_mem_cb(mcb_handle);
+
+    #ifdef PROFILE
+    Qsim::end_prof(osd);
+    #endif
   }
 
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, 
@@ -124,7 +137,7 @@ static inline unsigned long long utime() {
 }
 
 
-//pthread_barrier_t b0, b1;
+pthread_barrier_t b0, b1;
 Qsim::OSDomain *osd_p;
 CallbackAdaptor *cba_p;
 
@@ -138,9 +151,9 @@ void *thread_main(void *arg_vp) {
   bool running = true;
   thread_arg_t *arg((thread_arg_t*)arg_vp);
 
-  //pthread_barrier_wait(&b1);
-
+  pthread_barrier_wait(&b0);
   while (cba_p->running) {
+    pthread_barrier_wait(&b0);
     for (unsigned i = 0; i < 100; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
         if (osd_p->idle(c)) osd_p->run(c, 100);
@@ -149,7 +162,6 @@ void *thread_main(void *arg_vp) {
       if (!cba_p->running) break;
     }
 
-    //pthread_barrier_wait(&b0);
     if (arg->cpuStart == 0) {
       if (!cba_p->running) {
         running = false;
@@ -157,7 +169,8 @@ void *thread_main(void *arg_vp) {
         osd_p->timer_interrupt();
       }
     }
-    //pthread_barrier_wait(&b1);  
+
+    pthread_barrier_wait(&b1);  
   }
 
   return 0;
@@ -199,13 +212,13 @@ int main(int argc, char** argv) {
   l1i_t l1_i(osd.get_n(), l3, "L1i");
   l1d_t l1_d(osd.get_n(), l3, "L1d");
 
-  //pthread_barrier_init(&b0, NULL, threads);
-  //pthread_barrier_init(&b1, NULL, threads);
+  pthread_barrier_init(&b0, NULL, threads);
+  pthread_barrier_init(&b1, NULL, threads);
 
-  CallbackAdaptor cba(osd, l1_i, l1_d);
+  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d);
 
   osd_p = &osd;
-  cba_p = &cba;
+  cba_p = cba;
 
   std::vector<thread_arg_t> targs(threads);  
 
@@ -229,6 +242,8 @@ int main(int argc, char** argv) {
   for (unsigned i = 0; i < threads; ++i)
     pthread_join(targs[i].thread, NULL);
   unsigned long long end_usec = utime();
+
+  delete cba;
 
   std::cout << "Total time: " << std::dec << end_usec - start_usec << "us\n";
 
