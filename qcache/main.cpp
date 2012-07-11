@@ -47,7 +47,7 @@ typedef Qcache::CacheGrp<CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp<CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
 //typedef Qcache::CacheGrp<CPNull, 8,  6, 6, ReplRand        > l1d_t;
 typedef Qcache::CacheGrp<CPNull,     8,  8, 6, ReplRand        > l2_t;
-typedef Qcache::Cache   <CPNull,    16, 9, 6, Qcache::ReplSHIP,  true> l3_t;
+typedef Qcache::Cache   <CPNull,    16, 8, 6, Qcache::ReplERRIP,  true> l3_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;

@@ -8,14 +8,45 @@
 
 #include <iostream>
 
-#define L2_EAF_SZ 20
-#define EAF_HASH_FUNCS 4
-#define EAF_CLEAR_INTERVAL 1000
+#define L2_EAF_SZ 12
+#define EAF_HASH_FUNCS 2
+#define EAF_CLEAR_INTERVAL 4
 
 namespace Qcache {
   enum InsertionPolicy {
     INSERT_LRU, INSERT_MRU, INSERT_BIP, INSERT_DIP, INSERT_TADIP, INSERT_SHIP,
     INSERT_EAF
+  };
+
+  template <int L2SETS, int L2EAFSZ, bool PERSET> class EvictedAddressFilter {
+  public:
+  EvictedAddressFilter(): bf(1), acCtr(1) {
+      if (PERSET) {
+        bf.resize(1<<L2SETS);
+        acCtr.resize(1<<L2SETS);
+      }
+    }
+
+    void clear(unsigned set) {
+      if (PERSET) bf[set].clear(); else bf[0].clear();
+    }
+
+    void access(unsigned set) {
+      unsigned &c(acCtr[PERSET?set:0]);
+      if (++c == EAF_CLEAR_INTERVAL) { c = 0; clear(set); }
+    }
+
+    bool check(unsigned set, addr_t val) {
+      return bf[PERSET?set:0].check(val);
+    }
+
+    void add(unsigned set, addr_t val) {
+      bf[PERSET?set:0].add(val);
+    }
+ 
+  private:
+    std::vector <BloomFilter<L2EAFSZ, EAF_HASH_FUNCS, false> > bf;
+    std::vector <unsigned> acCtr;
   };
 
   template
@@ -132,7 +163,7 @@ namespace Qcache {
    public:
     ReplLRUBase(std::vector<addr_t> &ta) :
        tagarray(&ta[0]), tsarray(size_t(WAYS)<<L2SETS),
-       tsmax(size_t(1)<<L2SETS), eafAcCtr(0) {}
+       tsmax(size_t(1)<<L2SETS) {}
 
     #define TIMESTAMP_MAX INT_MAX
 
@@ -183,12 +214,10 @@ namespace Qcache {
       }
 
       if (IP == INSERT_EAF && !hit /* ??? Clear interval in misses ??? */) {
-        if (!hit) dipChoice = eaf.check(tagarray[idx]&~((1ll<<L2LINESZ)-1));
+        if (!hit)
+          dipChoice = eaf.check(set, tagarray[idx]&~((1ll<<L2LINESZ)-1));
 
-        if (++eafAcCtr == EAF_CLEAR_INTERVAL) {
-          eafAcCtr = 0;
-          eaf.clear();
-        }
+        eaf.access(set);
       }
 
       if (IP != INSERT_MRU && !hit) {
@@ -209,7 +238,7 @@ namespace Qcache {
       }
 
       // A valid victim has been found.
-      if (IP == INSERT_EAF) eaf.add(tagarray[minIdx]&~((1<<L2LINESZ)-1));
+      if (IP == INSERT_EAF) eaf.add(set, tagarray[minIdx]&~((1<<L2LINESZ)-1));
 
       return minIdx;
     }
@@ -222,8 +251,8 @@ namespace Qcache {
 
     SetDueler<WAYS, 5, L2LINESZ, L2SETS, 5> dueler;
 
-    BloomFilter<L2_EAF_SZ, EAF_HASH_FUNCS, IP == INSERT_EAF> eaf;
-    unsigned eafAcCtr;
+    EvictedAddressFilter<L2SETS, L2_EAF_SZ, true> eaf;
+    //BloomFilter<L2_EAF_SZ, EAF_HASH_FUNCS, IP == INSERT_EAF> eaf;
   };
 
   // I'm sorry. C++11 alias templates soon, but for compatibility, here's this:
@@ -308,7 +337,7 @@ namespace Qcache {
   {
   public:
     ReplRRIPBase(std::vector<addr_t> &ta) :
-      tagarray(&ta[0]), ctr(size_t(WAYS)<<L2SETS), eafAcCtr(0) {}
+      tagarray(&ta[0]), ctr(size_t(WAYS)<<L2SETS) {}
 
     void updateRepl(addr_t set, addr_t idx, bool h, bool w, bool wb,
                     addr_t pc, int core)
@@ -330,12 +359,10 @@ namespace Qcache {
       }
 
       if (IP == INSERT_EAF && !h /*??? (see comment in LRU) ???*/ ) {
-        if (!h) drripChoice = eaf.check(tagarray[idx]&~((1ll<<L2LINESZ)-1));
+        if (!h)
+          drripChoice = eaf.check(set, tagarray[idx]&~((1ll<<L2LINESZ)-1));
 
-        if (++eafAcCtr == EAF_CLEAR_INTERVAL) {
-          eafAcCtr = 0;
-          eaf.clear();
-        }
+        eaf.access(set);
       }
 
       if (IP == INSERT_SHIP && h) { shct.hit(idx); }
@@ -385,7 +412,9 @@ namespace Qcache {
 
       unsigned victim = vC[vic];
 
-      if (IP == INSERT_EAF) eaf.add(tagarray[victim]&~((1ll<<L2LINESZ)-1));
+      if (IP == INSERT_EAF)
+        eaf.add(set, tagarray[victim]&~((1ll<<L2LINESZ)-1));
+
       else if (IP == INSERT_SHIP) shct.evict(victim);
 
       return victim;
@@ -398,8 +427,8 @@ namespace Qcache {
 
     SetDueler<WAYS, 5, L2LINESZ, L2SETS, 5> dueler;
 
-    BloomFilter<L2_EAF_SZ, EAF_HASH_FUNCS, IP == INSERT_EAF> eaf;
-    unsigned eafAcCtr;
+    EvictedAddressFilter<L2SETS, L2_EAF_SZ, true> eaf;
+    //BloomFilter<L2_EAF_SZ, EAF_HASH_FUNCS, IP == INSERT_EAF> eaf;
 
     Shct<WAYS, L2LINESZ, L2SETS, 14, 2> shct;
   };
