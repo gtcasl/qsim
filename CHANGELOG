@@ -155,7 +155,7 @@
   result is a massive space savings in state files (with 3GB of guest RAM,
   files were 3GB, now they're ~28MB).
 
-0.2
+0.1.5
 
 * Improved multithreaded support in QEMU. The global lock has been replaced
   with smaller-grained readers/writer locks interleaved on cache line
@@ -181,3 +181,8 @@
 
 * OSDomain::booted() deprecated in favor of identical function
   OSDomain::runnable(); renamed to make its function more apparent.
+
+0.2
+
+* Added sampling profiler "qsim-prof". This provides a low-overhead technique
+  for obtaining instruction traces of guest applications.

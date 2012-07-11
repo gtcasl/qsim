@@ -29,6 +29,11 @@ public:
     icbH = osd.set_inst_cb(this, &QsimProf::inst_cb);
   }
 
+  ~QsimProf() {
+    //osd.unset_inst_cb(icbH);
+    tr.close();
+  }
+
   void inst_cb(int c, uint64_t pa, uint64_t va, uint8_t len, const uint8_t *b,
                enum inst_type type)
   {
@@ -40,7 +45,8 @@ public:
 
     if (t[c].samp.find(t[c].windowCount) != t[c].samp.end()) {
       pthread_mutex_lock(&trLock);
-      tr << std::dec << c << ", " << va << ", " << osd.get_prot(c) << ", ";
+      tr << std::dec << c << ", " << va << ", "
+         << (osd.get_prot(c) == OSDomain::PROT_KERN) << ", ";
       for (unsigned i = 0; i < len; ++i)
         tr << std::hex << setw(2) << setfill('0') << (unsigned)b[i] << ' ';
       tr << '\n';
@@ -78,4 +84,3 @@ void Qsim::start_prof(OSDomain &osd, const char *tracefile,
 void Qsim::end_prof(OSDomain &osd) {
   if (prof) delete(prof);
 }
-
