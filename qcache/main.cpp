@@ -23,7 +23,7 @@
 
 //#define ICOUNT
 #define CPULOCK
-#define PROFILE
+//#define PROFILE
 
 #ifdef PROFILE
 #include <qsim-prof.h>
@@ -156,9 +156,8 @@ void *thread_main(void *arg_vp) {
     pthread_barrier_wait(&b0);
     for (unsigned i = 0; i < 100; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
-        if (osd_p->idle(c)) osd_p->run(c, 100);
-        else osd_p->run(c, 10000);
-      }
+        osd_p->run(c, 10000);
+       }
       if (!cba_p->running) break;
     }
 
