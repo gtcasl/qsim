@@ -62,7 +62,7 @@ CONFIG_STATIC=y
 # CONFIG_FEATURE_SHARED_BUSYBOX is not set
 CONFIG_LFS=y
 CONFIG_CROSS_COMPILER_PREFIX=""
-CONFIG_EXTRA_CFLAGS="-m32 -I/home/chad/tmp/qsim_test/qsim/trunk/linux/linux-2.6.34/include -I/home/chad/tmp/qsim_test/qsim/trunk/linux/linux-2.6.34/arch/x86/include"
+CONFIG_EXTRA_CFLAGS="-m32 -I%LINUX_DIR%/include -I%LINUX_DIR%/arch/x86/include"
 
 #
 # Debugging Options
