@@ -1,0 +1,29 @@
+Timing Parameters
+-----------------
+Below are some timing parameters, along wiht their default values and some
+minimal explanation.
+
+  tCPD(1)      Command period (the "1t" or "2t" you set in BIOS)
+  tFAW(27)     Four activate window
+  tCL(14)      Column latency (7, 9, 11, 13, 14)
+  tCWL(10)     CAS Write Latency
+  tCCD(4)      CAS to CAS delay (between or within banks: 4)
+  tRCD(14)     Row-to-column delay
+  tRP(14)      Precharge to Activate (within a bank)
+  tRAS(36)     Activate to precharge delay (usually tCL + tRCD + 2)
+  tRRD(6)      Activate to activate delay
+  tRTP(8)      Read to precharge delay (> of 4 or 7.5ns)
+  tWR(16)      Write recovery time (Write to prec: 8, 10, 12, 14, 16)
+  tRFC(118)    Refresh to activate delay (110,160,260,350ns)
+  tWTR(8)      Write to read delay (4, 5, 6, 7, 8; bank)
+  tRTW(16)     Read to write delay (tCL + tCCD - tCWL + 2, channel?)
+  tREF(8319)   Refresh period (4164,5198,6240,7277,8319)
+  tPD(6)       Minimum time spent in power down (> of 3 or 5ns)
+  tXP(7)       Time to exit active powerdown/ppd fast exit (>3, 6ns)
+  tXPDLL(26)   Time to exit precharge powerdown slow exit (>10, 24ns)
+  tACTPDEN(2)  Activate to powerdown.
+  tPRPDEN(2)   Precharge to powerdown.
+  tREFPDEN(2)  Refresh to powerdown.
+  tRDPDEN(19)  Read to powerdown.
+  tWRPDEN(34)  Write to powerdown.
+  tWRAPDEN(35) Write (auto precharge) to powerdown.

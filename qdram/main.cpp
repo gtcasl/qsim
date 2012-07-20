@@ -1,4 +1,5 @@
 #include "qdram-config.h"
+#include "qdram-event.h"
 
 #include <iostream>
 #include <iomanip>
@@ -8,7 +9,9 @@ int main(int argc, char** argv) {
   if (argc < 2) return 1;
   std::ifstream infile(argv[1]);
 
-  Qcache::AddrMappingA<Qcache::Dim4GB2Rank> m;
+  Qcache::AddrMappingB<Qcache::Dim4GB2Rank> m;
+
+  Qcache::EventQueue<Qcache::DramTiming> eq;
 
   while (!!infile) {
     if (!!infile) {

@@ -9,7 +9,7 @@ namespace Qcache {
   template
     <int L2_CHANNELS, int L2_RANKS, int L2_BANKS,
      int L2_ROWS, int L2_COLS, int L2_LINESZ>
-    struct Dimensions
+    struct DramDimensions
   {
     int l2Channels() { return L2_CHANNELS; }
     int l2Ranks()    { return L2_RANKS; }
@@ -27,7 +27,7 @@ namespace Qcache {
   };
 
   // Another case where alias templates would be super-convenient.
-  #define DIMENSIONS_PASSTHROUGH_FUNCS \
+  #define DRAMDIMENSIONS_PASSTHROUGH_FUNCS \
     int l2Channels() { return d.l2Channels(); } \
     int l2Ranks()    { return d.l2Ranks(); } \
     int l2Banks()    { return d.l2Banks(); } \
@@ -42,14 +42,14 @@ namespace Qcache {
 
   // Changed row number from datasheet.
   struct Dim4GB2Rank {
-    DIMENSIONS_PASSTHROUGH_FUNCS
-    Dimensions <0, 1, 3, 15, 7, 6> d;
+    DRAMDIMENSIONS_PASSTHROUGH_FUNCS
+    DramDimensions <0, 1, 3, 15, 7, 6> d;
   };
 
   // Realistic DIMM based on Micron and Samsung datasheets.
   struct Dim4GB1Rank {
-    DIMENSIONS_PASSTHROUGH_FUNCS
-    Dimensions <0, 0, 3, 16, 7, 6> d;
+    DRAMDIMENSIONS_PASSTHROUGH_FUNCS
+    DramDimensions <0, 0, 3, 16, 7, 6> d;
   };
 
   #undef DIMENSIONS_PASSTHROUGH_FUNCS
@@ -99,7 +99,7 @@ namespace Qcache {
     }
 
     int getRank(addr_t addr) {
-      return getBits(addr, d.l2Banks()+d.l2Channels+d.l2Linesz(), d.l2Ranks());
+      return getBits(addr,d.l2Banks()+d.l2Channels()+d.l2Linesz(),d.l2Ranks());
     }
 
     int getBank(addr_t addr) {
@@ -121,6 +121,23 @@ namespace Qcache {
     DIM d;
   };
 
+  // Timing parameters for 1.067GHz DIMMs
+  struct DramTiming {
+    int tCPD()     { return    1; }  int tFAW()     { return  27; }
+    int tCL()      { return   14; }  int tCWL()     { return  10; }
+    int tCCD()     { return    4; }  int tRCD()     { return  14; }
+    int tRP()      { return   14; }  int tRAS()     { return  36; }
+    int tRRD()     { return    6; }  int tRTP()     { return   8; }
+    int tWR()      { return   16; }  int tRFC()     { return 118; }
+    int tWTR()     { return    8; }  int tRTW()     { return  16; }
+    int tREF()     { return 8319; }  int tPD()      { return   6; }
+    int tXP()      { return    7; }  int tXPDLL()   { return  26; }
+    int tACTPDEN() { return    2; }  int tPRPDEN()  { return   2; }
+    int tREFPDEN() { return    2; }  int tRDPDEN()  { return  19; }
+    int tWRPDEN()  { return   34; }  int tWRAPDEN() { return  35; }
 
+    // The longest timing that isn't tREF.
+    int tMAX() { return tRFC(); }
+  };  
 };
 #endif
