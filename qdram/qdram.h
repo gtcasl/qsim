@@ -352,7 +352,7 @@ namespace Qcache {
       Rank<TIMING_T, DIM_T, ADDRMAP_T> &rank(ranks[m.getRank(a)]);
       ASSERT(canActivate(a));
       eq.sched(now + t.tCPD(), CAN_USE_BUS);
-      rank.activate(a);
+      rank.issueActivate(a);
     }
 
     void issueRead(addr_t a) {
@@ -361,7 +361,7 @@ namespace Qcache {
       eq.sched(now + t.tCPD(), CAN_USE_BUS);
       eq.sched(now + t.tCCD(), CAN_READ);
       eq.sched(now + t.tRTW(), CAN_WRITE);
-      rank.read(a);
+      rank.issueRead(a);
     }
 
     void issueWrite(addr_t a) {
@@ -369,20 +369,20 @@ namespace Qcache {
       eq.sched(now + t.tCPD(), CAN_USE_BUS);
       eq.sched(now + t.tWTR(), CAN_READ);
       eq.sched(now + t.tCCD(), CAN_WRITE);
-      ranks[m.getRank(a)].write(a);
+      ranks[m.getRank(a)].issueWrite(a);
     }
 
     void issuePrecharge(addr_t a) {
       Rank<TIMING_T, DIM_T, ADDRMAP_T> &rank(ranks[m.getRank(a)]);
       ASSERT(canPrecharge(a));
       eq.sched(now + t.tCPD(), CAN_USE_BUS);
-      rank.precharge(a);
+      rank.issuePrecharge(a);
     }
 
     void issuePrechargeAll(addr_t a) {
       ASSERT(canPrechargeAll(a));
       eq.sched(now + t.tCPD(), CAN_USE_BUS);
-      ranks[m.getRank(a)].prechargeAll();
+      ranks[m.getRank(a)].issuePrechargeAll();
     }
 
     void issuePrechargeAllAll() {

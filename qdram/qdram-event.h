@@ -18,11 +18,12 @@ namespace Qcache {
 
   template <typename TIMING_T> class EventQueue {
   public:
-    EventQueue(): eq(t.tMAX(), std::vector<bool>(N_CONSTRAINTS)) {}
+    EventQueue(): eq(t.tMAX(), std::vector<bool>(N_CONSTRAINTS)),
+                  constraintCtr(N_CONSTRAINTS) {}
 
     void sched(cycle_t t, DramConstraint c) {
       if (!eq[t%eq.size()][c]) {
-        +eq[t%eq.size()][c] = true;
+        eq[t%eq.size()][c] = true;
         ++constraintCtr[c];
       }
     }
