@@ -88,7 +88,6 @@ namespace Qcache {
       return getBits(addr, d.l2Linesz(), d.l2Cols());
     }
 
-  private:
     DIM d;
   };
 
@@ -117,12 +116,11 @@ namespace Qcache {
                      d.l2Cols());
     }
 
-  private:
     DIM d;
   };
 
   // Timing parameters for 1.067GHz DIMMs
-  struct DramTiming {
+  struct DramTiming1067 {
     int tCPD()     { return    1; }  int tFAW()     { return  27; }
     int tCL()      { return   14; }  int tCWL()     { return  10; }
     int tCCD()     { return    4; }  int tRCD()     { return  14; }

@@ -1,6 +1,6 @@
 // A special-purpose event queue and scoreboard for DRAM constraints.
-#ifndef __QDRAM_EVENT
-#define __QDRAM_EVENT
+#ifndef __QDRAM_EVENT_H
+#define __QDRAM_EVENT_H
 
 #include <stdint.h>
 
@@ -35,6 +35,9 @@ namespace Qcache {
         }
       }
     }
+
+    void enterPdn() { ++constraintCtr[CAN_PDN]; }
+    void exitPdn() { --constraintCtr[CAN_PDN]; }
 
     bool check(DramConstraint c) { return !constraintCtr[c]; }
     bool fawCheck() { return constraintCtr[FAW_INC] < 4; }
