@@ -139,10 +139,14 @@ public:
       if (level == -1) {
         rob[robHead] = true;
       } else {
-        rob[robHead] = false;
         if (level == 0) {
+          rob[robHead] = false;
         } else if (level == 1) {
+          rob[robHead] = true;
+          mc->addToFinishQ(5, rob.begin() + robHead);
         } else if (level == 2) { 
+          rob[robHead] = true;
+          mc->addToFinishQ(10, rob.begin() + robHead);
 	}
       }
       loadInst = false;

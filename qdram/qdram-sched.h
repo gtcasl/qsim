@@ -72,9 +72,8 @@ namespace Qcache {
     void tickBegin() {
       if (ticks % 1000000 == 0) printStats();
 
-      std::map<cycle_t, std::vector<bool>::iterator>::iterator
-        it(finishQ.find(ticks));
-      if (it != finishQ.end()) {
+      std::map<cycle_t, std::vector<bool>::iterator>::iterator it;
+      while ((it = finishQ.find(ticks)) != finishQ.end()) {
         *(it->second) = false;
         finishQ.erase(it);
       }
@@ -82,6 +81,14 @@ namespace Qcache {
     }
 
     void tickEnd() { tickSched(); ch.tickEnd(); ++ticks; }
+
+    void addToFinishQ(int cycles, std::vector<bool>::iterator i) {
+      pthread_mutex_lock(&lock);
+      finishQ.insert(std::pair<cycle_t, std::vector<bool>::iterator>(
+        ticks+cycles, i
+      ));
+      pthread_mutex_unlock(&lock);
+    }
 
   private:
     Channel<TIMING_T, DIM_T, ADDRMAP_T> ch;
@@ -95,7 +102,7 @@ namespace Qcache {
     bool writeMode;
     int rqlen, wqlen, hwm, lwm;
 
-    std::map<cycle_t, std::vector<bool>::iterator> finishQ;
+    std::multimap<cycle_t, std::vector<bool>::iterator> finishQ;
 
     void tickSched() {
       // Do not allow any request in the queue to make reverse progress.
@@ -108,7 +115,9 @@ namespace Qcache {
           ++accesses;
           ch.issueRead(i->a);
           if (i->s) {
-            finishQ[ticks + ch.t.tCL() + 4 + 30] = i->f;
+            finishQ.insert(std::pair<cycle_t, std::vector<bool>::iterator>(
+              ticks + ch.t.tCL() + 4 + 15, i->f
+            ));
           }
           rdq.erase(i);
           return;
