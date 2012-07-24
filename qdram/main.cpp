@@ -22,17 +22,15 @@ int main(int argc, char** argv) {
     mc->tickBegin();
 
     if (!!infile) {
-      if (readAddr) {
-        char c;
-        infile >> addr >> c;
-        write = (c == 'W');
-      }
+      char c;
+      infile >> addr >> c;
+      write = (c == 'W');
 
-      readAddr = mc->access(addr, write);
+      if (!!infile) mc->access(addr, 0, 0, write);
     }
 
     mc->tickEnd();
-    mc->printStats();
+    //mc->printStats();
   }
 
   mc->printStats();

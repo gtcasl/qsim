@@ -419,8 +419,9 @@ namespace Qcache {
       ranks[m.getRank(a)].issuePowerdownExit(); 
     }
 
-  private:
     TIMING_T t;
+
+  private:
     ADDRMAP_T<DIM_T> m;
     std::vector<Rank<TIMING_T, DIM_T, ADDRMAP_T> > ranks;
     EventQueue<TIMING_T> eq;

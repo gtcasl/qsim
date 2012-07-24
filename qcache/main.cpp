@@ -13,9 +13,13 @@
 #include <qsim.h>
 #include <qsim-load.h>
 
-#include "qcache.h"
-#include "qcache-moesi.h"
-#include "qcache-repl.h"
+#include <qcache.h>
+#include <qcache-moesi.h>
+#include <qcache-repl.h>
+
+#include <qcpu.h>
+
+#include <qdram-sched.h>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -47,8 +51,17 @@ typedef Qcache::CacheGrp<CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp<CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
 //typedef Qcache::CacheGrp<CPNull, 8,  6, 6, ReplRand        > l1d_t;
 typedef Qcache::CacheGrp<CPNull,     8,  8, 6, ReplRand        > l2_t;
-typedef Qcache::Cache   <CPNull,    16, 8, 6, Qcache::ReplERRIP,  true> l3_t;
+typedef Qcache::Cache   <CPNull,    16, 9, 6, Qcache::ReplRand,  true> l3_t;
 
+typedef Qcache::MemController<Qcache::DramTiming1067,
+                              Qcache::Dim4GB2Rank,
+                              Qcache::AddrMappingB> mc_t;
+
+//typedef Qcache::CPUTimer<Qcache::InstLatencyForward, mc_t> CPUTimer_t;
+typedef Qcache::OOOCpuTimer<mc_t, 6, 4, 64> CPUTimer_t;
+
+std::vector <bool> Qcache::dramUseFlag;
+std::vector <std::vector<bool>::iterator> Qcache::dramFinishedFlag;
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
 
@@ -67,12 +80,17 @@ void setCpuAff(int threads) {
 
 class CallbackAdaptor {
 public:
-  CallbackAdaptor(Qsim::OSDomain &osd, l1i_t &l1i, l1d_t &l1d):
-    running(true), l1i(l1i), l1d(l1d), osd(osd)
+  CallbackAdaptor(Qsim::OSDomain &osd, l1i_t &l1i, l1d_t &l1d, mc_t &mc):
+    cpu(), running(true), l1i(l1i), l1d(l1d), mc(mc), osd(osd)
   {
     icb_handle = osd.set_inst_cb(this, &CallbackAdaptor::inst_cb);
     mcb_handle = osd.set_mem_cb(this, &CallbackAdaptor::mem_cb);
+    osd.set_reg_cb(this, &CallbackAdaptor::reg_cb);
     osd.set_app_end_cb(this, &CallbackAdaptor::app_end_cb);
+
+    for (unsigned i = 0; i < osd.get_n(); ++i) {
+      cpu.push_back(CPUTimer_t(i, l1d.getCache(i), mc));
+    }
 
     #ifdef PROFILE
     Qsim::start_prof(osd, "QSIM_PROF", 10000000, 10);
@@ -106,12 +124,19 @@ public:
       return;
     }
     #endif
+    cpu[c].instCallback(t);
     l1i.getCache(c).access(p, p, c, 0);
+  }
+
+  void reg_cb(int c, int r, uint8_t size, int wr) {
+    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
+    cpu[c].regCallback(size==0?QSIM_RFLAGS:regs(r), wr);
   }
 
   void mem_cb(int c, uint64_t va, uint64_t pa, uint8_t sz, int wr) {
     if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
-    l1d.getCache(c).access(pa, osd.get_reg(c, QSIM_RIP), c, wr);
+    //l1d.getCache(c).access(pa, osd.get_reg(c, QSIM_RIP), c, wr);
+    cpu[c].memCallback(pa, osd.get_reg(c, QSIM_RIP), wr);
   }
 
   int app_end_cb(int core) {
@@ -124,10 +149,13 @@ public:
 private:
   l1i_t &l1i;
   l1d_t &l1d;
+  mc_t &mc;
 
   Qsim::OSDomain::inst_cb_handle_t icb_handle;
   Qsim::OSDomain::mem_cb_handle_t mcb_handle;
   Qsim::OSDomain &osd;
+
+  std::vector<CPUTimer_t> cpu;
 };
 
 static inline unsigned long long utime() {
@@ -196,6 +224,9 @@ int main(int argc, char** argv) {
     threads = osd.get_n();
   }
 
+  Qcache::dramFinishedFlag.resize(osd.get_n());
+  Qcache::dramUseFlag.resize(osd.get_n());
+
   std::ostream *traceOut;
   if (argc >= 5) {
     traceOut = new std::ofstream(argv[4]);
@@ -205,8 +236,9 @@ int main(int argc, char** argv) {
 
   // Build a Westmere-like 3-level cache hierarchy. Typedefs for these (which
   // determine the cache parameters) are at the top of the file.
-  Qcache::Tracer tracer(*traceOut);
-  l3_t l3(tracer, "L3");
+  //Qcache::Tracer tracer(*traceOut);
+  mc_t mc;
+  l3_t l3(mc, "L3");
   //l2_t l2(osd.get_n(), l3, "L2");
   l1i_t l1_i(osd.get_n(), l3, "L1i");
   l1d_t l1_d(osd.get_n(), l3, "L1d");
@@ -214,7 +246,7 @@ int main(int argc, char** argv) {
   pthread_barrier_init(&b0, NULL, threads);
   pthread_barrier_init(&b1, NULL, threads);
 
-  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d);
+  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d, mc);
 
   osd_p = &osd;
   cba_p = cba;

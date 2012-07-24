@@ -31,6 +31,9 @@
 #endif
 
 namespace Qcache {
+  extern std::vector <bool> dramUseFlag;
+  extern std::vector <std::vector<bool>::iterator> dramFinishedFlag;
+
   extern pthread_mutex_t errLock;
   extern bool printResults;
 
@@ -47,8 +50,8 @@ namespace Qcache {
    public:
     ~MemSysDev() {}
 
-    virtual bool access(addr_t addr, addr_t pc, int core, int wr,
-                        addr_t** lp=NULL)
+    virtual int access(addr_t addr, addr_t pc, int core, int wr,
+                       addr_t** lp=NULL)
     {
       ASSERT(false);
     }
@@ -89,9 +92,9 @@ namespace Qcache {
    public:
     Tracer(std::ostream &tf) : tracefile(tf) {}
 
-    bool access(addr_t addr, addr_t pc, int core, int wr, addr_t **lp = NULL) {
+    int access(addr_t addr, addr_t pc, int core, int wr, addr_t **lp = NULL) {
       tracefile << std::dec << addr << (wr?" W\n":" R\n");
-      return false;
+      return -1;
     }
 
    private:
@@ -188,10 +191,11 @@ namespace Qcache {
       else upperLevel->l1EvictAddr(addr);
     }
 
-    bool access(addr_t addr, addr_t pc, int core, int wr,
+    int access(addr_t addr, addr_t pc, int core, int wr,
                 addr_t **lineptr=NULL)
     {
       bool hit = false;
+      int rval = 0;
 
       addr_t *llLineptr;
       bool wbState = false;
@@ -199,7 +203,7 @@ namespace Qcache {
       // Writebacks are not included in the miss or access count.
       if (SHARED) spin_lock(&accessLock);
 
-      ++accesses;
+      if (!wr) ++accesses;
       if (wr == WRITEBACK) ++writebacks;
 
       addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
@@ -221,7 +225,7 @@ namespace Qcache {
       }
 
       if (!hit) {
-        ++misses;
+        if (!wr) ++misses;
 
         size_t vidx(repl.findVictim(set));
         addr_t victimAddr(tagarray[vidx]&~stateMask);
@@ -290,7 +294,9 @@ namespace Qcache {
 
         if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && wr != WRITEBACK)
         {
-          lowerLevel->access(tag<<L2LINESZ, pc, core, READ, &llLineptr);
+          rval = lowerLevel->access(tag<<L2LINESZ, pc, core, READ, &llLineptr);
+          if (rval != -1) ++rval;
+
           if (!lowerLevel->isShared()) {
             tagarray[vidx] &= ~stateMask;
             tagarray[vidx] |= (*llLineptr & stateMask);
@@ -307,7 +313,7 @@ namespace Qcache {
 
       if (SHARED) spin_unlock(&accessLock);
 
-      return hit;
+      return rval;
     }
 
     void invalidate(addr_t addr) {
