@@ -60,7 +60,7 @@ typedef Qcache::MemController<Qcache::DramTiming1067,
 typedef Qcache::OOOCpuTimer<mc_t, 6, 4, 64> CPUTimer_t;
 
 std::vector <bool> Qcache::dramUseFlag;
-std::vector <std::vector<bool>::iterator> Qcache::dramFinishedFlag;
+std::vector <bool*> Qcache::dramFinishedFlag;
 int Qcache::dramAdditionalLatency;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
@@ -116,7 +116,7 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, 
                const uint8_t *b, enum inst_type t)
   {
-    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
+    if (!running/* || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN*/) return;
     #ifdef ICOUNT
     ++icount[c];
     if (osd.idle(c)) ++idlecount[c];
@@ -130,12 +130,12 @@ public:
   }
 
   void reg_cb(int c, int r, uint8_t size, int wr) {
-    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
+    if (!running/* || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN*/) return;
     cpu[c].regCallback(size==0?QSIM_RFLAGS:regs(r), wr);
   }
 
   void mem_cb(int c, uint64_t va, uint64_t pa, uint8_t sz, int wr) {
-    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
+    if (!running/* || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN*/) return;
     //l1d.getCache(c).access(pa, osd.get_reg(c, QSIM_RIP), c, wr);
     cpu[c].memCallback(pa, osd.get_reg(c, QSIM_RIP), wr);
   }
@@ -147,7 +147,6 @@ public:
 
   bool running;
   
-private:
   l1i_t &l1i;
   l1d_t &l1d;
   mc_t &mc;
@@ -182,10 +181,11 @@ void *thread_main(void *arg_vp) {
 
   pthread_barrier_wait(&b0);
   while (cba_p->running) {
-    pthread_barrier_wait(&b0);
-    for (unsigned i = 0; i < 100; ++i) {
+    //pthread_barrier_wait(&b0);
+    for (unsigned i = 0; i < 500; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
-        osd_p->run(c, 10000);
+        cba_p->cpu[c].updateCycle();
+        osd_p->run(c, 1000);
        }
       if (!cba_p->running) break;
     }
@@ -198,7 +198,7 @@ void *thread_main(void *arg_vp) {
       }
     }
 
-    pthread_barrier_wait(&b1);  
+    //pthread_barrier_wait(&b1);  
   }
 
   return 0;
@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
   // Build a Westmere-like 3-level cache hierarchy. Typedefs for these (which
   // determine the cache parameters) are at the top of the file.
   //Qcache::Tracer tracer(*traceOut);
-  mc_t mc;
+  mc_t mc(osd.get_n());
   l3_t l3(mc, "L3");
   l2_t l2(osd.get_n(), l3, "L2");
   l1i_t l1_i(osd.get_n(), l2, "L1i");

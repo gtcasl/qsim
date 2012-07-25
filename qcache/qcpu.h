@@ -28,10 +28,11 @@ template <typename TIMINGS, typename MC_T> class CPUTimer {
 public:
   CPUTimer(int id, MemSysDev &dMem, MemSysDev &iMem, MC_T &mc):
     id(id), dMem(&dMem), mc(&mc), cyc(0), now(0), stallCycles(0),
-    loadInst(false), notReady(QSIM_N_REGS), iMem(&iMem),
-    eq(dMem.getLatency(), std::vector<bool>(QSIM_N_REGS)), dloads(0), xloads(0),
-    instFlag(1)
-  { dramAdditionalLatency = dMem.getLatency(); }
+    loadInst(false), iMem(&iMem),
+    eq(dMem.getLatency(), std::vector<bool>(QSIM_N_REGS)), dloads(0), xloads(0)
+  { dramAdditionalLatency = dMem.getLatency(); 
+    for (unsigned i = 0; i < QSIM_N_REGS; ++i) notReady[i] = false;
+  }
 
   ~CPUTimer() {
     std::cout << "CPU " << id << ": " << now << ", " << cyc << ", " << stallCycles << '\n';
@@ -51,7 +52,7 @@ public:
     }
 
     dramUseFlag[id] = true;
-    dramFinishedFlag[id] = instFlag.begin();
+    dramFinishedFlag[id] = instFlag;
     int latency = iMem->access(addr, addr, id, 0);
     if (latency < 0) {
       instFlag[0] = true;
@@ -70,7 +71,7 @@ public:
       if (loadInst) {
         dloads++;
         dramUseFlag[id] = true;
-        dramFinishedFlag[id] = notReady.begin() + r;
+        dramFinishedFlag[id] = &notReady[r];
         latency = dMem->access(loadAddr, loadPc, id, 0);
 
         if (latency < 0) {
@@ -127,27 +128,27 @@ private:
   addr_t loadAddr, loadPc;
   inst_type curType;
   MemSysDev *dMem, *iMem;
-  std::vector<bool> notReady, instFlag;
+  bool notReady[QSIM_N_REGS], instFlag[1];
   std::vector<std::vector<bool> > eq;
 };
 
 template <typename MC_T, int ISSUE, int RETIRE, int ROBLEN> class OOOCpuTimer {
 public:
   OOOCpuTimer(int id, MemSysDev &dMem, MemSysDev &iMem, MC_T &mc):
-    mc(&mc), id(id), rob(ROBLEN+1), dMem(&dMem), robHead(0), robTail(0), cyc(0),
-    iMem(&iMem), now(0), issued(0), instFlag(1)
-  { std::cout << "id=" << id << " constructed.\n"; }
+    mc(&mc), id(id), dMem(&dMem), robHead(0), robTail(0), cyc(0),
+    iMem(&iMem), now(0), issued(0)
+  { std::cout << "id=" << id << " constructed.\n";
+    for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = false;
+  }
 
   ~OOOCpuTimer() {
     std::cout << "CPU " << id << ": " << now << '\n';
   }
 
   void instCallback(addr_t addr, inst_type type) {
-    std::cout << id << " next inst.\n";
-
     if (loadInst) {
       dramUseFlag[id] = true;
-      dramFinishedFlag[id] = rob.begin() + robHead;
+      dramFinishedFlag[id] = &rob[robHead];
       int latency = dMem->access(loadAddr, loadPc, id, 0);
       if (latency < 0) {
         rob[robHead] = true;
@@ -155,17 +156,17 @@ public:
         rob[robHead] = false;
       } else if (latency > 0) {
         rob[robHead] = true;
-        sched(latency, rob.begin() + robHead);
+        sched(latency, &rob[robHead]);
       }
       loadInst = false;
     }
 
     dramUseFlag[id] = true;
-    dramFinishedFlag[id] = instFlag.begin();
+    dramFinishedFlag[id] = instFlag;
     int latency = iMem->access(addr, addr, id, 0);
     if (latency > 0) {
       instFlag[0] = true;
-      sched(latency, instFlag.begin());
+      sched(latency, instFlag);
     } else if (latency == 0) {
       instFlag[0] = false;
     }
@@ -194,6 +195,10 @@ public:
     }
   }
 
+  void updateCycle() { 
+    now = mc->getCycle();
+  }
+
 private:
   void tick() {
     now++; cyc++;
@@ -207,8 +212,10 @@ private:
     issued = 0;
     unsigned retired;
     for (retired = 0; retired < RETIRE && robTail != robHead; ++retired) {
+      MEM_BARRIER();
       if (rob[robTail] == true) break;
-      else if ((robTail+1)%ROBLEN != robHead) robTail = (robTail+1)%ROBLEN;
+      MEM_BARRIER();
+      if ((robTail+1)%ROBLEN != robHead) robTail = (robTail+1)%ROBLEN;
     }
 
     //std::cout << now << ": retired " << retired << '\n';
@@ -223,14 +230,13 @@ private:
   addr_t loadAddr, loadPc;
   MemSysDev *dMem, *iMem;
 
-  std::vector<bool> instFlag;
-  std::vector<bool> rob;
+  bool instFlag[1], rob[ROBLEN+1];
   int robHead, robTail;
 
-  void sched(int ticks, std::vector<bool>::iterator it) {
-    eq.insert(std::pair<cycle_t, std::vector<bool>::iterator>(cyc + ticks, it));
+  void sched(int ticks, bool* it) {
+    eq.insert(std::pair<cycle_t, bool*>(cyc + ticks, it));
   }
-  typedef std::multimap<cycle_t, std::vector<bool>::iterator> eq_t;
+  typedef std::multimap<cycle_t, bool*> eq_t;
   eq_t eq;
 };
 
