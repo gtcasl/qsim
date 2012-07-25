@@ -55,10 +55,10 @@ typedef Qcache::Cache   <CPNull,    16, 9, 6, Qcache::ReplRand,  true> l3_t;
 
 typedef Qcache::MemController<Qcache::DramTiming1067,
                               Qcache::Dim4GB2Rank,
-                              Qcache::AddrMappingB> mc_t;
+                              Qcache::AddrMappingB, 3> mc_t;
 
-//typedef Qcache::CPUTimer<Qcache::InstLatencyForward, mc_t> CPUTimer_t;
-typedef Qcache::OOOCpuTimer<mc_t, 6, 4, 64> CPUTimer_t;
+typedef Qcache::CPUTimer<Qcache::InstLatencyForward, mc_t> CPUTimer_t;
+//typedef Qcache::OOOCpuTimer<mc_t, 6, 4, 64> CPUTimer_t;
 
 std::vector <bool> Qcache::dramUseFlag;
 std::vector <std::vector<bool>::iterator> Qcache::dramFinishedFlag;
@@ -119,7 +119,7 @@ public:
     #ifdef ICOUNT
     ++icount[c];
     if (osd.idle(c)) ++idlecount[c];
-    if (icount[c] == 10000000) {
+    if (icount[c] == 1000) {
       running = false;
       return;
     }
@@ -239,9 +239,9 @@ int main(int argc, char** argv) {
   //Qcache::Tracer tracer(*traceOut);
   mc_t mc;
   l3_t l3(mc, "L3");
-  //l2_t l2(osd.get_n(), l3, "L2");
-  l1i_t l1_i(osd.get_n(), l3, "L1i");
-  l1d_t l1_d(osd.get_n(), l3, "L1d");
+  l2_t l2(osd.get_n(), l3, "L2");
+  l1i_t l1_i(osd.get_n(), l2, "L1i");
+  l1d_t l1_d(osd.get_n(), l2, "L1d");
 
   pthread_barrier_init(&b0, NULL, threads);
   pthread_barrier_init(&b1, NULL, threads);

@@ -29,11 +29,12 @@ struct InstLatencyForward {
 template <typename TIMINGS, typename MC_T> class CPUTimer {
 public:
   CPUTimer(int id, MemSysDev &dMem, MC_T &mc):
-    id(id), dMem(&dMem), mc(&mc), now(0), stallCycles(0), loadInst(false),
-    notReady(QSIM_N_REGS), eq(LLC_LATENCY, std::vector<bool>(QSIM_N_REGS)) {}
+    id(id), dMem(&dMem), mc(&mc), cyc(0), now(0), stallCycles(0),
+    loadInst(false), notReady(QSIM_N_REGS),
+    eq(LLC_LATENCY, std::vector<bool>(QSIM_N_REGS)), dloads(0), xloads(0) {}
 
   ~CPUTimer() {
-    std::cout << "CPU " << id << ": " << now << ", " << stallCycles << '\n';
+    std::cout << "CPU " << id << ": " << now << ", " << cyc << ", " << stallCycles << '\n';
   }
 
   void instCallback(inst_type type) {
@@ -43,9 +44,15 @@ public:
     if (loadInst) {
       // Previous load never got a destination register. Go ahead and issue the
       // load.
+      ++xloads;
       dramUseFlag[id] = false;
-      dMem->access(loadAddr, loadPc, id, 0);
+      int l = dMem->access(loadAddr, loadPc, id, 0);
       loadInst = false;
+      if (l < 0) {
+        if (~l) std::cout << "Stalled " << ~l << "cyc in destinationless load.\n";
+        now += ~l;
+        stallCycles += ~l;
+      }
     }
   }
 
@@ -55,10 +62,17 @@ public:
     } else if (wr) {
       int latency;
       if (loadInst) {
+        dloads++;
         dramUseFlag[id] = true;
         dramFinishedFlag[id] = notReady.begin() + r;
         int level = dMem->access(loadAddr, loadPc, id, 0);
-        if (level == -1) {
+        if (level < 0) {
+          int stallTicks(~level);
+          if (stallTicks) {
+	    std::cout << "Stalled for " << stallTicks << " ticks.\n";
+          }
+          now += stallTicks;
+          stallCycles += stallTicks;
           latency = 0;
           notReady[r] = true;
         } else if (level == 0) latency = 1;
@@ -71,7 +85,7 @@ public:
 
       if (latency > 1) {
         notReady[r] = true;
-        eq[(now + latency)%eq.size()][r] = true;
+        eq[(cyc + latency)%eq.size()][r] = true;
       }
 
       if (loadInst) loadInst = false;
@@ -86,32 +100,35 @@ public:
     } else {
       // Writes are not on the critical path.
       dramUseFlag[id] = false;
-      dMem->access(addr, pc, id, 1);
+      int l = dMem->access(addr, pc, id, 1);
+      if (l < 0) {
+        if (~l) std::cout << "Stalled for " << ~l << "cyc in write.\n";
+        now += ~l;
+        stallCycles += ~l;
+      }
     }
   }
 
 private:
   void advance() {
-    now++;
+    ++now; ++cyc;
 
-    // TODO: Pre-tick main memory model?
-
-    // Apply all of the event queue latencies.
+    // Advance the event queue.
     for (unsigned i = 0; i < QSIM_N_REGS; ++i) {
-      if (eq[now%eq.size()][i]) {
+      if (eq[cyc%eq.size()][i]) {
         notReady[i] = false;
-        eq[now%eq.size()][i] = false;
+        eq[cyc%eq.size()][i] = false;
       }
     }
 
     // Tick main memory model.
-    if (id == 0 && now%2 == 0) mc->lockAndTick();
+    if (id == 0) mc->lockAndTick();
   }
 
   TIMINGS t;
   MC_T *mc;
-  int id;
-  cycle_t now, stallCycles, loadLatency;
+  int id, dloads, xloads;
+  cycle_t cyc, now, stallCycles;
   bool loadInst;
   addr_t loadAddr, loadPc;
   inst_type curType;
@@ -123,8 +140,8 @@ private:
 template <typename MC_T, int ISSUE, int RETIRE, int ROBLEN> class OOOCpuTimer {
 public:
   OOOCpuTimer(int id, MemSysDev &dMem, MC_T &mc):
-    mc(&mc), id(id), rob(ROBLEN+1), dMem(&dMem), robHead(0), robTail(0), now(0),
-    issued(0)
+    mc(&mc), id(id), rob(ROBLEN+1), dMem(&dMem), robHead(0), robTail(0), cyc(0),
+    now(0), issued(0)
   { std::cout << "id=" << id << " constructed.\n"; }
 
   ~OOOCpuTimer() {
@@ -136,17 +153,19 @@ public:
       dramUseFlag[id] = true;
       dramFinishedFlag[id] = rob.begin() + robHead;
       int level = dMem->access(loadAddr, loadPc, id, 0);
-      if (level == -1) {
+      if (level < 0) {
+        if (~level) std::cout << "Stalled " << ~level << " cycles in read.\n";
+        now += ~level;
         rob[robHead] = true;
       } else {
         if (level == 0) {
           rob[robHead] = false;
         } else if (level == 1) {
           rob[robHead] = true;
-          mc->addToFinishQ(5, rob.begin() + robHead);
+          sched(10, rob.begin() + robHead);
         } else if (level == 2) { 
           rob[robHead] = true;
-          mc->addToFinishQ(10, rob.begin() + robHead);
+          sched(20, rob.begin() + robHead);
 	}
       }
       loadInst = false;
@@ -169,15 +188,25 @@ public:
     } else {
       // Writes are not on the critical path.
       dramUseFlag[id] = false;
-      dMem->access(addr, pc, id, 1);
+      int l = dMem->access(addr, pc, id, 1);
+      if (l < 0) {
+        if (~l) std::cout << "Stalled " << ~l << " cyc in write.\n";
+        now += ~l;
+      }
     }
   }
 
 private:
   void tick() {
-    now++;
-    issued = 0;
+    now++; cyc++;
 
+    eq_t::iterator it;
+    while ((it = eq.find(cyc)) != eq.end()) {
+      *(it->second) = false;
+      eq.erase(it);
+    }
+
+    issued = 0;
     unsigned retired;
     for (retired = 0; retired < RETIRE && robTail != robHead; ++retired) {
       if (rob[robTail] == true) break;
@@ -186,18 +215,24 @@ private:
 
     //std::cout << now << ": retired " << retired << '\n';
 
-    if (id == 0 && now%2 == 0) mc->lockAndTick();
+    if (id == 0) mc->lockAndTick();
   }
 
   MC_T *mc;
   int id, issued;
-  cycle_t now;
+  cycle_t cyc, now;
   bool loadInst;
   addr_t loadAddr, loadPc;
   MemSysDev *dMem;
 
   std::vector<bool> rob;
   int robHead, robTail;
+
+  void sched(int ticks, std::vector<bool>::iterator it) {
+    eq.insert(std::pair<cycle_t, std::vector<bool>::iterator>(cyc + ticks, it));
+  }
+  typedef std::multimap<cycle_t, std::vector<bool>::iterator> eq_t;
+  eq_t eq;
 };
 
 };

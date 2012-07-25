@@ -295,7 +295,7 @@ namespace Qcache {
         if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && wr != WRITEBACK)
         {
           rval = lowerLevel->access(tag<<L2LINESZ, pc, core, READ, &llLineptr);
-          if (rval != -1) ++rval;
+          if (rval >= 0) ++rval;
 
           if (!lowerLevel->isShared()) {
             tagarray[vidx] &= ~stateMask;

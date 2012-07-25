@@ -22,12 +22,12 @@ namespace Qcache {
   };
 
   template <typename TIMING_T, typename DIM_T,
-            template<typename> class ADDRMAP_T>
+            template<typename> class ADDRMAP_T, int TSCAL>
   class MemController : public MemSysDev {
   public:
     MemController() :
-      ticks(0), accesses(0), activates(0),
-      rqlen(64), wqlen(64), hwm(50), lwm(10)
+      ticks(0), subticks(0), accesses(0), activates(0),
+      rqlen(64), wqlen(64), hwm(50), lwm(10), allTimeExtra(0)
     {
       pthread_mutex_init(&lock, NULL);
     }
@@ -36,14 +36,18 @@ namespace Qcache {
 
     void printStats() {
       std::cout << "DRAM: " << ticks << " ticks, " << activates
-                << " activates, " << accesses << " accesses\n";
+                << " activates, " << accesses << " accesses, " << allTimeExtra 
+                << '\n';
     }
 
     int access(addr_t addr, addr_t pc, int core, int wr, addr_t** lp=NULL) {
+      int extraCyc(0);
       pthread_mutex_lock(&lock);
 
-      while (wr && wrq.size() >= wqlen) { tickEnd(); tickBegin(); }
-      while (!wr && rdq.size() >= rqlen) { tickEnd(); tickBegin(); }
+      //std::cout << "DRAM access: " << (wr?"-1":"1") << ", " << ticks << ", " << rdq.size() << ", " << wrq.size() << '\n';
+
+      while (wr && wrq.size() >= wqlen) { tickEnd(); tickBegin(); ++extraCyc; }
+      while (!wr && rdq.size() >= rqlen) { tickEnd(); tickBegin(); ++extraCyc; }
 
       if (wr) {
         wrq.push_back(req_t(addr));
@@ -55,9 +59,11 @@ namespace Qcache {
           rdq.push_back(req_t(addr));
       }
 
+      allTimeExtra += extraCyc;
+
       pthread_mutex_unlock(&lock);
 
-      return -1;
+      return ~extraCyc;
     }
 
     bool empty() { return wrq.empty() && rdq.empty(); }
@@ -70,8 +76,7 @@ namespace Qcache {
     }
 
     void tickBegin() {
-      if (ticks % 1000000 == 0) printStats();
-
+      if (++subticks != TSCAL) return;
       std::map<cycle_t, std::vector<bool>::iterator>::iterator it;
       while ((it = finishQ.find(ticks)) != finishQ.end()) {
         *(it->second) = false;
@@ -80,19 +85,16 @@ namespace Qcache {
       ch.tickBegin();
     }
 
-    void tickEnd() { tickSched(); ch.tickEnd(); ++ticks; }
-
-    void addToFinishQ(int cycles, std::vector<bool>::iterator i) {
-      pthread_mutex_lock(&lock);
-      finishQ.insert(std::pair<cycle_t, std::vector<bool>::iterator>(
-        ticks+cycles, i
-      ));
-      pthread_mutex_unlock(&lock);
+    void tickEnd() {
+      if (subticks != TSCAL) return;
+      subticks = 0;
+      tickSched(); ch.tickEnd(); ++ticks;
     }
 
   private:
     Channel<TIMING_T, DIM_T, ADDRMAP_T> ch;
     cycle_t ticks;
+    int subticks;
     uint64_t accesses, activates;
     ADDRMAP_T<DIM_T> m;
 
@@ -100,7 +102,7 @@ namespace Qcache {
 
     std::list<req_t> rdq, wrq;
     bool writeMode;
-    int rqlen, wqlen, hwm, lwm;
+    int rqlen, wqlen, hwm, lwm, allTimeExtra;
 
     std::multimap<cycle_t, std::vector<bool>::iterator> finishQ;
 
@@ -116,7 +118,7 @@ namespace Qcache {
           ch.issueRead(i->a);
           if (i->s) {
             finishQ.insert(std::pair<cycle_t, std::vector<bool>::iterator>(
-              ticks + ch.t.tCL() + 4 + 15, i->f
+              ticks + ch.t.tCL() + 4 + 20/TSCAL, i->f
             ));
           }
           rdq.erase(i);
