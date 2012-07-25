@@ -47,21 +47,22 @@ using Qcache::ReplLRU_EAF; using Qcache::ReplERRIP;
 
 // <Coherence Protocol, Ways, log2(sets), log2(bytes/line), Replacement Policy>
 // Last parameter of L3 cache type says that it's shared.
-typedef Qcache::CacheGrp<CPNull,     4,  7, 6, ReplLRU         > l1i_t;
-typedef Qcache::CacheGrp<CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
-//typedef Qcache::CacheGrp<CPNull, 8,  6, 6, ReplRand        > l1d_t;
-typedef Qcache::CacheGrp<CPNull,     8,  8, 6, ReplRand        > l2_t;
-typedef Qcache::Cache   <CPNull,    16, 9, 6, Qcache::ReplRand,  true> l3_t;
+typedef Qcache::CacheGrp< 0, CPNull,     4,  7, 6, ReplLRU         > l1i_t;
+typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
+typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplRand        > l2_t;
+typedef Qcache::Cache   <20, CPNull,    16, 9, 6, Qcache::ReplRand,  true> l3_t;
 
 typedef Qcache::MemController<Qcache::DramTiming1067,
                               Qcache::Dim4GB2Rank,
                               Qcache::AddrMappingB, 3> mc_t;
 
-typedef Qcache::CPUTimer<Qcache::InstLatencyForward, mc_t> CPUTimer_t;
-//typedef Qcache::OOOCpuTimer<mc_t, 6, 4, 64> CPUTimer_t;
+//typedef Qcache::CPUTimer<Qcache::InstLatencyForward, mc_t> CPUTimer_t;
+typedef Qcache::OOOCpuTimer<mc_t, 6, 4, 64> CPUTimer_t;
 
 std::vector <bool> Qcache::dramUseFlag;
 std::vector <std::vector<bool>::iterator> Qcache::dramFinishedFlag;
+int Qcache::dramAdditionalLatency;
+
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
 
@@ -89,7 +90,7 @@ public:
     osd.set_app_end_cb(this, &CallbackAdaptor::app_end_cb);
 
     for (unsigned i = 0; i < osd.get_n(); ++i) {
-      cpu.push_back(CPUTimer_t(i, l1d.getCache(i), mc));
+      cpu.push_back(CPUTimer_t(i, l1d.getCache(i), l1i.getCache(i), mc));
     }
 
     #ifdef PROFILE
@@ -124,8 +125,8 @@ public:
       return;
     }
     #endif
-    cpu[c].instCallback(t);
-    l1i.getCache(c).access(p, p, c, 0);
+    cpu[c].instCallback(p, t);
+    //l1i.getCache(c).access(p, p, c, 0);
   }
 
   void reg_cb(int c, int r, uint8_t size, int wr) {

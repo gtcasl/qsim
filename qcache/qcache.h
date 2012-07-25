@@ -33,6 +33,7 @@
 namespace Qcache {
   extern std::vector <bool> dramUseFlag;
   extern std::vector <std::vector<bool>::iterator> dramFinishedFlag;
+  extern int dramAdditionalLatency;
 
   extern pthread_mutex_t errLock;
   extern bool printResults;
@@ -49,6 +50,8 @@ namespace Qcache {
   class MemSysDev {
    public:
     ~MemSysDev() {}
+
+    virtual int getLatency() { ASSERT(false); }
 
     virtual int access(addr_t addr, addr_t pc, int core, int wr,
                        addr_t** lp=NULL)
@@ -90,15 +93,18 @@ namespace Qcache {
   // at that level.
   class Tracer : public MemSysDev {
    public:
-    Tracer(std::ostream &tf) : tracefile(tf) {}
+    Tracer(std::ostream &tf, int delay=50) : tracefile(tf), delay(delay) {}
 
     int access(addr_t addr, addr_t pc, int core, int wr, addr_t **lp = NULL) {
       tracefile << std::dec << addr << (wr?" W\n":" R\n");
-      return -1;
+      return delay;
     }
+
+    int getLatency() { return delay; }
 
    private:
     std::ostream &tracefile;
+    int delay;
   };
 
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplRand {
@@ -128,7 +134,7 @@ namespace Qcache {
 
   // Caches, private or shared, of any dimension
   template
-    <template<int, typename> class CPROT_T,
+    <int LATENCY, template<int, typename> class CPROT_T,
     int WAYS, int L2SETS, int L2LINESZ, template<int, int, int> class REPL_T,
     bool SHARED=false>
   class Cache : public MemSysDev
@@ -176,6 +182,8 @@ namespace Qcache {
                 << (100.0*misses)/accesses << "%\n";
     }
 
+    int getLatency() { return LATENCY + lowerLevel->getLatency(); }
+
     void l1LockAddr(addr_t addr) {
       if (!upperLevel) cprot->lockAddr(addr, id);
       else upperLevel->l1LockAddr(addr);
@@ -195,7 +203,7 @@ namespace Qcache {
                 addr_t **lineptr=NULL)
     {
       bool hit = false;
-      int rval = 0;
+      int lat = 0;
 
       addr_t *llLineptr;
       bool wbState = false;
@@ -294,8 +302,7 @@ namespace Qcache {
 
         if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && wr != WRITEBACK)
         {
-          rval = lowerLevel->access(tag<<L2LINESZ, pc, core, READ, &llLineptr);
-          if (rval >= 0) ++rval;
+          lat = lowerLevel->access(tag<<L2LINESZ, pc, core, READ, &llLineptr);
 
           if (!lowerLevel->isShared()) {
             tagarray[vidx] &= ~stateMask;
@@ -313,7 +320,7 @@ namespace Qcache {
 
       if (SHARED) spin_unlock(&accessLock);
 
-      return rval;
+      return lat + LATENCY;
     }
 
     void invalidate(addr_t addr) {
@@ -413,8 +420,8 @@ namespace Qcache {
   // Group of caches at the same level. Sets up the cache peer pointers and the
   // coherence protocol.
   template
-    <template<int, typename> class CPROT_T, int WAYS, int L2SETS, int L2LINESZ,
-     template<int, int, int> class REPL_T>
+    <int LATENCY, template<int, typename> class CPROT_T,
+     int WAYS, int L2SETS, int L2LINESZ, template<int, int, int> class REPL_T>
     class CacheGrp : public MemSysDevSet
   {
    public:
@@ -432,14 +439,15 @@ namespace Qcache {
         caches.push_back(CACHE(caches, ll.getMemSysDev(i), i, name, &cprot));
     }
 
-    Cache<CPROT_T, WAYS, L2SETS, L2LINESZ, REPL_T> &getCache(size_t i) {
+    Cache<LATENCY, CPROT_T, WAYS, L2SETS, L2LINESZ, REPL_T> &getCache(size_t i)
+    {
       return caches[i];
     }
 
     MemSysDev &getMemSysDev(size_t i) { return getCache(i); }
 
    private:
-    typedef Cache<CPROT_T, WAYS, L2SETS, L2LINESZ, REPL_T> CACHE;
+    typedef Cache<LATENCY, CPROT_T, WAYS, L2SETS, L2LINESZ, REPL_T> CACHE;
 
     std::vector<CACHE> caches;
 

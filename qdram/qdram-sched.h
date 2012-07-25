@@ -12,6 +12,8 @@
 #include "qdram.h"
 
 namespace Qcache {
+  #define LAT_OFFSET INT_MIN
+
   struct req_t {
     req_t(addr_t addr): a(addr), s(false) {}
     req_t(addr_t addr, std::vector<bool>::iterator flag):
@@ -27,7 +29,7 @@ namespace Qcache {
   public:
     MemController() :
       ticks(0), subticks(0), accesses(0), activates(0),
-      rqlen(64), wqlen(64), hwm(50), lwm(10), allTimeExtra(0)
+      rqlen(64000), wqlen(64000), hwm(50), lwm(10), allTimeExtra(0)
     {
       pthread_mutex_init(&lock, NULL);
     }
@@ -44,7 +46,7 @@ namespace Qcache {
       int extraCyc(0);
       pthread_mutex_lock(&lock);
 
-      //std::cout << "DRAM access: " << (wr?"-1":"1") << ", " << ticks << ", " << rdq.size() << ", " << wrq.size() << '\n';
+      std::cout << "DRAM access: " << (wr?"-1":"1") << ", " << TSCAL*ticks << ", " << rdq.size() << ", " << wrq.size() << '\n';
 
       while (wr && wrq.size() >= wqlen) { tickEnd(); tickBegin(); ++extraCyc; }
       while (!wr && rdq.size() >= rqlen) { tickEnd(); tickBegin(); ++extraCyc; }
@@ -63,8 +65,10 @@ namespace Qcache {
 
       pthread_mutex_unlock(&lock);
 
-      return ~extraCyc;
+      return LAT_OFFSET;
     }
+
+    int getLatency() { return 0; }
 
     bool empty() { return wrq.empty() && rdq.empty(); }
 
@@ -118,7 +122,7 @@ namespace Qcache {
           ch.issueRead(i->a);
           if (i->s) {
             finishQ.insert(std::pair<cycle_t, std::vector<bool>::iterator>(
-              ticks + ch.t.tCL() + 4 + 20/TSCAL, i->f
+              ticks + ch.t.tCL() + 4 + dramAdditionalLatency/TSCAL, i->f
             ));
           }
           rdq.erase(i);
