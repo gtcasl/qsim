@@ -52,7 +52,7 @@ namespace Qcache {
     virtual int getLatency() { ASSERT(false); }
 
     virtual int access(addr_t addr, addr_t pc, int core, int wr,
-                       addr_t** lp=NULL)
+                       bool *flagptr=NULL, addr_t** lp=NULL)
     {
       ASSERT(false);
     }
@@ -93,7 +93,9 @@ namespace Qcache {
    public:
     Tracer(std::ostream &tf, int delay=50) : tracefile(tf), delay(delay) {}
 
-    int access(addr_t addr, addr_t pc, int core, int wr, addr_t **lp = NULL) {
+    int access(addr_t addr, addr_t pc, int core, int wr, bool *flagptr = NULL,
+               addr_t **lp = NULL)
+    {
       tracefile << std::dec << addr << (wr?" W\n":" R\n");
       return delay;
     }
@@ -198,7 +200,7 @@ namespace Qcache {
     }
 
     int access(addr_t addr, addr_t pc, int core, int wr,
-                addr_t **lineptr=NULL)
+               bool *flagptr=NULL,  addr_t **lineptr=NULL)
     {
       bool hit = false;
       int lat = 0;
@@ -273,7 +275,7 @@ namespace Qcache {
           }
 
           if (doWriteback && lowerLevel) {
-            lowerLevel->access(victimAddr, pc, core, WRITEBACK, &llLineptr);
+            lowerLevel->access(victimAddr, pc, core, WRITEBACK, 0, &llLineptr);
           }
         }
 
@@ -300,7 +302,9 @@ namespace Qcache {
 
         if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && wr != WRITEBACK)
         {
-          lat = lowerLevel->access(tag<<L2LINESZ, pc, core, READ, &llLineptr);
+          lat = lowerLevel->access(
+            tag<<L2LINESZ, pc, core, READ, flagptr, &llLineptr
+          );
 
           if (!lowerLevel->isShared()) {
             tagarray[vidx] &= ~stateMask;

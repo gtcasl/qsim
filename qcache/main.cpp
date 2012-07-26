@@ -16,6 +16,7 @@
 #include <qcache.h>
 #include <qcache-moesi.h>
 #include <qcache-repl.h>
+#include <qtickable.h>
 
 #include <qcpu.h>
 
@@ -45,15 +46,22 @@ using Qcache::ReplLRU_BIP; using Qcache::ReplDRRIP;  using Qcache::ReplLRU_DIP;
 using Qcache::ReplLRU_LIP; using Qcache::ReplSRRIP;  using Qcache::ReplBRRIP;
 using Qcache::ReplLRU_EAF; using Qcache::ReplERRIP;
 
+using Qcache::DramTiming1067;
+using Qcache::Dim4GB1Rank;
+using Qcache::Dim4GB2Rank;
+using Qcache::AddrMappingA;
+
 // <Coherence Protocol, Ways, log2(sets), log2(bytes/line), Replacement Policy>
 // Last parameter of L3 cache type says that it's shared.
 typedef Qcache::CacheGrp< 0, CPNull,     4,  7, 6, ReplLRU         > l1i_t;
-typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
-typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplRand        > l2_t;
-typedef Qcache::Cache   <20, CPNull,    16, 9, 6, Qcache::ReplRand,  true> l3_t;
+typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplLRU        > l1d_t;
+typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplLRU        > l2_t;
+typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplLRU,  true> l3_t;
 
-//typedef Qcache::CPUTimer<Qcache::InstLatencyForward> CPUTimer_t;
-typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
+typedef Qcache::MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA, 3>mc_t;
+
+typedef Qcache::CPUTimer<Qcache::InstLatencyForward> CPUTimer_t;
+//typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
@@ -73,7 +81,9 @@ void setCpuAff(int threads) {
 
 class CallbackAdaptor {
 public:
-  CallbackAdaptor(Qsim::OSDomain &osd, l1i_t &l1i, l1d_t &l1d):
+  CallbackAdaptor(
+    Qsim::OSDomain &osd, l1i_t &l1i, l1d_t &l1d, Qcache::Tickable *mc=NULL
+  ):
     cpu(), running(true), l1i(l1i), l1d(l1d), osd(osd)
   {
     icb_handle = osd.set_inst_cb(this, &CallbackAdaptor::inst_cb);
@@ -82,7 +92,7 @@ public:
     osd.set_app_end_cb(this, &CallbackAdaptor::app_end_cb);
 
     for (unsigned i = 0; i < osd.get_n(); ++i) {
-      cpu.push_back(CPUTimer_t(i, l1d.getCache(i), l1i.getCache(i)));
+      cpu.push_back(CPUTimer_t(i, l1d.getCache(i), l1i.getCache(i), mc));
     }
 
     #ifdef PROFILE
@@ -182,10 +192,10 @@ void *thread_main(void *arg_vp) {
   pthread_barrier_wait(&b0);
   while(runningLocal) {
     bool doBarrier(true);
-    for (unsigned i = 0; i < 1000; ++i) {
+    for (unsigned i = 0; i < 10000; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
         if (cba_p->cpu[c].getCycle() >= arg->nextBarrier) continue;
-	bool runFail(osd_p->run(c, 1000) == 0);
+	bool runFail(osd_p->run(c, 100) == 0);
         if (!runFail && cba_p->cpu[c].getCycle() < arg->nextBarrier)
           doBarrier = false;
 
@@ -242,8 +252,9 @@ int main(int argc, char** argv) {
 
   // Build a Westmere-like 3-level cache hierarchy. Typedefs for these (which
   // determine the cache parameters) are at the top of the file.
-  Qcache::Tracer tracer(*traceOut);
-  l3_t l3(tracer, "L3");
+  //Qcache::Tracer tracer(*traceOut);
+  mc_t mc(osd.get_n());
+  l3_t l3(mc, "L3");
   l2_t l2(osd.get_n(), l3, "L2");
   l1i_t l1_i(osd.get_n(), l2, "L1i");
   l1d_t l1_d(osd.get_n(), l2, "L1d");
@@ -251,7 +262,7 @@ int main(int argc, char** argv) {
   pthread_barrier_init(&b0, NULL, threads);
   pthread_barrier_init(&b1, NULL, threads);
 
-  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d);
+  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d, &mc);
 
   osd_p = &osd;
   cba_p = cba;
@@ -277,11 +288,11 @@ int main(int argc, char** argv) {
     pthread_join(targs[i].thread, NULL);
   unsigned long long end_usec = utime();
 
-  delete cba;
-
   std::cout << "Total time: " << std::dec << end_usec - start_usec << "us\n";
 
   Qcache::printResults = true;
+
+  delete cba;
 
   if (argc >= 5) {
     delete traceOut;

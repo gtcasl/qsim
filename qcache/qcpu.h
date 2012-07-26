@@ -6,10 +6,11 @@
 #include <map>
 
 #include <qcache.h>
+#include <qtickable.h>
 
-//#include <qdram-config.h>
-//#include <qdram.h>
-//#include <qdram-sched.h>
+#include <qdram-config.h>
+#include <qdram.h>
+#include <qdram-sched.h>
 
 namespace Qcache {
 
@@ -28,14 +29,16 @@ struct InstLatencyForward {
 
 template <typename TIMINGS> class CPUTimer {
 public:
-  CPUTimer(int id, MemSysDev &dMem, MemSysDev &iMem):
+ CPUTimer(int id, MemSysDev &dMem, MemSysDev &iMem, Tickable *mc=NULL):
     id(id), dMem(&dMem), cyc(0), now(0), stallCycles(0),
-    loadInst(false), iMem(&iMem),
+    loadInst(false), iMem(&iMem), mc(mc),
     eq(dMem.getLatency(), std::vector<bool>(QSIM_N_REGS)), dloads(0), xloads(0)
   { for (unsigned i = 0; i < QSIM_N_REGS; ++i) notReady[i] = false; }
 
   ~CPUTimer() {
-    std::cout << "CPU " << id << ": " << now << ", " << cyc << ", " << stallCycles << '\n';
+    if (printResults)
+      std::cout << "CPU " << id << ": " << now << ", " << cyc << ", "
+                << stallCycles << '\n';
   }
 
   void idleInst() { advance(); }
@@ -52,10 +55,11 @@ public:
       loadInst = false;
     }
 
-    int latency = iMem->access(addr, addr, id, 0);
+    int latency = iMem->access(addr, addr, id, 0, &instFlag[0]);
     if (latency < 0) {
       instFlag[0] = true;
-      while (instFlag[0]) { advance(); ++stallCycles; }
+      MEM_BARRIER();
+      while (instFlag[0]) { advance(); ++stallCycles; MEM_BARRIER(); }
     } else {
       for (unsigned i = 0; i < latency; ++i) { advance(); ++stallCycles; }
     }
@@ -63,17 +67,14 @@ public:
 
   void regCallback(regs r, int wr) {
     if (!wr && notReady[r]) {
-      while(notReady[r]) { advance(); ++stallCycles; }
+      MEM_BARRIER();
+      while(notReady[r]) { advance(); ++stallCycles; MEM_BARRIER(); }
     } else if (wr) {
       int latency;
       notReady[r] = true;
       if (loadInst) {
         dloads++;
-        latency = dMem->access(loadAddr, loadPc, id, 0);
-
-        if (latency < 0) {
-          notReady[r] = true;
-        }
+        latency = dMem->access(loadAddr, loadPc, id, 0, &notReady[r]);
       } else {
         latency = t.getLatency(curType);
       }
@@ -106,6 +107,8 @@ private:
   void advance() {
     ++now; ++cyc;
 
+    if (mc) mc->tick();
+
     // Advance the event queue.
     for (unsigned i = 0; i < QSIM_N_REGS; ++i) {
       if (eq[cyc%eq.size()][i]) {
@@ -124,6 +127,7 @@ private:
   MemSysDev *dMem, *iMem;
   bool notReady[QSIM_N_REGS], instFlag[1];
   std::vector<std::vector<bool> > eq;
+  Tickable *mc;
 };
 
 template <int ISSUE, int RETIRE, int ROBLEN> class OOOCpuTimer {
@@ -134,7 +138,7 @@ public:
   { for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = false; }
 
   ~OOOCpuTimer() {
-    std::cout << "CPU " << id << ": " << now << '\n';
+    if (printResults) std::cout << "CPU " << id << ": " << now << '\n';
   }
 
   void idleInst() { tick(); }
