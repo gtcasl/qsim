@@ -7,11 +7,13 @@
 
 #include <qcache.h>
 
-#include <qdram-config.h>
-#include <qdram.h>
-#include <qdram-sched.h>
+//#include <qdram-config.h>
+//#include <qdram.h>
+//#include <qdram-sched.h>
 
 namespace Qcache {
+
+typedef uint64_t cycle_t;
 
 // Object representing instruction latencies
 struct InstLatencyNoforward {
@@ -24,19 +26,19 @@ struct InstLatencyForward {
   int maxLatency() { return 2; }
 };
 
-template <typename TIMINGS, typename MC_T> class CPUTimer {
+template <typename TIMINGS> class CPUTimer {
 public:
-  CPUTimer(int id, MemSysDev &dMem, MemSysDev &iMem, MC_T &mc):
-    id(id), dMem(&dMem), mc(&mc), cyc(0), now(0), stallCycles(0),
+  CPUTimer(int id, MemSysDev &dMem, MemSysDev &iMem):
+    id(id), dMem(&dMem), cyc(0), now(0), stallCycles(0),
     loadInst(false), iMem(&iMem),
     eq(dMem.getLatency(), std::vector<bool>(QSIM_N_REGS)), dloads(0), xloads(0)
-  { dramAdditionalLatency = dMem.getLatency(); 
-    for (unsigned i = 0; i < QSIM_N_REGS; ++i) notReady[i] = false;
-  }
+  { for (unsigned i = 0; i < QSIM_N_REGS; ++i) notReady[i] = false; }
 
   ~CPUTimer() {
     std::cout << "CPU " << id << ": " << now << ", " << cyc << ", " << stallCycles << '\n';
   }
+
+  void idleInst() { advance(); }
 
   void instCallback(addr_t addr, inst_type type) {
     advance();
@@ -46,13 +48,10 @@ public:
       // Previous load never got a destination register. Go ahead and issue the
       // load.
       ++xloads;
-      dramUseFlag[id] = false;
       dMem->access(loadAddr, loadPc, id, 0);
       loadInst = false;
     }
 
-    dramUseFlag[id] = true;
-    dramFinishedFlag[id] = instFlag;
     int latency = iMem->access(addr, addr, id, 0);
     if (latency < 0) {
       instFlag[0] = true;
@@ -70,8 +69,6 @@ public:
       notReady[r] = true;
       if (loadInst) {
         dloads++;
-        dramUseFlag[id] = true;
-        dramFinishedFlag[id] = &notReady[r];
         latency = dMem->access(loadAddr, loadPc, id, 0);
 
         if (latency < 0) {
@@ -99,10 +96,11 @@ public:
       loadPc = pc;
     } else {
       // Writes are not on the critical path.
-      dramUseFlag[id] = false;
       dMem->access(addr, pc, id, 1);
     }
   }
+
+  cycle_t getCycle() { return now; }
 
 private:
   void advance() {
@@ -115,13 +113,9 @@ private:
         eq[cyc%eq.size()][i] = false;
       }
     }
-
-    // Tick main memory model.
-    mc->lockAndTick();
   }
 
   TIMINGS t;
-  MC_T *mc;
   int id, dloads, xloads;
   cycle_t cyc, now, stallCycles;
   bool loadInst;
@@ -132,23 +126,21 @@ private:
   std::vector<std::vector<bool> > eq;
 };
 
-template <typename MC_T, int ISSUE, int RETIRE, int ROBLEN> class OOOCpuTimer {
+template <int ISSUE, int RETIRE, int ROBLEN> class OOOCpuTimer {
 public:
-  OOOCpuTimer(int id, MemSysDev &dMem, MemSysDev &iMem, MC_T &mc):
-    mc(&mc), id(id), dMem(&dMem), robHead(0), robTail(0), cyc(0),
+  OOOCpuTimer(int id, MemSysDev &dMem, MemSysDev &iMem):
+    id(id), dMem(&dMem), robHead(0), robTail(0), cyc(0),
     iMem(&iMem), now(0), issued(0)
-  { std::cout << "id=" << id << " constructed.\n";
-    for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = false;
-  }
+  { for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = false; }
 
   ~OOOCpuTimer() {
     std::cout << "CPU " << id << ": " << now << '\n';
   }
 
+  void idleInst() { tick(); }
+
   void instCallback(addr_t addr, inst_type type) {
     if (loadInst) {
-      dramUseFlag[id] = true;
-      dramFinishedFlag[id] = &rob[robHead];
       int latency = dMem->access(loadAddr, loadPc, id, 0);
       if (latency < 0) {
         rob[robHead] = true;
@@ -161,8 +153,6 @@ public:
       loadInst = false;
     }
 
-    dramUseFlag[id] = true;
-    dramFinishedFlag[id] = instFlag;
     int latency = iMem->access(addr, addr, id, 0);
     if (latency > 0) {
       instFlag[0] = true;
@@ -190,14 +180,11 @@ public:
       loadPc = pc;
     } else {
       // Writes are not on the critical path.
-      dramUseFlag[id] = false;
       dMem->access(addr, pc, id, 1);
     }
   }
 
-  void updateCycle() { 
-    now = mc->getCycle();
-  }
+  cycle_t getCycle() { return now; }
 
 private:
   void tick() {
@@ -219,11 +206,8 @@ private:
     }
 
     //std::cout << now << ": retired " << retired << '\n';
-
-    mc->lockAndTick();
   }
 
-  MC_T *mc;
   int id, issued;
   cycle_t cyc, now;
   bool loadInst;

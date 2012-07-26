@@ -33,10 +33,6 @@
 #define MEM_BARRIER() do { __asm__ __volatile__ ("mfence":::"memory");} while(0)
 
 namespace Qcache {
-  extern std::vector <bool> dramUseFlag;
-  extern std::vector <bool*> dramFinishedFlag;
-  extern int dramAdditionalLatency;
-
   extern pthread_mutex_t errLock;
   extern bool printResults;
 

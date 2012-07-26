@@ -19,7 +19,7 @@
 
 #include <qcpu.h>
 
-#include <qdram-sched.h>
+//#include <qdram-sched.h>
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -52,16 +52,8 @@ typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplRand        > l1d_t;
 typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplRand        > l2_t;
 typedef Qcache::Cache   <20, CPNull,    16, 9, 6, Qcache::ReplRand,  true> l3_t;
 
-typedef Qcache::MemController<Qcache::DramTiming1067,
-                              Qcache::Dim4GB2Rank,
-                              Qcache::AddrMappingB, 3> mc_t;
-
-//typedef Qcache::CPUTimer<Qcache::InstLatencyForward, mc_t> CPUTimer_t;
-typedef Qcache::OOOCpuTimer<mc_t, 6, 4, 64> CPUTimer_t;
-
-std::vector <bool> Qcache::dramUseFlag;
-std::vector <bool*> Qcache::dramFinishedFlag;
-int Qcache::dramAdditionalLatency;
+//typedef Qcache::CPUTimer<Qcache::InstLatencyForward> CPUTimer_t;
+typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
@@ -81,8 +73,8 @@ void setCpuAff(int threads) {
 
 class CallbackAdaptor {
 public:
-  CallbackAdaptor(Qsim::OSDomain &osd, l1i_t &l1i, l1d_t &l1d, mc_t &mc):
-    cpu(), running(true), l1i(l1i), l1d(l1d), mc(mc), osd(osd)
+  CallbackAdaptor(Qsim::OSDomain &osd, l1i_t &l1i, l1d_t &l1d):
+    cpu(), running(true), l1i(l1i), l1d(l1d), osd(osd)
   {
     icb_handle = osd.set_inst_cb(this, &CallbackAdaptor::inst_cb);
     mcb_handle = osd.set_mem_cb(this, &CallbackAdaptor::mem_cb);
@@ -90,7 +82,7 @@ public:
     osd.set_app_end_cb(this, &CallbackAdaptor::app_end_cb);
 
     for (unsigned i = 0; i < osd.get_n(); ++i) {
-      cpu.push_back(CPUTimer_t(i, l1d.getCache(i), l1i.getCache(i), mc));
+      cpu.push_back(CPUTimer_t(i, l1d.getCache(i), l1i.getCache(i)));
     }
 
     #ifdef PROFILE
@@ -116,7 +108,8 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, 
                const uint8_t *b, enum inst_type t)
   {
-    if (!running/* || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN*/) return;
+    if (!running) return;
+    if (osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) cpu[c].idleInst();
     #ifdef ICOUNT
     ++icount[c];
     if (osd.idle(c)) ++idlecount[c];
@@ -130,12 +123,12 @@ public:
   }
 
   void reg_cb(int c, int r, uint8_t size, int wr) {
-    if (!running/* || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN*/) return;
+    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
     cpu[c].regCallback(size==0?QSIM_RFLAGS:regs(r), wr);
   }
 
   void mem_cb(int c, uint64_t va, uint64_t pa, uint8_t sz, int wr) {
-    if (!running/* || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN*/) return;
+    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
     //l1d.getCache(c).access(pa, osd.get_reg(c, QSIM_RIP), c, wr);
     cpu[c].memCallback(pa, osd.get_reg(c, QSIM_RIP), wr);
   }
@@ -149,7 +142,6 @@ public:
   
   l1i_t &l1i;
   l1d_t &l1d;
-  mc_t &mc;
 
   Qsim::OSDomain::inst_cb_handle_t icb_handle;
   Qsim::OSDomain::mem_cb_handle_t mcb_handle;
@@ -172,22 +164,33 @@ CallbackAdaptor *cba_p;
 struct thread_arg_t {
   int cpuStart;
   int cpuEnd;
+  Qcache::cycle_t nextBarrier;
   pthread_t thread;
 };
+
+const Qcache::cycle_t BARRIER_INTERVAL = 1000000;
 
 void *thread_main(void *arg_vp) {
   bool running = true;
   thread_arg_t *arg((thread_arg_t*)arg_vp);
 
+  arg->nextBarrier = BARRIER_INTERVAL;
+
   pthread_barrier_wait(&b0);
   while (cba_p->running) {
     //pthread_barrier_wait(&b0);
+    bool doBarrier(true);
     for (unsigned i = 0; i < 500; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
-        cba_p->cpu[c].updateCycle();
+        if (cba_p->cpu[c].getCycle() >= arg->nextBarrier) continue;
         osd_p->run(c, 1000);
-       }
+        if (cba_p->cpu[c].getCycle() < arg->nextBarrier) doBarrier = false;
+      }
       if (!cba_p->running) break;
+      if (doBarrier) {
+        arg->nextBarrier += BARRIER_INTERVAL;
+        pthread_barrier_wait(&b0);
+      }
     }
 
     if (arg->cpuStart == 0) {
@@ -225,9 +228,6 @@ int main(int argc, char** argv) {
     threads = osd.get_n();
   }
 
-  Qcache::dramFinishedFlag.resize(osd.get_n());
-  Qcache::dramUseFlag.resize(osd.get_n());
-
   std::ostream *traceOut;
   if (argc >= 5) {
     traceOut = new std::ofstream(argv[4]);
@@ -237,9 +237,8 @@ int main(int argc, char** argv) {
 
   // Build a Westmere-like 3-level cache hierarchy. Typedefs for these (which
   // determine the cache parameters) are at the top of the file.
-  //Qcache::Tracer tracer(*traceOut);
-  mc_t mc(osd.get_n());
-  l3_t l3(mc, "L3");
+  Qcache::Tracer tracer(*traceOut);
+  l3_t l3(tracer, "L3");
   l2_t l2(osd.get_n(), l3, "L2");
   l1i_t l1_i(osd.get_n(), l2, "L1i");
   l1d_t l1_d(osd.get_n(), l2, "L1d");
@@ -247,7 +246,7 @@ int main(int argc, char** argv) {
   pthread_barrier_init(&b0, NULL, threads);
   pthread_barrier_init(&b1, NULL, threads);
 
-  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d, mc);
+  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d);
 
   osd_p = &osd;
   cba_p = cba;
