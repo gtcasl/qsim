@@ -108,8 +108,9 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, 
                const uint8_t *b, enum inst_type t)
   {
-    if (!running) return;
-    if (osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) cpu[c].idleInst();
+    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN)
+      cpu[c].idleInst();
+
     #ifdef ICOUNT
     ++icount[c];
     if (osd.idle(c)) ++idlecount[c];
@@ -138,7 +139,7 @@ public:
     return 1;
   }
 
-  bool running;
+  volatile bool running;
   
   l1i_t &l1i;
   l1d_t &l1d;
@@ -168,40 +169,42 @@ struct thread_arg_t {
   pthread_t thread;
 };
 
+// Number of cycles between barriers.
 const Qcache::cycle_t BARRIER_INTERVAL = 1000000;
 
 void *thread_main(void *arg_vp) {
-  bool running = true;
+  bool runningLocal(true);
+
   thread_arg_t *arg((thread_arg_t*)arg_vp);
 
   arg->nextBarrier = BARRIER_INTERVAL;
 
   pthread_barrier_wait(&b0);
-  while (cba_p->running) {
-    //pthread_barrier_wait(&b0);
+  while(runningLocal) {
     bool doBarrier(true);
-    for (unsigned i = 0; i < 500; ++i) {
+    for (unsigned i = 0; i < 1000; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
         if (cba_p->cpu[c].getCycle() >= arg->nextBarrier) continue;
-        osd_p->run(c, 1000);
-        if (cba_p->cpu[c].getCycle() < arg->nextBarrier) doBarrier = false;
+	bool runFail(osd_p->run(c, 1000) == 0);
+        if (!runFail && cba_p->cpu[c].getCycle() < arg->nextBarrier)
+          doBarrier = false;
+
+        // Even if we run out of cycles, the CPU model must be ticked.
+        if (runFail)
+          while (cba_p->cpu[c].getCycle() < arg->nextBarrier)
+            cba_p->cpu[c].idleInst();
       }
-      if (!cba_p->running) break;
       if (doBarrier) {
-        arg->nextBarrier += BARRIER_INTERVAL;
-        pthread_barrier_wait(&b0);
+          arg->nextBarrier += BARRIER_INTERVAL;
+          pthread_barrier_wait(&b1);
+          // Every thread reads "running" only in this critical section.
+          runningLocal = cba_p->running;
+          if (!runningLocal) break;
+          pthread_barrier_wait(&b0);
       }
     }
 
-    if (arg->cpuStart == 0) {
-      if (!cba_p->running) {
-        running = false;
-      } else {
-        osd_p->timer_interrupt();
-      }
-    }
-
-    //pthread_barrier_wait(&b1);  
+    if (arg->cpuStart == 0 && runningLocal) osd_p->timer_interrupt();
   }
 
   return 0;
@@ -228,6 +231,8 @@ int main(int argc, char** argv) {
     threads = osd.get_n();
   }
 
+  std::vector<thread_arg_t> targs(threads);
+
   std::ostream *traceOut;
   if (argc >= 5) {
     traceOut = new std::ofstream(argv[4]);
@@ -250,8 +255,6 @@ int main(int argc, char** argv) {
 
   osd_p = &osd;
   cba_p = cba;
-
-  std::vector<thread_arg_t> targs(threads);  
 
   if (osd.get_n() % threads) {
     std::cerr << "Error: number of host threads must divide evenly into"
