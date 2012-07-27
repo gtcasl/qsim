@@ -110,13 +110,14 @@ namespace Qcache {
 
   // Cycle-accurate DRAM is expensive and complex, so here's a fast functional
   // model with configurable latency.
-  template <int MISS_LAT, int HIT_LAT, int QLEN, typename DIM_T, 
+  template <int MISS_LAT, int HIT_LAT, int QLEN, typename DIM_T,
             template<typename> class ADDRMAP_T>
     class FuncDram : public MemSysDev
   {
   public:
     FuncDram():
-      banks(m.d.channels() * m.d.ranks() * m.d.banks()), accesses(0), hits(0)
+      banks(m.d.channels() * m.d.ranks() * m.d.banks()),
+      prevRow(banks.size(), -1), accesses(0), hits(0)
     {
       pthread_mutex_init(&lock, NULL);
     }
@@ -131,9 +132,11 @@ namespace Qcache {
     {
       pthread_mutex_lock(&lock);
 
-      unsigned bankIdx(getBankIdx(addr));
-      bool rowHit(banks[bankIdx].find(m.getRow(addr)) != banks[bankIdx].end());
-      banks[bankIdx].insert(m.getRow(addr));
+      unsigned bankIdx(getBankIdx(addr)), row(m.getRow(addr));
+      bool rowHit(banks[bankIdx].find(row) != banks[bankIdx].end() ||
+                  prevRow[bankIdx] != -1 && prevRow[bankIdx] == row);
+      banks[bankIdx].insert(row);
+      prevRow[bankIdx] = row;
 
       ASSERT(bankIdx < banks.size());
 
@@ -164,6 +167,7 @@ namespace Qcache {
     ADDRMAP_T<DIM_T> m;
 
     std::vector<std::multiset<addr_t> > banks;
+    std::vector<int> prevRow;
     std::queue<addr_t> accQ;
 
     uint64_t accesses, hits;
