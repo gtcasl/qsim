@@ -26,18 +26,11 @@
 #include <unistd.h>
 #include <sched.h>
 
-//#define ICOUNT
 #define CPULOCK
 //#define PROFILE
 
 #ifdef PROFILE
 #include <qsim-prof.h>
-#endif
-
-#ifdef ICOUNT
-  #define ICOUNT_MAX_CORES 256
-  uint64_t icount[ICOUNT_MAX_CORES];
-  uint64_t idlecount[ICOUNT_MAX_CORES];
 #endif
 
 using Qcache::ReplLRU;     using Qcache::CacheGrp;   using Qcache::Cache;
@@ -50,6 +43,7 @@ using Qcache::DramTiming1067;
 using Qcache::Dim4GB1Rank;
 using Qcache::Dim4GB2Rank;
 using Qcache::AddrMappingA;
+using Qcache::MemController;
 
 // <Coherence Protocol, Ways, log2(sets), log2(bytes/line), Replacement Policy>
 // Last parameter of L3 cache type says that it's shared.
@@ -58,10 +52,12 @@ typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplLRU        > l1d_t;
 typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplLRU        > l2_t;
 typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplLRU,  true> l3_t;
 
-typedef Qcache::MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA, 3>mc_t;
+// For now the L1 through LLC latency is a template parameter to mc_t.
+typedef MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA,30,3> mc_t;
+//typedef Qcache::FuncDram<200, 100, 3, Dim4GB2Rank, AddrMappingA> mc_t;
 
-typedef Qcache::CPUTimer<Qcache::InstLatencyForward> CPUTimer_t;
-//typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
+//typedef Qcache::CPUTimer<Qcache::InstLatencyForward> CPUTimer_t;
+typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
@@ -101,12 +97,6 @@ public:
   }
 
   ~CallbackAdaptor() {
-    #ifdef ICOUNT
-    for (unsigned i = 0; i < osd.get_n(); ++i) {
-      std::cout << "Instructions/idle for CPU " << i << ", " << icount[i]
-                << ", " << idlecount[i] << '\n';
-    }
-    #endif
     //osd.unset_inst_cb(icb_handle);
     //osd.unset_mem_cb(mcb_handle);
 
@@ -121,14 +111,6 @@ public:
     if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN)
       cpu[c].idleInst();
 
-    #ifdef ICOUNT
-    ++icount[c];
-    if (osd.idle(c)) ++idlecount[c];
-    if (icount[c] == 1000) {
-      running = false;
-      return;
-    }
-    #endif
     cpu[c].instCallback(p, t);
     //l1i.getCache(c).access(p, p, c, 0);
   }
@@ -192,7 +174,7 @@ void *thread_main(void *arg_vp) {
   pthread_barrier_wait(&b0);
   while(runningLocal) {
     bool doBarrier(true);
-    for (unsigned i = 0; i < 10000; ++i) {
+    for (unsigned i = 0; i < 2000; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
         if (cba_p->cpu[c].getCycle() >= arg->nextBarrier) continue;
 	bool runFail(osd_p->run(c, 100) == 0);
@@ -253,7 +235,8 @@ int main(int argc, char** argv) {
   // Build a Westmere-like 3-level cache hierarchy. Typedefs for these (which
   // determine the cache parameters) are at the top of the file.
   //Qcache::Tracer tracer(*traceOut);
-  mc_t mc(osd.get_n());
+  mc_t mc(osd.get_n()); // For qdram
+  //mc_t mc; // For FuncDram
   l3_t l3(mc, "L3");
   l2_t l2(osd.get_n(), l3, "L2");
   l1i_t l1_i(osd.get_n(), l2, "L1i");
@@ -262,7 +245,8 @@ int main(int argc, char** argv) {
   pthread_barrier_init(&b0, NULL, threads);
   pthread_barrier_init(&b1, NULL, threads);
 
-  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d, &mc);
+  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d, &mc); // qdram
+  //CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d); // FuncDram
 
   osd_p = &osd;
   cba_p = cba;

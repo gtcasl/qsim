@@ -132,9 +132,9 @@ private:
 
 template <int ISSUE, int RETIRE, int ROBLEN> class OOOCpuTimer {
 public:
-  OOOCpuTimer(int id, MemSysDev &dMem, MemSysDev &iMem):
+  OOOCpuTimer(int id, MemSysDev &dMem, MemSysDev &iMem, Tickable *mc=NULL):
     id(id), dMem(&dMem), robHead(0), robTail(0), cyc(0),
-    iMem(&iMem), now(0), issued(0)
+    iMem(&iMem), now(0), issued(0), mc(mc)
   { for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = false; }
 
   ~OOOCpuTimer() {
@@ -145,27 +145,27 @@ public:
 
   void instCallback(addr_t addr, inst_type type) {
     if (loadInst) {
-      int latency = dMem->access(loadAddr, loadPc, id, 0);
+      rob[robHead] = true;
+      int latency = dMem->access(loadAddr, loadPc, id, 0, &rob[robHead]);
       if (latency < 0) {
-        rob[robHead] = true;
       } else if (latency == 0) {
         rob[robHead] = false;
       } else if (latency > 0) {
-        rob[robHead] = true;
         sched(latency, &rob[robHead]);
       }
       loadInst = false;
     }
 
-    int latency = iMem->access(addr, addr, id, 0);
+    instFlag[0] = true;
+    int latency = iMem->access(addr, addr, id, 0, &instFlag[0]);
     if (latency > 0) {
-      instFlag[0] = true;
       sched(latency, instFlag);
     } else if (latency == 0) {
       instFlag[0] = false;
     }
     
-    while (instFlag[0]) tick();
+    MEM_BARRIER();
+    while (instFlag[0]) { tick(); MEM_BARRIER(); }
 
     if (issued >= ISSUE) tick();
 
@@ -194,6 +194,8 @@ private:
   void tick() {
     now++; cyc++;
 
+    if (mc) mc->tick();
+
     eq_t::iterator it;
     while ((it = eq.find(cyc)) != eq.end()) {
       *(it->second) = false;
@@ -217,6 +219,7 @@ private:
   bool loadInst;
   addr_t loadAddr, loadPc;
   MemSysDev *dMem, *iMem;
+  Tickable *mc;
 
   bool instFlag[1], rob[ROBLEN+1];
   int robHead, robTail;

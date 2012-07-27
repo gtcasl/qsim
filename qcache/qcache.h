@@ -7,6 +7,7 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <queue>
 
 #include <stdint.h>
 #include <pthread.h>
@@ -105,6 +106,69 @@ namespace Qcache {
    private:
     std::ostream &tracefile;
     int delay;
+  };
+
+  // Cycle-accurate DRAM is expensive and complex, so here's a fast functional
+  // model with configurable latency.
+  template <int MISS_LAT, int HIT_LAT, int QLEN, typename DIM_T, 
+            template<typename> class ADDRMAP_T>
+    class FuncDram : public MemSysDev
+  {
+  public:
+    FuncDram():
+      banks(m.d.channels() * m.d.ranks() * m.d.banks()), accesses(0), hits(0)
+    {
+      pthread_mutex_init(&lock, NULL);
+    }
+
+    ~FuncDram() {
+      if (!printResults) return;
+      std::cout << "FuncDram: " << accesses << ", " << hits << '\n';
+    }
+
+    int access(addr_t addr, addr_t pc, int core, int wr, bool *flagptr=NULL,
+               addr_t **lp = NULL)
+    {
+      pthread_mutex_lock(&lock);
+
+      unsigned bankIdx(getBankIdx(addr));
+      bool rowHit(banks[bankIdx].find(m.getRow(addr)) != banks[bankIdx].end());
+      banks[bankIdx].insert(m.getRow(addr));
+
+      ASSERT(bankIdx < banks.size());
+
+      ++accesses; if (rowHit) ++hits;
+
+      accQ.push(addr);
+      if (accQ.size() > QLEN) {
+        addr_t removeMe(accQ.front()); accQ.pop();
+        unsigned bankIdx(getBankIdx(removeMe)), row(m.getRow(removeMe));
+        ASSERT(banks[bankIdx].find(row) != banks[bankIdx].end());
+        banks[bankIdx].erase(banks[bankIdx].find(row));
+        ASSERT(banks[bankIdx].size() <= QLEN);
+      }
+
+      pthread_mutex_unlock(&lock);
+
+      return rowHit?HIT_LAT:MISS_LAT;
+    }
+
+    int getLatency() { return MISS_LAT; }
+
+  private:
+    unsigned getBankIdx(addr_t a) {
+      return m.d.banks()*(m.d.ranks()*m.getChannel(a) + m.getRank(a)) 
+             + m.getBank(a);
+    }
+
+    ADDRMAP_T<DIM_T> m;
+
+    std::vector<std::multiset<addr_t> > banks;
+    std::queue<addr_t> accQ;
+
+    uint64_t accesses, hits;
+
+    pthread_mutex_t lock;
   };
 
   template <int WAYS, int L2SETS, int L2LINESZ> class ReplRand {

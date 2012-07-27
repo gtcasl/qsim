@@ -6,7 +6,6 @@
 #include "qdram-event.h"
 
 namespace Qcache {
-
   enum DramBankState {
     ST_IDLE, ST_ACTIVE, ST_PRECHARGE_PDN, ST_ACTIVE_PDN
   };

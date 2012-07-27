@@ -25,7 +25,7 @@ namespace Qcache {
   };
 
   template <typename TIMING_T, typename DIM_T,
-            template<typename> class ADDRMAP_T, int TSCAL>
+            template<typename> class ADDRMAP_T, int CACHE_LATENCY, int TSCAL>
     class MemController : 
       public MemSysDev, public Tickable
   {
@@ -50,8 +50,6 @@ namespace Qcache {
     ) {
       int extraCyc(0);
       pthread_mutex_lock(&lock);
-
-      std::cout << "DRAM access: " << (wr?"-1":"1") << ", " << TSCAL*ticks << ", " << rdq.size() << ", " << wrq.size() << '\n';
 
       while (wr && wrq.size() >= wqlen) { tickEnd(); tickBegin(); ++extraCyc; }
       while (!wr && rdq.size() >= rqlen) { tickEnd(); tickBegin(); ++extraCyc; }
@@ -130,7 +128,7 @@ namespace Qcache {
           ch.issueRead(i->a);
           if (i->s) {
             finishQ.insert(std::pair<cycle_t, bool*>(
-              ticks + ch.t.tCL() + 4 + 30/TSCAL, i->f
+              ticks + ch.t.tCL() + 4 + CACHE_LATENCY/TSCAL, i->f
             ));
           }
           rdq.erase(i);
