@@ -133,6 +133,13 @@ namespace Qcache {
       else            { if (c[shctIdx] != 0)                  --c[shctIdx]; }
 
       reref[idx] = false;
+      rerefSig[idx] = 0; // This is used as a sentinel value meaning that the
+                         // sig still needs to be set.
+
+    }
+
+    void access(size_t idx, addr_t pc) {
+      if (rerefSig[idx] == 0) rerefSig[idx] = hash(pc);
     }
 
     void hit(size_t idx) {
@@ -365,7 +372,10 @@ namespace Qcache {
         eaf.access(set);
       }
 
-      if (IP == INSERT_SHIP && h) { shct.hit(idx); }
+      if (IP == INSERT_SHIP) {
+        shct.access(idx, pc);
+        if (h) shct.hit(idx);
+      }
 
       if (h) {
         if (!wb) ctr[idx] = 0;
