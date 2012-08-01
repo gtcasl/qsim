@@ -21,8 +21,7 @@ cd data
 
 /sbin/mark_app
 
-/sbin/qsim_in > extractme.tar
-tar -xvf extractme.tar
+/sbin/qsim_in | tar -x
 if [ $? != 0 ]; then
   echo Untar input failed. Are you providing a .tar archive? | /sbin/qsim_out
 fi
