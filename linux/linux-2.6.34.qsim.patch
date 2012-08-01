@@ -1,6 +1,6 @@
-diff -u -r linux-2.6.34/arch/x86/boot/bioscall.S linux-2.6.34.qsim//arch/x86/boot/bioscall.S
---- linux-2.6.34/arch/x86/boot/bioscall.S	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/boot/bioscall.S	2011-10-06 00:06:25.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/boot/bioscall.S linux-2.6.34.qsim/arch/x86/boot/bioscall.S
+--- linux-2.6.34/arch/x86/boot/bioscall.S	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/boot/bioscall.S	2012-07-31 12:34:36.238528278 -0700
 @@ -18,6 +18,7 @@
  	.globl	intcall
  	.type	intcall, @function
@@ -9,9 +9,9 @@ diff -u -r linux-2.6.34/arch/x86/boot/bioscall.S linux-2.6.34.qsim//arch/x86/boo
  	/* Self-modify the INT instruction.  Ugly, but works. */
  	cmpb	%al, 3f
  	je	1f
-diff -u -r linux-2.6.34/arch/x86/boot/main.c linux-2.6.34.qsim//arch/x86/boot/main.c
---- linux-2.6.34/arch/x86/boot/main.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/boot/main.c	2011-10-06 01:16:04.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/boot/main.c linux-2.6.34.qsim/arch/x86/boot/main.c
+--- linux-2.6.34/arch/x86/boot/main.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/boot/main.c	2012-07-31 12:34:36.238528278 -0700
 @@ -127,51 +127,41 @@
  
  void main(void)
@@ -85,9 +85,9 @@ diff -u -r linux-2.6.34/arch/x86/boot/main.c linux-2.6.34.qsim//arch/x86/boot/ma
  	/* Do the last things and invoke protected mode */
  	go_to_protected_mode();
  }
-diff -u -r linux-2.6.34/arch/x86/boot/tty.c linux-2.6.34.qsim//arch/x86/boot/tty.c
---- linux-2.6.34/arch/x86/boot/tty.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/boot/tty.c	2011-10-06 03:14:32.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/boot/tty.c linux-2.6.34.qsim/arch/x86/boot/tty.c
+--- linux-2.6.34/arch/x86/boot/tty.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/boot/tty.c	2012-07-31 12:34:36.238528278 -0700
 @@ -23,17 +23,9 @@
  
  void __attribute__((section(".inittext"))) putchar(int ch)
@@ -109,9 +109,9 @@ diff -u -r linux-2.6.34/arch/x86/boot/tty.c linux-2.6.34.qsim//arch/x86/boot/tty
  }
  
  void __attribute__((section(".inittext"))) puts(const char *str)
-diff -u -r linux-2.6.34/arch/x86/kernel/apic/apic.c linux-2.6.34.qsim//arch/x86/kernel/apic/apic.c
---- linux-2.6.34/arch/x86/kernel/apic/apic.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/kernel/apic/apic.c	2011-10-06 02:35:34.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/kernel/apic/apic.c linux-2.6.34.qsim/arch/x86/kernel/apic/apic.c
+--- linux-2.6.34/arch/x86/kernel/apic/apic.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/kernel/apic/apic.c	2012-07-31 12:34:36.238528278 -0700
 @@ -609,14 +609,6 @@
  	 */
  	__setup_APIC_LVTT(0xffffffff, 0, 0);
@@ -155,9 +155,9 @@ diff -u -r linux-2.6.34/arch/x86/kernel/apic/apic.c linux-2.6.34.qsim//arch/x86/
  
  	physid_set(apicid, phys_cpu_present_map);
  	if (apicid == boot_cpu_physical_apicid) {
-diff -u -r linux-2.6.34/arch/x86/kernel/apic/ipi.c linux-2.6.34.qsim//arch/x86/kernel/apic/ipi.c
---- linux-2.6.34/arch/x86/kernel/apic/ipi.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/kernel/apic/ipi.c	2011-10-06 00:28:17.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/kernel/apic/ipi.c linux-2.6.34.qsim/arch/x86/kernel/apic/ipi.c
+--- linux-2.6.34/arch/x86/kernel/apic/ipi.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/kernel/apic/ipi.c	2012-07-31 12:34:36.238528278 -0700
 @@ -19,22 +19,22 @@
  #include <asm/proto.h>
  #include <asm/ipi.h>
@@ -309,9 +309,9 @@ diff -u -r linux-2.6.34/arch/x86/kernel/apic/ipi.c linux-2.6.34.qsim//arch/x86/k
  }
  
  int safe_smp_processor_id(void)
-diff -u -r linux-2.6.34/arch/x86/kernel/mpparse.c linux-2.6.34.qsim//arch/x86/kernel/mpparse.c
---- linux-2.6.34/arch/x86/kernel/mpparse.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/kernel/mpparse.c	2011-10-06 03:09:50.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/kernel/mpparse.c linux-2.6.34.qsim/arch/x86/kernel/mpparse.c
+--- linux-2.6.34/arch/x86/kernel/mpparse.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/kernel/mpparse.c	2012-07-31 12:34:36.238528278 -0700
 @@ -6,6 +6,11 @@
   *	(c) 1998, 1999, 2000, 2009 Ingo Molnar <mingo@redhat.com>
   *      (c) 2008 Alexey Starikovskiy <astarikovskiy@suse.de>
@@ -411,9 +411,30 @@ diff -u -r linux-2.6.34/arch/x86/kernel/mpparse.c linux-2.6.34.qsim//arch/x86/ke
  }
  
  static void __init smp_reserve_memory(struct mpf_intel *mpf)
-diff -u -r linux-2.6.34/arch/x86/kernel/rtc.c linux-2.6.34.qsim//arch/x86/kernel/rtc.c
---- linux-2.6.34/arch/x86/kernel/rtc.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/kernel/rtc.c	2011-10-06 01:35:29.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/kernel/ptrace.c linux-2.6.34.qsim/arch/x86/kernel/ptrace.c
+--- linux-2.6.34/arch/x86/kernel/ptrace.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/kernel/ptrace.c	2012-07-31 13:29:53.329857305 -0700
+@@ -1730,7 +1730,7 @@
+  * We must return the syscall number to actually look up in the table.
+  * This can be -1L to skip running any syscall at all.
+  */
+-asmregparm long syscall_trace_enter(struct pt_regs *regs)
++long syscall_trace_enter(struct pt_regs *regs)
+ {
+ 	long ret = 0;
+ 
+@@ -1775,7 +1775,7 @@
+ 	return ret ?: regs->orig_ax;
+ }
+ 
+-asmregparm void syscall_trace_leave(struct pt_regs *regs)
++void syscall_trace_leave(struct pt_regs *regs)
+ {
+ 	bool step;
+ 
+diff -u -r linux-2.6.34/arch/x86/kernel/rtc.c linux-2.6.34.qsim/arch/x86/kernel/rtc.c
+--- linux-2.6.34/arch/x86/kernel/rtc.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/kernel/rtc.c	2012-07-31 12:34:36.238528278 -0700
 @@ -97,50 +97,7 @@
  
  unsigned long mach_get_cmos_time(void)
@@ -466,9 +487,9 @@ diff -u -r linux-2.6.34/arch/x86/kernel/rtc.c linux-2.6.34.qsim//arch/x86/kernel
  }
  
  /* Routines for accessing the CMOS RAM/RTC. */
-diff -u -r linux-2.6.34/arch/x86/kernel/setup.c linux-2.6.34.qsim//arch/x86/kernel/setup.c
---- linux-2.6.34/arch/x86/kernel/setup.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/kernel/setup.c	2011-10-06 00:40:41.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/kernel/setup.c linux-2.6.34.qsim/arch/x86/kernel/setup.c
+--- linux-2.6.34/arch/x86/kernel/setup.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/kernel/setup.c	2012-07-31 12:34:36.238528278 -0700
 @@ -1015,8 +1015,9 @@
  
  	/*
@@ -480,9 +501,9 @@ diff -u -r linux-2.6.34/arch/x86/kernel/setup.c linux-2.6.34.qsim//arch/x86/kern
  		get_smp_config();
  
  	prefill_possible_map();
-diff -u -r linux-2.6.34/arch/x86/kernel/smpboot.c linux-2.6.34.qsim//arch/x86/kernel/smpboot.c
---- linux-2.6.34/arch/x86/kernel/smpboot.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/kernel/smpboot.c	2011-10-06 01:03:35.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/kernel/smpboot.c linux-2.6.34.qsim/arch/x86/kernel/smpboot.c
+--- linux-2.6.34/arch/x86/kernel/smpboot.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/kernel/smpboot.c	2012-07-31 12:34:36.238528278 -0700
 @@ -76,6 +76,13 @@
  static int low_mappings;
  #endif
@@ -606,9 +627,9 @@ diff -u -r linux-2.6.34/arch/x86/kernel/smpboot.c linux-2.6.34.qsim//arch/x86/ke
  	 * Should not be necessary because the MP table should list the boot
  	 * CPU too, but we do it for the sake of robustness anyway.
  	 */
-diff -u -r linux-2.6.34/arch/x86/vdso/Makefile linux-2.6.34.qsim//arch/x86/vdso/Makefile
---- linux-2.6.34/arch/x86/vdso/Makefile	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//arch/x86/vdso/Makefile	2011-10-06 00:53:16.000000000 -0400
+diff -u -r linux-2.6.34/arch/x86/vdso/Makefile linux-2.6.34.qsim/arch/x86/vdso/Makefile
+--- linux-2.6.34/arch/x86/vdso/Makefile	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/arch/x86/vdso/Makefile	2012-07-31 12:34:36.238528278 -0700
 @@ -25,7 +25,7 @@
  
  export CPPFLAGS_vdso.lds += -P -C
@@ -627,9 +648,9 @@ diff -u -r linux-2.6.34/arch/x86/vdso/Makefile linux-2.6.34.qsim//arch/x86/vdso/
  
  # This makes sure the $(obj) subdirectory exists even though vdso32/
  # is not a kbuild sub-make subdirectory.
-diff -u -r linux-2.6.34/drivers/serial/8250.c linux-2.6.34.qsim//drivers/serial/8250.c
---- linux-2.6.34/drivers/serial/8250.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//drivers/serial/8250.c	2011-10-06 02:44:30.000000000 -0400
+diff -u -r linux-2.6.34/drivers/serial/8250.c linux-2.6.34.qsim/drivers/serial/8250.c
+--- linux-2.6.34/drivers/serial/8250.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/drivers/serial/8250.c	2012-07-31 12:34:36.238528278 -0700
 @@ -49,6 +49,12 @@
  #include "suncore.h"
  #endif
@@ -700,9 +721,9 @@ diff -u -r linux-2.6.34/drivers/serial/8250.c linux-2.6.34.qsim//drivers/serial/
  }
  
  static void
-diff -u -r linux-2.6.34/kernel/sched.c linux-2.6.34.qsim//kernel/sched.c
---- linux-2.6.34/kernel/sched.c	2010-05-16 17:17:36.000000000 -0400
-+++ linux-2.6.34.qsim//kernel/sched.c	2011-10-06 00:59:09.000000000 -0400
+diff -u -r linux-2.6.34/kernel/sched.c linux-2.6.34.qsim/kernel/sched.c
+--- linux-2.6.34/kernel/sched.c	2010-05-16 14:17:36.000000000 -0700
++++ linux-2.6.34.qsim/kernel/sched.c	2012-07-31 12:34:36.238528278 -0700
 @@ -2907,6 +2907,10 @@
  {
  	struct mm_struct *mm, *oldmm;
