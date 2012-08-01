@@ -129,8 +129,6 @@ namespace Qcache {
     void evict(size_t idx) {
       unsigned shctIdx(rerefSig[idx]);
  
-      std::cout << "evict shctIdx=" << shctIdx << ", " << (reref[idx]?"Hit.\n":"No hit.\n");
-
       if (reref[idx]) { if (c[shctIdx] != ((1<<SHCT_BITS)-1)) ++c[shctIdx]; }
       else            { if (c[shctIdx] != 0)                  --c[shctIdx]; }
 
