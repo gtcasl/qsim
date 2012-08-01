@@ -128,18 +128,17 @@ namespace Qcache {
 
     void evict(size_t idx) {
       unsigned shctIdx(rerefSig[idx]);
+ 
+      std::cout << "evict shctIdx=" << shctIdx << ", " << (reref[idx]?"Hit.\n":"No hit.\n");
 
       if (reref[idx]) { if (c[shctIdx] != ((1<<SHCT_BITS)-1)) ++c[shctIdx]; }
       else            { if (c[shctIdx] != 0)                  --c[shctIdx]; }
 
       reref[idx] = false;
-      rerefSig[idx] = 0; // This is used as a sentinel value meaning that the
-                         // sig still needs to be set.
-
     }
 
-    void access(size_t idx, addr_t pc) {
-      if (rerefSig[idx] == 0) rerefSig[idx] = hash(pc);
+    void insert(size_t idx, addr_t pc) {
+      rerefSig[idx] = hash(pc);
     }
 
     void hit(size_t idx) {
@@ -373,8 +372,8 @@ namespace Qcache {
       }
 
       if (IP == INSERT_SHIP) {
-        shct.access(idx, pc);
         if (h) shct.hit(idx);
+        else shct.insert(idx, pc);
       }
 
       if (h) {
