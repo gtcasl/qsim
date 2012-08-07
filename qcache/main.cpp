@@ -37,7 +37,7 @@ using Qcache::ReplLRU;     using Qcache::CacheGrp;   using Qcache::Cache;
 using Qcache::CPNull;      using Qcache::CPDirMoesi; using Qcache::ReplRand;
 using Qcache::ReplLRU_BIP; using Qcache::ReplDRRIP;  using Qcache::ReplLRU_DIP;
 using Qcache::ReplLRU_LIP; using Qcache::ReplSRRIP;  using Qcache::ReplBRRIP;
-using Qcache::ReplLRU_EAF; using Qcache::ReplERRIP;
+using Qcache::ReplLRU_EAF; using Qcache::ReplERRIP;  using Qcache::ReplSHIP;
 
 using Qcache::DramTiming1067;
 using Qcache::Dim4GB1Rank;
@@ -50,14 +50,14 @@ using Qcache::MemController;
 typedef Qcache::CacheGrp< 0, CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplLRU        > l1d_t;
 typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplLRU        > l2_t;
-typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplLRU,  true> l3_t;
+typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplERRIP,  true> l3_t;
 
 // For now the L1 through LLC latency is a template parameter to mc_t.
-typedef MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA,30,3> mc_t;
-//typedef Qcache::FuncDram<200, 100, 3, Dim4GB2Rank, AddrMappingA> mc_t;
+//typedef MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA,30,3> mc_t;
+typedef Qcache::FuncDram<200, 100, 3, Dim4GB2Rank, AddrMappingA> mc_t;
 
-//typedef Qcache::CPUTimer<Qcache::InstLatencyForward> CPUTimer_t;
-typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
+typedef Qcache::CPUTimer<Qcache::InstLatencyForward, 2> CPUTimer_t;
+//typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
@@ -235,8 +235,8 @@ int main(int argc, char** argv) {
   // Build a Westmere-like 3-level cache hierarchy. Typedefs for these (which
   // determine the cache parameters) are at the top of the file.
   //Qcache::Tracer tracer(*traceOut);
-  mc_t mc(osd.get_n()); // For qdram
-  //mc_t mc; // For FuncDram
+  //mc_t mc(osd.get_n()); // For qdram
+  mc_t mc; // For FuncDram
   l3_t l3(mc, "L3");
   l2_t l2(osd.get_n(), l3, "L2");
   l1i_t l1_i(osd.get_n(), l2, "L1i");
@@ -245,8 +245,8 @@ int main(int argc, char** argv) {
   pthread_barrier_init(&b0, NULL, threads);
   pthread_barrier_init(&b1, NULL, threads);
 
-  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d, &mc); // qdram
-  //CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d); // FuncDram
+  //CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d, &mc); // qdram
+  CallbackAdaptor *cba = new CallbackAdaptor(osd, l1_i, l1_d); // FuncDram
 
   osd_p = &osd;
   cba_p = cba;

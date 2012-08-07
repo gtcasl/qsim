@@ -27,12 +27,13 @@ struct InstLatencyForward {
   int maxLatency() { return 2; }
 };
 
-template <typename TIMINGS> class CPUTimer {
+ template <typename TIMINGS, int ISSUEWIDTH=1> class CPUTimer {
 public:
  CPUTimer(int id, MemSysDev &dMem, MemSysDev &iMem, Tickable *mc=NULL):
     id(id), dMem(&dMem), cyc(0), now(0), stallCycles(0),
     loadInst(false), iMem(&iMem), mc(mc),
-    eq(dMem.getLatency(), std::vector<bool>(QSIM_N_REGS)), dloads(0), xloads(0)
+    eq(dMem.getLatency(), std::vector<bool>(QSIM_N_REGS)), dloads(0), xloads(0),
+    issued(0)
   { for (unsigned i = 0; i < QSIM_N_REGS; ++i) notReady[i] = false; }
 
   ~CPUTimer() {
@@ -44,7 +45,7 @@ public:
   void idleInst() { advance(); }
 
   void instCallback(addr_t addr, inst_type type) {
-    advance();
+    if (++issued >= ISSUEWIDTH) { advance(); issued = 0; }
     curType = type;
 
     if (loadInst) {
@@ -55,11 +56,11 @@ public:
       loadInst = false;
     }
 
-    int latency = iMem->access(addr, addr, id, 0, &instFlag[0]);
+    int latency = iMem->access(addr, addr, id, 0, &instFlag[issued]);
     if (latency < 0) {
-      instFlag[0] = true;
+      instFlag[issued] = true;
       MEM_BARRIER();
-      while (instFlag[0]) { advance(); ++stallCycles; MEM_BARRIER(); }
+      while (instFlag[issued]) { advance(); ++stallCycles; MEM_BARRIER(); }
     } else {
       for (unsigned i = 0; i < latency; ++i) { advance(); ++stallCycles; }
     }
@@ -119,13 +120,13 @@ private:
   }
 
   TIMINGS t;
-  int id, dloads, xloads;
+  int id, dloads, xloads, issued;
   cycle_t cyc, now, stallCycles;
   bool loadInst;
   addr_t loadAddr, loadPc;
   inst_type curType;
   MemSysDev *dMem, *iMem;
-  bool notReady[QSIM_N_REGS], instFlag[1];
+  bool notReady[QSIM_N_REGS], instFlag[ISSUEWIDTH];
   std::vector<std::vector<bool> > eq;
   Tickable *mc;
 };

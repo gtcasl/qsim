@@ -14,14 +14,13 @@ TARFILES=$BENCHMARK_DIR/*-tar/*.tar
 THREADCOUNTS=1
 GUESTCORECOUNT=1
 
-echo > $LOGFILE
-
 for TAR in `cat BENCHMARKS`; do
   APP=`echo $TAR | sed 's/\.tar//' | sed 's/^.*\///'`
+  echo > $LOGFILE.$APP
   echo === $APP ===
   for i in $THREADCOUNTS; do
     echo -n "$i "
-    $QCPROG ../state.$GUESTCORECOUNT $TAR $i TRACE.$APP.$i >> $LOGFILE
+    $QCPROG ../state.$GUESTCORECOUNT $TAR $i TRACE.$APP.$i >> $LOGFILE.$APP
   done
   echo
 done
