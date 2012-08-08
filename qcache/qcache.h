@@ -74,6 +74,7 @@ namespace Qcache {
     virtual void setUpperLevel(MemSysDev *) {}
 
     virtual bool isShared() { return true; }
+    virtual bool isExclusive() { return false; }
 
     enum AccType {
       READ = 0,
@@ -204,7 +205,7 @@ namespace Qcache {
   template
     <int LATENCY, template<int, typename> class CPROT_T,
     int WAYS, int L2SETS, int L2LINESZ, template<int, int, int> class REPL_T,
-    bool SHARED=false>
+    bool SHARED=false, bool EXCLUSIVE=false>
   class Cache : public MemSysDev
   {
    public:
@@ -249,6 +250,8 @@ namespace Qcache {
                 << ", " << writebacks << ", " << invalidates << ", "
                 << (100.0*misses)/accesses << "%\n";
     }
+
+   bool isExclusive() { return EXCLUSIVE; }
 
     int getLatency() { return LATENCY + lowerLevel->getLatency(); }
 
@@ -295,6 +298,11 @@ namespace Qcache {
           // Check with the coherence protocol-- we can still be invalidated!
           hit = cprot->hitAddr(id, addr, false, &setLocks[set], &tagarray[idx],
                                wr);
+          if (EXCLUSIVE && hit && !wr) {
+            // Since the level above the exclusive cache is assumed to be
+            // allocate-on-miss, this line must now be invalidated.
+            tagarray[idx] &= ~stateMask;
+          }
           if (!hit) { spin_lock(&setLocks[set]); break; }
           else if (lineptr) *lineptr = &tagarray[idx];
         }
@@ -302,90 +310,100 @@ namespace Qcache {
 
       if (!hit) {
         if (!wr) ++misses;
+ 
+        if (!EXCLUSIVE || wr==WRITEBACK) {
+          size_t vidx(repl.findVictim(set));
+          addr_t victimAddr(tagarray[vidx]&~stateMask);
+          int victimState(tagarray[vidx]&stateMask);
+          uint64_t victimVal(tagarray[vidx]);
 
-        size_t vidx(repl.findVictim(set));
-        addr_t victimAddr(tagarray[vidx]&~stateMask);
-        int victimState(tagarray[vidx]&stateMask);
-        uint64_t victimVal(tagarray[vidx]);
+          // Lock the victim address if this is the LLPC and there is a valid
+          // line to evict.
+          bool victimLocked(lowerLevel->isShared() && victimState);
 
-        // Lock the victim address if this is the LLPC and there is a valid
-        // line to evict.
-        bool victimLocked(lowerLevel->isShared() && victimState);
-
-        ASSERT(vidx >= set*WAYS && vidx < (set+1)*WAYS);
-        ASSERT(victimState == 0 || victimAddr != addr);
+          ASSERT(vidx >= set*WAYS && vidx < (set+1)*WAYS);
+          ASSERT(victimState == 0 || victimAddr != addr);
         
-        spin_unlock(&setLocks[set]);
+          spin_unlock(&setLocks[set]);
 
-        if (victimLocked) l1LockAddr(victimAddr);
-        spin_lock(&setLocks[set]);
+          if (victimLocked) l1LockAddr(victimAddr);
+          spin_lock(&setLocks[set]);
 
-	// The victim state may have changed:
-        if ((tagarray[vidx]&stateMask) != victimState) {
-          // Nothing should ever cause the address of the victim to change.
-          ASSERT(victimAddr == (tagarray[vidx]&~stateMask));
+  	  // The victim state may have changed:
+          if ((tagarray[vidx]&stateMask) != victimState) {
+            // Nothing should ever cause the address of the victim to change.
+            ASSERT(victimAddr == (tagarray[vidx]&~stateMask));
 
-          // Update victim state.
-          victimState = (tagarray[vidx]&stateMask);
-        }
+            // Update victim state.
+            victimState = (tagarray[vidx]&stateMask);
+          }
 
-        spin_unlock(&setLocks[set]);
+          spin_unlock(&setLocks[set]);
 
-        if (victimState) {
-          // Now it's "always write back evicted lines" to ensure the line is
-          // in the lower level private cache. Strictly inclusive caches would
-          // be a way to avoid this.  
-          bool doWriteback;
-          if (lowerLevel->isShared()) {
-            doWriteback = cprot->dirty(victimState);
+          if (victimState) {
+            // Now it's "always write back evicted lines" to ensure the line is
+            // in the lower level private cache. Strictly inclusive caches would
+            // be a way to avoid this.  
+            bool doWriteback;
+            if (lowerLevel->isShared()) {
+              doWriteback = lowerLevel->isExclusive() 
+                              || cprot->dirty(victimState);
+            } else {
+              doWriteback = wbState = true;
+            }
+
+            if (doWriteback)
+              lowerLevel->access(victimAddr,pc,core, WRITEBACK, 0, &llLineptr);
+          }
+
+          if (victimLocked) {
+            l1EvictAddr(victimAddr);
+            l1UnlockAddr(victimAddr);
+          }
+        
+          // Lock access block.
+          cprot->lockAddr(addr, id);
+          spin_lock(&setLocks[set]);
+
+          // An invalid victim shouldn't have magically become valid.
+          ASSERT(victimState || !(tagarray[vidx] & stateMask));
+
+          if (wbState) {
+            *llLineptr &= ~stateMask;
+            *llLineptr |= tagarray[vidx] & stateMask;
+          }
+
+          tagarray[vidx] = addr|0x01;
+          repl.updateRepl(set, vidx, false, wr, wr==WRITEBACK, pc, core);
+          spin_unlock(&setLocks[set]);
+
+          if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) &&
+              wr != WRITEBACK)
+          {
+            lat = lowerLevel->access(
+              tag<<L2LINESZ, pc, core, READ, flagptr, &llLineptr
+            );
+
+            if (!lowerLevel->isShared()) {
+              tagarray[vidx] &= ~stateMask;
+              tagarray[vidx] |= (*llLineptr & stateMask);
+            }
           } else {
-            doWriteback = wbState = true;
+            lat = 20; // TODO: make remote priv. cache hit latency a parameter.
           }
-
-          if (doWriteback && lowerLevel) {
-            lowerLevel->access(victimAddr, pc, core, WRITEBACK, 0, &llLineptr);
-          }
-        }
-
-        if (victimLocked) {
-          l1EvictAddr(victimAddr);
-          l1UnlockAddr(victimAddr);
-        }
         
-        // Lock access block.
-        cprot->lockAddr(addr, id);
-        spin_lock(&setLocks[set]);
+          if (!lowerLevel->isShared()) lowerLevel->invalidate(tag<<L2LINESZ);
 
-        // An invalid victim shouldn't have magically become valid.
-        ASSERT(victimState || !(tagarray[vidx] & stateMask));
+          if (lineptr) *lineptr = &tagarray[vidx];
 
-        if (wbState) {
-          *llLineptr &= ~stateMask;
-          *llLineptr |= tagarray[vidx] & stateMask;
+          // Unlock access block.
+          cprot->unlockAddr(addr, id);
+	} else {
+          // This is an exclusive cache, and this access is not a writeback, so
+          // nothing gets allocated.
+          spin_unlock(&setLocks[set]);
+          lat = lowerLevel->access(tag<<L2LINESZ, pc, core, wr, flagptr, NULL);
         }
-
-        tagarray[vidx] = addr|0x01;
-        repl.updateRepl(set, vidx, false, wr, wr==WRITEBACK, pc, core);
-        spin_unlock(&setLocks[set]);
-
-        if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) && wr != WRITEBACK)
-        {
-          lat = lowerLevel->access(
-            tag<<L2LINESZ, pc, core, READ, flagptr, &llLineptr
-          );
-
-          if (!lowerLevel->isShared()) {
-            tagarray[vidx] &= ~stateMask;
-            tagarray[vidx] |= (*llLineptr & stateMask);
-          }
-        }
-        
-        if (!lowerLevel->isShared()) lowerLevel->invalidate(tag<<L2LINESZ);
-
-        if (lineptr) *lineptr = &tagarray[vidx];
-
-        // Unlock access block.
-        cprot->unlockAddr(addr, id);
       }
 
       if (SHARED) spin_unlock(&accessLock);
@@ -535,8 +553,8 @@ namespace Qcache {
       // and modified in M[[O]E]SI, respectively. This enables noncoherent
       // reading of lines containing code.
       STATE_I = 0x00, // Invalid
-      STATE_M = 0x02, // Present
-      STATE_P = 0x05  // Modified
+      STATE_M = 0x02, // Modified
+      STATE_P = 0x05  // Present
     };
 
     void lockAddr(addr_t addr, int id)   {}

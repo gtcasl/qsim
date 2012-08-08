@@ -46,18 +46,18 @@ using Qcache::AddrMappingA;
 using Qcache::MemController;
 
 // <Coherence Protocol, Ways, log2(sets), log2(bytes/line), Replacement Policy>
-// Last parameter of L3 cache type says that it's shared.
+// Last parameters of L3 cache type says that it's shared and exclusive.
 typedef Qcache::CacheGrp< 0, CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplLRU        > l1d_t;
 typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplLRU        > l2_t;
-typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplERRIP,  true> l3_t;
+typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplDRRIP,  true, true> l3_t;
 
 // For now the L1 through LLC latency is a template parameter to mc_t.
 //typedef MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA,30,3> mc_t;
 typedef Qcache::FuncDram<200, 100, 3, Dim4GB2Rank, AddrMappingA> mc_t;
 
-typedef Qcache::CPUTimer<Qcache::InstLatencyForward, 2> CPUTimer_t;
-//typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
+//typedef Qcache::CPUTimer<Qcache::InstLatencyForward, 2> CPUTimer_t;
+typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
