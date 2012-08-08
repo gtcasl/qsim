@@ -69,7 +69,7 @@ namespace Qcache {
     virtual void l1LockAddr(addr_t addr) { ASSERT(false); }
     virtual void l1UnlockAddr(addr_t addr) { ASSERT(false); }
     virtual void l1EvictAddr(addr_t addr) { ASSERT(false); }
-
+    virtual bool l1IsExclusive(addr_t addr, int id) { ASSERT(false); }
 
     virtual void setUpperLevel(MemSysDev *) {}
 
@@ -251,7 +251,7 @@ namespace Qcache {
                 << (100.0*misses)/accesses << "%\n";
     }
 
-   bool isExclusive() { return EXCLUSIVE; }
+    bool isExclusive() { return EXCLUSIVE; }
 
     int getLatency() { return LATENCY + lowerLevel->getLatency(); }
 
@@ -268,6 +268,11 @@ namespace Qcache {
     void l1EvictAddr(addr_t addr) {
       if (!upperLevel) cprot->evAddr(id, addr);
       else upperLevel->l1EvictAddr(addr);
+    }
+
+    bool l1IsExclusive(addr_t addr, int id) {
+      if (!upperLevel) return cprot->isExclusive(addr, id);
+      else return upperLevel->l1IsExclusive(addr, id);
     }
 
     int access(addr_t addr, addr_t pc, int core, int wr,
@@ -346,8 +351,9 @@ namespace Qcache {
             // be a way to avoid this.  
             bool doWriteback;
             if (lowerLevel->isShared()) {
-              doWriteback = lowerLevel->isExclusive() 
-                              || cprot->dirty(victimState);
+              doWriteback = (lowerLevel->isExclusive() &&
+ 			      (!victimLocked || l1IsExclusive(victimAddr, id)))
+                                || cprot->dirty(victimState);
             } else {
               doWriteback = wbState = true;
             }
@@ -581,6 +587,8 @@ namespace Qcache {
     bool dirty(int state) {
       return state == STATE_M;
     }
+
+    bool isExclusive(addr_t addr, int id) { return true; }
   };
 };
 #endif

@@ -57,6 +57,16 @@ namespace Qcache {
     void addAddr(addr_t addr, int id) { dir.addAddr(addr, id); }
     void remAddr(addr_t addr, int id) { dir.remAddr(addr, id); }
 
+    bool isExclusive(addr_t addr, int id) {
+      std::set<int>::iterator it;
+      bool exclusive(true);
+      for (it = dir.idsBegin(addr, id); it != dir.idsEnd(addr, id); ++it) {
+        if (*it == id) continue;
+        exclusive = false;
+      }
+      return exclusive;
+    }
+
     bool hitAddr(int id, addr_t addr, bool locked,
                  spinlock_t *setLock, uint64_t *line, bool wr)
     {
