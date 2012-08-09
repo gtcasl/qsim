@@ -50,7 +50,7 @@ using Qcache::MemController;
 typedef Qcache::CacheGrp< 0, CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplLRU        > l1d_t;
 typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplLRU        > l2_t;
-typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplDRRIP,  true, true> l3_t;
+typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplDRRIP,  true, false> l3_t;
 
 // For now the L1 through LLC latency is a template parameter to mc_t.
 //typedef MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA,30,3> mc_t;
@@ -112,7 +112,6 @@ public:
       cpu[c].idleInst();
 
     cpu[c].instCallback(p, t);
-    //l1i.getCache(c).access(p, p, c, 0);
   }
 
   void reg_cb(int c, int r, uint8_t size, int wr) {

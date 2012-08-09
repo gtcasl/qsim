@@ -59,12 +59,11 @@ namespace Qcache {
 
     bool isExclusive(addr_t addr, int id) {
       std::set<int>::iterator it;
-      bool exclusive(true);
       for (it = dir.idsBegin(addr, id); it != dir.idsEnd(addr, id); ++it) {
         if (*it == id) continue;
-        exclusive = false;
+        return false;
       }
-      return exclusive;
+      return true;
     }
 
     bool hitAddr(int id, addr_t addr, bool locked,
@@ -134,7 +133,7 @@ namespace Qcache {
       }
     }
 
-    bool missAddr(int id, addr_t addr, uint64_t *line, bool wr) {
+    bool missAddr(int id, addr_t addr, uint64_t *line, bool wr, bool dirty) {
       if (dir.hasId(addr, id)) {
         // It's in a lower-level private cache on the same core.
         hitAddr(id, addr, true, NULL, line, wr);
@@ -158,8 +157,12 @@ namespace Qcache {
 
         spinlock_t *l;
         uint64_t *remLine = caches[*it].cprotLookup(addr, l, wr);
-        if (wr) {
+        if (!remLine) continue;
+        if (wr && dirty) {
           setState(remLine, STATE_I);
+          while (remLine = caches[*it].cprotLookup(addr, l, wr, false)) {
+            setState(remLine, STATE_I);
+          }
         } else {
 #ifdef __QCACHE_DEF_MOESI
           // MOESI doesn't have to do a writeback yet.
@@ -173,7 +176,7 @@ namespace Qcache {
 #else
           // This line has to be written back.
           if (getState(remLine) == STATE_M && caches[*it].lowerLevel) {
-            caches[*it].lowerLevel->access(addr, true);
+            caches[*it].lowerLevel->access(addr, true, *it, /*WRITEBACK_D*/3);
           }
 
           setState(remLine, STATE_S);
@@ -181,9 +184,9 @@ namespace Qcache {
         }
         spin_unlock(l);
       }
-      if (wr) dir.clearIds(addr, id);
+      if (wr && dirty) dir.clearIds(addr, id);
 
-      if (wr)          st = STATE_M;
+      if (wr && dirty) st = STATE_M;
 #ifdef __QCACHE_DEF_MSI
       else             st = STATE_S;
 #else

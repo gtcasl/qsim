@@ -20,6 +20,8 @@
 //#define DEBUG
 //#define ENABLE_ASSERTIONS
 
+#define SHARED_LINE_LATENCY 20 // TODO: This should be some sort of parameter.
+
 #ifdef ENABLE_ASSERTIONS
 #define ASSERT(b) do { if (!(b)) { \
   std::cerr << "Error: Failed assertion at " << __FILE__ << ':' << std::dec \
@@ -79,7 +81,8 @@ namespace Qcache {
     enum AccType {
       READ = 0,
       WRITE = 1,
-      WRITEBACK = 2
+      WRITEBACK_C = 2, /* Writebacks can be of clean or dirty lines. */
+      WRITEBACK_D = 3
     };
   };
 
@@ -282,13 +285,15 @@ namespace Qcache {
       int lat = 0;
 
       addr_t *llLineptr;
-      bool wbState = false;
+      bool wbState(false);
+      bool writeback(wr == WRITEBACK_C || wr == WRITEBACK_D);
+      bool makeDirty(wr == WRITEBACK_D || wr == WRITE);
 
       // Writebacks are not included in the miss or access count.
       if (SHARED) spin_lock(&accessLock);
 
       if (!wr) ++accesses;
-      if (wr == WRITEBACK) ++writebacks;
+      if (writeback) ++writebacks;
 
       addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
              set(tag%(1<<L2SETS));
@@ -299,11 +304,11 @@ namespace Qcache {
       addr_t idx;
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
-          repl.updateRepl(set, idx, true, wr, wr==WRITEBACK, pc, core);
+          repl.updateRepl(set, idx, true, wr, writeback, pc, core);
           // Check with the coherence protocol-- we can still be invalidated!
           hit = cprot->hitAddr(id, addr, false, &setLocks[set], &tagarray[idx],
                                wr);
-          if (EXCLUSIVE && hit && !wr) {
+          if (EXCLUSIVE && hit && !wr && (pc&~stateMask) != addr) {
             // Since the level above the exclusive cache is assumed to be
             // allocate-on-miss, this line must now be invalidated.
             tagarray[idx] &= ~stateMask;
@@ -316,7 +321,7 @@ namespace Qcache {
       if (!hit) {
         if (!wr) ++misses;
  
-        if (!EXCLUSIVE || wr==WRITEBACK) {
+        if (!EXCLUSIVE || writeback || (pc&~stateMask) == addr) {
           size_t vidx(repl.findVictim(set));
           addr_t victimAddr(tagarray[vidx]&~stateMask);
           int victimState(tagarray[vidx]&stateMask);
@@ -358,8 +363,10 @@ namespace Qcache {
               doWriteback = wbState = true;
             }
 
-            if (doWriteback)
-              lowerLevel->access(victimAddr,pc,core, WRITEBACK, 0, &llLineptr);
+            if (doWriteback) {
+              AccType wbType(cprot->dirty(victimState)?WRITEBACK_D:WRITEBACK_C);
+              lowerLevel->access(victimAddr,pc,core, wbType, 0, &llLineptr);
+            }
           }
 
           if (victimLocked) {
@@ -380,11 +387,11 @@ namespace Qcache {
           }
 
           tagarray[vidx] = addr|0x01;
-          repl.updateRepl(set, vidx, false, wr, wr==WRITEBACK, pc, core);
+          repl.updateRepl(set, vidx, false, wr, writeback, pc, core);
           spin_unlock(&setLocks[set]);
 
-          if (!cprot->missAddr(id, addr, &tagarray[vidx], wr) &&
-              wr != WRITEBACK)
+          if (!cprot->missAddr(id, addr, &tagarray[vidx], wr, makeDirty)
+              && !writeback)
           {
             lat = lowerLevel->access(
               tag<<L2LINESZ, pc, core, READ, flagptr, &llLineptr
@@ -395,7 +402,7 @@ namespace Qcache {
               tagarray[vidx] |= (*llLineptr & stateMask);
             }
           } else {
-            lat = 20; // TODO: make remote priv. cache hit latency a parameter.
+            lat = SHARED_LINE_LATENCY;
           }
         
           if (!lowerLevel->isShared()) lowerLevel->invalidate(tag<<L2LINESZ);
@@ -440,8 +447,10 @@ namespace Qcache {
 
    // When the coherence protocol needs to look up a line for any reason, this
    // is the function that should be called.
-   uint64_t *cprotLookup(addr_t addr, spinlock_t *&lock, bool inv, bool l=true) {
-     ASSERT(!SHARED); // No coherence on shared caches.
+   uint64_t *cprotLookup(addr_t addr, spinlock_t *&lock, bool inv, bool l=true)
+   {
+     if (SHARED) return NULL; // No coherence on shared cache levels.
+     // ASSERT(!SHARED); // No coherence on shared caches.
 
      addr_t stateMask((1<<L2LINESZ)-1), tag(addr>>L2LINESZ),
             set(tag%(1<<L2SETS));
@@ -451,20 +460,26 @@ namespace Qcache {
      for (size_t idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
        if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
 
-	 spin_lock(&invalidatesLock);
-	 if (inv) ++invalidates;
-	 spin_unlock(&invalidatesLock);
+         if (inv) {
+  	   spin_lock(&invalidatesLock);
+	   ++invalidates;
+	   spin_unlock(&invalidatesLock);
+         }
 
          return &tagarray[idx];
        }
      }
 
      // The line may be in lower-level private caches.
-     spinlock_t *tmpLock;
-     uint64_t *rval = lowerLevel->cprotLookup(addr, tmpLock, inv, false);
-     //spin_unlock(tmpLock);
+     if (lowerLevel) {
+       spinlock_t *tmpLock;
+       uint64_t *rval = lowerLevel->cprotLookup(addr, tmpLock, inv, false);
+       //spin_unlock(tmpLock);
 
-     return rval;
+       return rval;
+     }
+
+     return NULL;
    }
 
    void dumpSet(addr_t addr) {
@@ -526,7 +541,7 @@ namespace Qcache {
         caches.push_back(CACHE(caches, ll, i, name, &cprot));
     }
 
-    CacheGrp(int n, MemSysDevSet &ll, const char *name = "Unnamed") :
+  CacheGrp(int n, MemSysDevSet &ll, const char *name = "Unnamed") :
       cprot(caches)
     {
       for (int i = 0; i < n; ++i)
@@ -577,8 +592,8 @@ namespace Qcache {
       return true;
     }
 
-    bool missAddr(int id, addr_t addr, uint64_t *line, bool wr) {
-      *line = *line & ((~(uint64_t)0)<<L2LINESZ) | (wr?STATE_M:STATE_P);
+    bool missAddr(int id, addr_t addr, uint64_t *line, bool wr, bool dirty) {
+      *line = *line & ((~(uint64_t)0)<<L2LINESZ) | (dirty?STATE_M:STATE_P);
       return false;
     }
 
