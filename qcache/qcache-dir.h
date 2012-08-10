@@ -30,7 +30,7 @@ namespace Qcache {
         for (entries_it_t it = banks[i].entries.begin();
              it != banks[i].entries.end(); ++it)
         {
-          unsigned s(it->second->present.size());
+          unsigned s(it->second->alltime.size());
           ++nSharers[s];
           if (s > maxSharers) maxSharers = s;
         }
@@ -78,6 +78,7 @@ namespace Qcache {
       pthread_mutex_unlock(&errLock);
 #endif
       banks[getBankIdx(addr)].getEntry(addr).present.insert(id);
+      banks[getBankIdx(addr)].getEntry(addr).alltime.insert(id);
     }
 
     void remAddr(addr_t addr, int id) {
@@ -159,6 +160,7 @@ namespace Qcache {
       spinlock_t lock;
       int lockHolder;
       std::set<int> present;
+      std::set<int> alltime;
     };
 
     struct Bank {
