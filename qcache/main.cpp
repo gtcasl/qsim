@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include <sched.h>
 
-#define CPULOCK
+//#define CPULOCK
 //#define PROFILE
 
 #ifdef PROFILE
@@ -50,7 +50,7 @@ using Qcache::MemController;
 typedef Qcache::CacheGrp< 0, CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplLRU        > l1d_t;
 typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplLRU        > l2_t;
-typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplDRRIP,  true, false> l3_t;
+typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplDRRIP,  true, true> l3_t;
 
 // For now the L1 through LLC latency is a template parameter to mc_t.
 //typedef MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA,30,3> mc_t;
@@ -173,7 +173,7 @@ void *thread_main(void *arg_vp) {
   pthread_barrier_wait(&b0);
   while(runningLocal) {
     bool doBarrier(true);
-    for (unsigned i = 0; i < 2000; ++i) {
+    for (unsigned i = 0; i < 1000; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
         if (cba_p->cpu[c].getCycle() >= arg->nextBarrier) continue;
 	bool runFail(osd_p->run(c, 100) == 0);

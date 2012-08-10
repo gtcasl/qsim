@@ -20,7 +20,7 @@
 //#define DEBUG
 //#define ENABLE_ASSERTIONS
 
-#define SHARED_LINE_LATENCY 20 // TODO: This should be some sort of parameter.
+#define FORWARDED_LINE_LATENCY 20 // TODO: Should be some sort of parameter.
 
 #ifdef ENABLE_ASSERTIONS
 #define ASSERT(b) do { if (!(b)) { \
@@ -402,7 +402,7 @@ namespace Qcache {
               tagarray[vidx] |= (*llLineptr & stateMask);
             }
           } else {
-            lat = SHARED_LINE_LATENCY;
+            lat = FORWARDED_LINE_LATENCY;
           }
         
           if (!lowerLevel->isShared()) lowerLevel->invalidate(tag<<L2LINESZ);

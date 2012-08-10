@@ -20,6 +20,30 @@ namespace Qcache {
   // Directory for directory-based protocols.
   template <int L2LINESZ> class CoherenceDir {
   public:
+    ~CoherenceDir() {
+      if (!printResults) return;
+
+      std::map<unsigned, unsigned> nSharers; // Map from #sharers to #lines
+      unsigned maxSharers = 0;
+      for (unsigned i = 0; i < DIR_BANKS; ++i) {
+        typedef typename std::map<addr_t, Entry*>::iterator entries_it_t;
+        for (entries_it_t it = banks[i].entries.begin();
+             it != banks[i].entries.end(); ++it)
+        {
+          unsigned s(it->second->present.size());
+          ++nSharers[s];
+          if (s > maxSharers) maxSharers = s;
+        }
+      }
+
+      std::cout << "Sharing histogram: ";
+      for (unsigned i = 1; i <= maxSharers; ++i) {
+	std::cout << nSharers[i];
+        if (i != maxSharers) std::cout << ", ";
+      }
+      std::cout << '\n';
+    }
+
     void lockAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
       spin_lock(&banks[getBankIdx(addr)].getEntry(addr).lock);
