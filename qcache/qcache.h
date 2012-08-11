@@ -55,7 +55,7 @@ namespace Qcache {
     virtual int getLatency() { ASSERT(false); }
 
     virtual int access(addr_t addr, addr_t pc, int core, int wr,
-                       bool *flagptr=NULL, addr_t** lp=NULL)
+                       unsigned *flagptr=NULL, addr_t** lp=NULL)
     {
       ASSERT(false);
     }
@@ -98,7 +98,7 @@ namespace Qcache {
    public:
     Tracer(std::ostream &tf, int delay=50) : tracefile(tf), delay(delay) {}
 
-    int access(addr_t addr, addr_t pc, int core, int wr, bool *flagptr = NULL,
+    int access(addr_t addr, addr_t pc, int core, int wr, unsigned *flagptr=NULL,
                addr_t **lp = NULL)
     {
       tracefile << std::dec << addr << (wr?" W\n":" R\n");
@@ -131,7 +131,7 @@ namespace Qcache {
       std::cout << "FuncDram: " << accesses << ", " << hits << '\n';
     }
 
-    int access(addr_t addr, addr_t pc, int core, int wr, bool *flagptr=NULL,
+    int access(addr_t addr, addr_t pc, int core, int wr, unsigned *flagptr=NULL,
                addr_t **lp = NULL)
     {
       pthread_mutex_lock(&lock);
@@ -279,7 +279,7 @@ namespace Qcache {
     }
 
     int access(addr_t addr, addr_t pc, int core, int wr,
-               bool *flagptr=NULL,  addr_t **lineptr=NULL)
+               unsigned *flagptr=NULL,  addr_t **lineptr=NULL)
     {
       bool hit = false;
       int lat = 0;

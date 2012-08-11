@@ -72,7 +72,7 @@ public:
       while(notReady[r]) { advance(); ++stallCycles; MEM_BARRIER(); }
     } else if (wr) {
       int latency;
-      notReady[r] = true;
+      notReady[r] = 1;
       if (loadInst) {
         dloads++;
         latency = dMem->access(loadAddr, loadPc, id, 0, &notReady[r]);
@@ -81,10 +81,10 @@ public:
       }
 
       if (latency > 0) {
-        notReady[r] = true;
-        eq[(cyc + latency)%eq.size()][r] = true;
+        notReady[r] = 1;
+        eq[(cyc + latency)%eq.size()][r] = 1;
       } else if (latency == 0) {
-        notReady[r] = false;
+        notReady[r] = 0;
       }
 
       if (loadInst) loadInst = false;
@@ -113,7 +113,7 @@ private:
     // Advance the event queue.
     for (unsigned i = 0; i < QSIM_N_REGS; ++i) {
       if (eq[cyc%eq.size()][i]) {
-        notReady[i] = false;
+        notReady[i] = 0;
         eq[cyc%eq.size()][i] = false;
       }
     }
@@ -126,7 +126,7 @@ private:
   addr_t loadAddr, loadPc;
   inst_type curType;
   MemSysDev *dMem, *iMem;
-  bool notReady[QSIM_N_REGS], instFlag[ISSUEWIDTH];
+  unsigned notReady[QSIM_N_REGS], instFlag[ISSUEWIDTH];
   std::vector<std::vector<bool> > eq;
   Tickable *mc;
 };
@@ -135,8 +135,8 @@ template <int ISSUE, int RETIRE, int ROBLEN> class OOOCpuTimer {
 public:
   OOOCpuTimer(int id, MemSysDev &dMem, MemSysDev &iMem, Tickable *mc=NULL):
     id(id), dMem(&dMem), robHead(0), robTail(0), cyc(0),
-    iMem(&iMem), now(0), issued(0), mc(mc)
-  { for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = false; }
+    iMem(&iMem), now(0), issued(0), mc(mc), memOpIssued(false)
+  { for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = 0; }
 
   ~OOOCpuTimer() {
     if (printResults) std::cout << "CPU " << id << ": " << now << '\n';
@@ -145,26 +145,20 @@ public:
   void idleInst() { tick(); }
 
   void instCallback(addr_t addr, inst_type type) {
-    if (loadInst) {
-      rob[robHead] = true;
-      int latency = dMem->access(loadAddr, loadPc, id, 0, &rob[robHead]);
-      if (latency < 0) {
-      } else if (latency == 0) {
-        rob[robHead] = false;
-      } else if (latency > 0) {
-        sched(latency, &rob[robHead]);
-      }
-      loadInst = false;
-    }
-
-    instFlag[0] = true;
+    instFlag[0] = 1;
     int latency = iMem->access(addr, addr, id, 0, &instFlag[0]);
     if (latency > 0) {
       sched(latency, instFlag);
     } else if (latency == 0) {
-      instFlag[0] = false;
+      instFlag[0] = 0;
     }
     
+    instEnd();
+  }
+
+  void instEnd() {
+    memOpIssued = false;
+
     MEM_BARRIER();
     while (instFlag[0]) { tick(); MEM_BARRIER(); }
 
@@ -173,19 +167,17 @@ public:
     while ((robHead+1)%ROBLEN == robTail) tick();
 
     robHead = (robHead+1)%ROBLEN;
-
   }
 
   void regCallback(regs r, int wr) {}
 
   void memCallback(uint64_t addr, uint64_t pc, int wr) {
+    if (memOpIssued) instEnd();
+    memOpIssued = true;
+    int lat = dMem->access(addr, pc, id, wr?1:0);
     if (!wr) {
-      loadInst = true;
-      loadAddr = addr;
-      loadPc = pc;
-    } else {
-      // Writes are not on the critical path.
-      dMem->access(addr, pc, id, 1);
+      if      (lat > 0) { ++rob[robHead]; sched(lat, &rob[robHead]); }
+      else if (lat < 0) { ++rob[robHead]; }
     }
   }
 
@@ -199,7 +191,7 @@ private:
 
     eq_t::iterator it;
     while ((it = eq.find(cyc)) != eq.end()) {
-      *(it->second) = false;
+      --*(it->second);
       eq.erase(it);
     }
 
@@ -217,18 +209,17 @@ private:
 
   int id, issued;
   cycle_t cyc, now;
-  bool loadInst;
-  addr_t loadAddr, loadPc;
   MemSysDev *dMem, *iMem;
   Tickable *mc;
+  bool memOpIssued;
 
-  bool instFlag[1], rob[ROBLEN+1];
+  unsigned rob[ROBLEN+1], instFlag[1];
   int robHead, robTail;
 
-  void sched(int ticks, bool* it) {
-    eq.insert(std::pair<cycle_t, bool*>(cyc + ticks, it));
+  void sched(int ticks, unsigned* it) {
+    eq.insert(std::pair<cycle_t, unsigned*>(cyc + ticks, it));
   }
-  typedef std::multimap<cycle_t, bool*> eq_t;
+  typedef std::multimap<cycle_t, unsigned*> eq_t;
   eq_t eq;
 };
 
