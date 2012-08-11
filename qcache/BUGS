@@ -1,6 +1,13 @@
 Qcache Known Issues
 -------------------
 
+- qDRAM expects boolean flags, but now we've switched to counters. It will
+  either not compile or hang.
+
+- The in-order CPU has not been tested with counters instead of flags.
+
+- The counters are not being accessed with atomic increments and decrements.
+
 - The instruction cache does not participate in the coherence protocol, but
   does bring lines into lower-level private caches. These lines are not in the
   directory. Correctness issues then arise in self-modifying code (e.g. dynamic
