@@ -162,9 +162,11 @@ struct thread_arg_t {
 
 // Number of cycles between barriers.
 const Qcache::cycle_t BARRIER_INTERVAL = 1000000;
+const Qcache::cycle_t BARRIERS_PER_OUTPUT = 1;
 
 void *thread_main(void *arg_vp) {
   bool runningLocal(true);
+  unsigned outputCountdown(BARRIERS_PER_OUTPUT);
 
   thread_arg_t *arg((thread_arg_t*)arg_vp);
 
@@ -176,7 +178,7 @@ void *thread_main(void *arg_vp) {
     for (unsigned i = 0; i < 1000; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
         if (cba_p->cpu[c].getCycle() >= arg->nextBarrier) continue;
-	bool runFail(osd_p->run(c, 100) == 0);
+	bool runFail(osd_p->run(c, 200) == 0);
         if (!runFail && cba_p->cpu[c].getCycle() < arg->nextBarrier)
           doBarrier = false;
 
@@ -191,6 +193,10 @@ void *thread_main(void *arg_vp) {
           // Every thread reads "running" only in this critical section.
           runningLocal = cba_p->running;
           if (!runningLocal) break;
+          if (arg->cpuStart == 0 && --outputCountdown == 0) {
+            outputCountdown = BARRIERS_PER_OUTPUT;
+	    std::cout << "Tick " << cba_p->cpu[0].getCycle() << '\n';
+	  }
           pthread_barrier_wait(&b0);
       }
     }

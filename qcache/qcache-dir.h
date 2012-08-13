@@ -95,8 +95,10 @@ namespace Qcache {
         // It represents a possible lapse in correctness, and benchmarks that
         // cause this condition to occur frequently will not generate reliable
         // results.
+#if 0
 	std::cout << "WARNING: attempt to evict line that was already absent "
                      "from directory.\n";
+#endif
         return;
       }
 
