@@ -42,7 +42,7 @@ public:
                 << stallCycles << '\n';
   }
 
-  void idleInst() { advance(); }
+  void idleInst() { if (++issued >= ISSUEWIDTH) { advance(); issued = 0; }
 
   void instCallback(addr_t addr, inst_type type) {
     if (++issued >= ISSUEWIDTH) { advance(); issued = 0; }
@@ -142,7 +142,7 @@ public:
     if (printResults) std::cout << "CPU " << id << ": " << now << '\n';
   }
 
-  void idleInst() { tick(); }
+  void idleInst() { instEnd(); }
 
   void instCallback(addr_t addr, inst_type type) {
     instFlag[0] = 1;
