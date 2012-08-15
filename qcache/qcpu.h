@@ -42,7 +42,7 @@ public:
                 << stallCycles << '\n';
   }
 
-  void idleInst() { if (++issued >= ISSUEWIDTH) { advance(); issued = 0; }
+  void idleInst() { if (++issued >= ISSUEWIDTH) { advance(); issued = 0; } }
 
   void instCallback(addr_t addr, inst_type type) {
     if (++issued >= ISSUEWIDTH) { advance(); issued = 0; }
