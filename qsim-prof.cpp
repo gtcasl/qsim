@@ -34,7 +34,7 @@ public:
     tr.close();
   }
 
-  void inst_cb(int c, uint64_t pa, uint64_t va, uint8_t len, const uint8_t *b,
+  void inst_cb(int c, uint64_t va, uint64_t pa, uint8_t len, const uint8_t *b,
                enum inst_type type)
   {
     if (++t[c].windowCount == w) t[c].windowCount = 0;
