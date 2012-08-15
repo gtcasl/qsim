@@ -184,7 +184,7 @@ namespace Qcache {
     ReplRand(std::vector<addr_t> &ta): tagarray(&ta[0]) {}
 
     void updateRepl(addr_t set, addr_t idx, bool hit, bool wr, bool wb,
-                    addr_t pc, int core) {}
+                    addr_t pc, int core, addr_t addr) {}
 
     addr_t findVictim(addr_t set) {
       // First: look for invalid lines.
@@ -304,7 +304,7 @@ namespace Qcache {
       addr_t idx;
       for (idx = set*WAYS; idx < (set+1)*WAYS; ++idx) {
         if ((tagarray[idx]>>L2LINESZ)==tag && (tagarray[idx]&stateMask)) {
-          repl.updateRepl(set, idx, true, wr, writeback, pc, core);
+          repl.updateRepl(set, idx, true, wr, writeback, pc, core, addr);
           // Check with the coherence protocol-- we can still be invalidated!
           hit = cprot->hitAddr(id, addr, false, &setLocks[set], &tagarray[idx],
                                wr);
@@ -387,7 +387,7 @@ namespace Qcache {
           }
 
           tagarray[vidx] = addr|0x01;
-          repl.updateRepl(set, vidx, false, wr, writeback, pc, core);
+          repl.updateRepl(set, vidx, false, wr, writeback, pc, core, addr);
           spin_unlock(&setLocks[set]);
 
           if (!cprot->missAddr(id, addr, &tagarray[vidx], wr, makeDirty)

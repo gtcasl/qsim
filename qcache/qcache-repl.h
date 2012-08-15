@@ -56,6 +56,10 @@ namespace Qcache {
     SetDueler(): a0(0), m0(0), a1(0), m1(0) {
       // TODO: Find a way to eliminate the repetition in the following code.
 
+      // TODO: Do something other than silently fail when there aren't enough
+      //       sets.
+      if (L2SAMPSETS >= L2SETS) return;
+
       // Randomly sample the sets to pick some "leader" sets.
       while (sample0.size() < (1<<L2SAMPSETS)) {
         unsigned idx = rand()%(1<<L2SETS), tidx = sample0.size();
@@ -122,11 +126,17 @@ namespace Qcache {
     class Shct
   {
   public:
-    Shct(): reref(WAYS<<L2LINESZ), rerefSig(WAYS<<L2LINESZ), c(1<<L2SHCTSZ) {}
+    Shct(): reref(WAYS<<L2LINESZ), rerefSig(WAYS<<L2LINESZ), 
+            wasFetch(WAYS<<L2LINESZ), c(1<<L2SHCTSZ) {}
 
     bool check(addr_t pc) { return c[hash(pc)] != 0; }
 
     void evict(size_t idx) {
+      if (wasFetch[idx]) {
+        wasFetch[idx] = reref[idx] = false;
+        return;
+      }
+
       unsigned shctIdx(rerefSig[idx]);
  
       if (reref[idx]) { if (c[shctIdx] != ((1<<SHCT_BITS)-1)) ++c[shctIdx]; }
@@ -135,8 +145,9 @@ namespace Qcache {
       reref[idx] = false;
     }
 
-    void insert(size_t idx, addr_t pc) {
+    void insert(size_t idx, addr_t pc, bool fetch) {
       rerefSig[idx] = hash(pc);
+      wasFetch[idx] = fetch;
     }
 
     void hit(size_t idx) {
@@ -156,7 +167,7 @@ namespace Qcache {
       return h;
     }
 
-    std::vector<bool> reref;
+    std::vector<bool> reref, wasFetch;
     std::vector<unsigned> rerefSig;
     std::vector<int> c;
   };
@@ -172,7 +183,7 @@ namespace Qcache {
     #define TIMESTAMP_MAX INT_MAX
 
     void updateRepl(addr_t set, addr_t idx, bool hit, bool wr, bool wb,
-                    addr_t pc, int core)
+                    addr_t pc, int core, addr_t addr)
     {
       const int BIP_ALPHA = (RAND_MAX+1l)/64;
 
@@ -219,7 +230,7 @@ namespace Qcache {
 
       if (IP == INSERT_EAF && !hit /* ??? Clear interval in misses ??? */) {
         if (!hit)
-          dipChoice = eaf.check(set, tagarray[idx]&~((1ll<<L2LINESZ)-1));
+          dipChoice = eaf.check(set, addr&~((1ll<<L2LINESZ)-1));
 
         eaf.access(set);
       }
@@ -262,9 +273,9 @@ namespace Qcache {
   // I'm sorry. C++11 alias templates soon, but for compatibility, here's this:
   #define QCACHE_REPL_PASSTHROUGH_FUNCS \
     void updateRepl(addr_t s, addr_t i, bool h, bool w, bool wb, addr_t pc, \
-                    int c) \
+                    int c, addr_t a)	\
     { \
-      r.updateRepl(s, i, h, w, wb, pc, c); \
+      r.updateRepl(s, i, h, w, wb, pc, c, a);	\
     } \
     addr_t findVictim(addr_t set) { return r.findVictim(set); }
 
@@ -344,9 +355,11 @@ namespace Qcache {
       tagarray(&ta[0]), ctr(size_t(WAYS)<<L2SETS) {}
 
     void updateRepl(addr_t set, addr_t idx, bool h, bool w, bool wb,
-                    addr_t pc, int core)
+                    addr_t pc, int core, addr_t addr)
     {
       const int BRRIP_ALPHA = (RAND_MAX+1l)/64;
+
+      bool isFetch((pc&~((1ull<<L2LINESZ)-1))==(addr&~((1ull<<L2LINESZ)-1)));
 
       bool drripChoice;
       if (IP == INSERT_DIP || IP == INSERT_TADIP) {
@@ -364,21 +377,21 @@ namespace Qcache {
 
       if (IP == INSERT_EAF && !h /*??? (see comment in LRU) ???*/ ) {
         if (!h)
-          drripChoice = eaf.check(set, tagarray[idx]&~((1ll<<L2LINESZ)-1));
+          drripChoice = eaf.check(set, addr&~((1ll<<L2LINESZ)-1));
 
         eaf.access(set);
       }
 
       if (IP == INSERT_SHIP) {
         if (h) shct.hit(idx);
-        else shct.insert(idx, pc);
+        else shct.insert(idx, pc, isFetch);
       }
 
       if (h) {
         if (!wb) ctr[idx] = 0;
       } else {
         if (IP==INSERT_LRU ||
-            IP==INSERT_SHIP && shct.check(pc) ||
+            IP==INSERT_SHIP && !isFetch && shct.check(pc) ||
             (IP==INSERT_BIP ||
              ((IP==INSERT_DIP || IP==INSERT_TADIP || IP==INSERT_EAF)
               && drripChoice))
