@@ -34,7 +34,9 @@ public:
     loadInst(false), iMem(&iMem), mc(mc),
     eq(dMem.getLatency(), std::vector<bool>(QSIM_N_REGS)), dloads(0), xloads(0),
     issued(0)
-  { for (unsigned i = 0; i < QSIM_N_REGS; ++i) notReady[i] = false; }
+  { for (unsigned i = 0; i < QSIM_N_REGS; ++i) notReady[i] = 0; 
+    for (unsigned i = 0; i < ISSUEWIDTH; ++i)  instFlag[i] = 0;
+  }
 
   ~CPUTimer() {
     if (printResults)
@@ -136,7 +138,9 @@ public:
   OOOCpuTimer(int id, MemSysDev &dMem, MemSysDev &iMem, Tickable *mc=NULL):
     id(id), dMem(&dMem), robHead(0), robTail(0), cyc(0),
     iMem(&iMem), now(0), issued(0), mc(mc), memOpIssued(false)
-  { for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = 0; }
+  { for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = 0;
+    instFlag[0] = 0;
+  }
 
   ~OOOCpuTimer() {
     if (printResults) std::cout << "CPU " << id << ": " << now << '\n';
