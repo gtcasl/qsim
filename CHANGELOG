@@ -186,3 +186,7 @@
 
 * Added sampling profiler "qsim-prof". This provides a low-overhead technique
   for obtaining instruction traces of guest applications.
+
+* Added models for cache, DRAM, and CPU beyond what was provided by simplesim.
+  With these models, QSim could be used as a standalone simulation
+  infrastructure or a trace generator for further simulation tools.

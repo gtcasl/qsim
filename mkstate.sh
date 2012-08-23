@@ -17,7 +17,7 @@ export LD_LIBRARY_PATH=$QSIM_PREFIX/lib
 FF=$QSIM_PREFIX/bin/qsim-fastforwarder
 
 # This is the minimum needed to run Parsec with the simsmall data set.
-RAMSIZE=3072
+RAMSIZE=3580
 
 # Truncate our log file
 echo > mkstate.log

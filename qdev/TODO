@@ -1,0 +1,6 @@
+QDev Device Support To-Do List
+==============================
+
+_ Add a mechanism to QSim to allow I/O port reads ("IN" instructions) to
+  receive values from the I/O callback (memory already has the
+  write-to-physical-address mechanism).

@@ -1,8 +1,8 @@
 #!/bin/sh
 # Download and patch Linux kernel
-KERNEL=linux-2.6.34
+KERNEL=linux-3.5.2
 KERNEL_ARC=$KERNEL.tar.bz2
-KERNEL_URL=http://kernelorg.mirrors.tds.net/pub/linux/kernel/v2.6/$KERNEL_ARC
+KERNEL_URL=http://www.kernel.org/pub/linux/kernel/v3.0/$KERNEL_ARC
 UNPACKAGE="tar -xjf"
 
 INITRD=`pwd`/../initrd64/initrd.cpio
@@ -23,8 +23,7 @@ $UNPACKAGE $KERNEL_ARC
 
 cd $KERNEL
 
-echo === PATCHING ===
+echo === LOADING CONFIG ===
 sed "s#%%%QSIM_INITRD_FILE%%%#\"$INITRD\"#" < ../$KERNEL.qsim.config > .config
-patch -p1 < ../$KERNEL.qsim.patch
 
 cd ..

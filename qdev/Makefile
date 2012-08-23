@@ -10,26 +10,8 @@ QSIM_PREFIX ?= /usr/local
 CXXFLAGS ?= -O2 -I../distorm/ -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
 LDLIBS ?= -lqsim -pthread -ldl
 
-EXAMPLES = qtm simple simple-client io-test
-
-all: $(EXAMPLES)
-
-vistrace: vistrace.cpp $(QSIM_PREFIX)/lib/libqsim.so
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS) -lImlib2
-
-simple: simple.cpp $(QSIM_PREFIX)/lib/libqsim.so
+qdev: qdev.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< ../distorm/distorm64.a $(LDLIBS)
-
-simple-client: simple.cpp
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -DQSIM_REMOTE -o $@ $< \
-          ../remote/client/qsim-client.cpp ../distorm/distorm64.a $(LDLIBS)
-
-io-test: io-test.cpp $(QSIM_PREFIX)/lib/libqsim.so ../distorm/distorm64.a
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< ../distorm/distorm64.a $(LDLIBS)
-
-qtm: qtm.cpp $(QSIM_PREFIX)/lib/libqsim.so
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -lpthread -o $@ $< ../distorm/distorm64.a $(LDLIBS)
 
 clean:
-	rm -f $(EXAMPLES) *~ *\#
-
+	rm -f qdev *~ *\#
