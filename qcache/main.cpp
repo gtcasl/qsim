@@ -27,7 +27,7 @@
 #include <sched.h>
 
 //#define CPULOCK
-//#define PROFILE
+#define PROFILE
 
 #ifdef PROFILE
 #include <qsim-prof.h>
@@ -50,7 +50,7 @@ using Qcache::MemController;
 typedef Qcache::CacheGrp< 0, CPNull,     4,  7, 6, ReplLRU         > l1i_t;
 typedef Qcache::CacheGrp< 0, CPDirMoesi, 8,  6, 6, ReplLRU        > l1d_t;
 typedef Qcache::CacheGrp<10, CPNull,     8,  8, 6, ReplLRU        > l2_t;
-typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplDRRIP,  true, true> l3_t;
+typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplLRU,  true, true> l3_t;
 
 // For now the L1 through LLC latency is a template parameter to mc_t.
 //typedef MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA,30,3> mc_t;
@@ -92,7 +92,7 @@ public:
     }
 
     #ifdef PROFILE
-    Qsim::start_prof(osd, "QSIM_PROF", 10000000, 10);
+    Qsim::start_prof(osd, "QSIM_PROF", 100000, 100);
     #endif
   }
 
@@ -161,12 +161,14 @@ struct thread_arg_t {
 };
 
 // Number of cycles between barriers.
-const Qcache::cycle_t BARRIER_INTERVAL = 1000000;
+const Qcache::cycle_t BARRIER_INTERVAL = 10000;
+const Qcache::cycle_t BARRIERS_PER_TICK = 20;
 const Qcache::cycle_t BARRIERS_PER_OUTPUT = 1;
 
 void *thread_main(void *arg_vp) {
   bool runningLocal(true);
-  unsigned outputCountdown(BARRIERS_PER_OUTPUT);
+  unsigned outputCountdown(BARRIERS_PER_OUTPUT),
+           timerCountdown(BARRIERS_PER_TICK);
 
   thread_arg_t *arg((thread_arg_t*)arg_vp);
 
@@ -197,11 +199,15 @@ void *thread_main(void *arg_vp) {
             outputCountdown = BARRIERS_PER_OUTPUT;
 	    std::cout << "Tick " << cba_p->cpu[0].getCycle() << '\n';
 	  }
+          if (arg->cpuStart == 0 && --timerCountdown == 0) {
+            timerCountdown = BARRIERS_PER_TICK;
+            osd_p->timer_interrupt();
+          }
           pthread_barrier_wait(&b0);
       }
     }
 
-    if (arg->cpuStart == 0 && runningLocal) osd_p->timer_interrupt();
+    // if (arg->cpuStart == 0 && runningLocal) osd_p->timer_interrupt();
   }
 
   return 0;
