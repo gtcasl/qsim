@@ -25,8 +25,10 @@ using std::ostream;
 class TraceWriter {
 public:
   TraceWriter(QSIM_OBJECT &osd, ostream &tracefile) : 
-    osd(osd), tracefile(tracefile), finished(false) 
+    osd(osd), tracefile(tracefile), finished(false), call(false), callLvl(0)
   { 
+    readSyms("../linux64/linux-3.5.2/System.map");
+
     //osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
     app_start_cb(0);
   }
@@ -62,23 +64,65 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
                enum inst_type t)
   {
+    if (call) {
+      std::cout << "Call: ";
+      for (unsigned i = 0; i < callLvl; ++i) { std::cout << ' '; }
+      ++callLvl;
+      if (syms.find(v) != syms.end())  {
+	std::cout << syms[v] << '\n';
+      } else {
+	std::cout << "[unknown]\n";
+      }
+      call = false;
+    }
+
+#if 0
     unsigned shouldBeOne;
     _DecodedInst inst[15];
-    distorm_decode(0, b, l, Decode16Bits, inst, 15, &shouldBeOne);
+    distorm_decode(0, b, l, v==p?Decode16Bits:Decode64Bits, inst, 15,
+                   &shouldBeOne);
 
     tracefile << std::dec << c << ": Inst@(0x" << std::hex << v << "/0x" << p
               << ", tid=" << std::dec << osd.get_tid(c) << ", "
               << ((osd.get_prot(c) == Qsim::OSDomain::PROT_USER)?"USR":"KRN")
               << (osd.idle(c)?"[IDLE])":"[ACTIVE])")
               << inst[0].mnemonic.p << ' ' << inst[0].operands.p << '\n';
+#endif
 
     iAddr = v;
+
+    if (t == QSIM_INST_CALL) {
+      // Call instruction
+      call = true;
+    } else if (t == QSIM_INST_RET && !(l == 1 && *b == 0xcf)) {
+      // Ret instruction
+      if (callLvl > 0) --callLvl;
+    } else if (t == QSIM_INST_RET) {
+      // reti instruction
+      callLvl = sCallLvl;
+    }
   }
 
   void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
+#if 0
     tracefile << "0x" << std::hex << iAddr << ": " << std::dec << c << ": MEM "
               << (w?"WR":"RD") << "(0x" << std::hex << v << "/0x" << p
               << "): " << std::dec << (unsigned)(s*8) << " bits.\n";
+#endif
+
+    if (p >= 0xa0000 && p <= 0xbffff) {
+      char c;
+      osd.mem_rd(c, p);
+
+      std::cout << "Wrote '" << c << "' to vram.\n";
+
+      if (c == '\n') {
+	std::cout << "VGA: " << linebuf;
+        linebuf = "";
+      } else {
+	linebuf += c;
+      }
+    }
   }
 
   int int_cb(int c, uint8_t v) {
@@ -87,6 +131,9 @@ public:
               << osd.get_reg(c, QSIM_RAX) << " C=" << osd.get_reg(c, QSIM_RCX)
               << " B=" << osd.get_reg(c, QSIM_RBX) << " D="
               << osd.get_reg(c, QSIM_RDX) << '\n';
+
+    sCallLvl = callLvl;
+    callLvl = 0;
 
     if (v == 0x10) {
       uint64_t rax(osd.get_reg(c, QSIM_RAX));
@@ -230,13 +277,27 @@ public:
               << ": I/O " << (w?"WR":"RD") << ": (0x" << std::hex << p
               << "): " << std::dec << (unsigned)(s*8) << " bits.\n";
 
-    if (p == 0x70) {
+    if (p >= 0x20 && p <= 0xbf || p >= 0xa0 && p <= 0xbf) { // 8259
+      bool slave(p & 0x80);
+    } else if (p == 0x70) { // CMOS register select, NMI enable
       if (w) {
-        cmos_reg = v & 0x7f;
+        cmosReg = v & 0x7f;
       } else {
-        // So, how can I return a value for an I/O port?
+	std::cout << "IN unsupported.\n";
+        exit(1);
       }
-    } else {
+    } else if (p == 0x80) { // Dummy port
+      if (!w) {
+	std::cout << "Tried to read from port 0x80.\n";
+        exit(1);
+      }
+    } else if (p >= 0xf0 && p <= 0xff) { // FPU control
+      // Nothing to do here.
+    } else if (p >= 0x3c0 && p <= 0x3df) { // VGA registers
+      // Ignore these.
+    } else if (p >= 0xcf8 && p <= 0xcff) { // PCI CONFIG_ADDRESS, CONFIG_DATA
+      // PCI configura
+    }else {
       std::cout << "Unsupported IO port address.\n";
       exit(1);
     }
@@ -259,9 +320,21 @@ private:
   uint64_t iAddr;
   std::string linebuf;
 
-  uint8_t cmos_reg;
+  uint8_t cmosReg;
 
-  static const char * itype_str[];
+  std::map<uint64_t, std::string> syms;
+  int callLvl, sCallLvl;
+  bool call;
+
+  void readSyms(const char* filename) {
+    std::ifstream f(filename);
+
+    uint64_t addr; char c; std::string sym;
+    while (!!f) {
+      f >> std::hex >> addr >> c >> sym; syms[addr] = sym;
+      std::cout << std::hex << addr << ' ' << c << ' ' << sym << '\n';
+    }
+  }
 };
 
 int main(int argc, char** argv) {

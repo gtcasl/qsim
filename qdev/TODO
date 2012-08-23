@@ -1,6 +1,15 @@
 QDev Device Support To-Do List
 ==============================
 
+_ Add a state to QSim to handle the "HALT" instruction. This should cause run()
+  to return prematurely and continue to return 0 untill there is an interrupt.
+
+_ Do some basic 8259 emulation.
+
 _ Add a mechanism to QSim to allow I/O port reads ("IN" instructions) to
   receive values from the I/O callback (memory already has the
   write-to-physical-address mechanism).
+
+_ Do some PCI emulation.
+
+_ Write the APIC.
