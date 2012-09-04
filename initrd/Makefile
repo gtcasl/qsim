@@ -6,7 +6,7 @@ sbin/test_threads : test_threads.c
 sbin/qsim_io : qsim_io.c
 
 sbin/hexdump : sbin/busybox
-	bash -c 'cd sbin; for a in `./busybox --list-full`; do ln -s ./busybox $$a; done; cd ..'
+	bash -c 'cd sbin; for a in `./busybox --list-full`; do ln -sf ./busybox $$a; done; cd ..'
 
 sbin/% : %.c
 	gcc -m32 -o $@ -pthread -static $<
