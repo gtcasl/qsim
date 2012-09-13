@@ -364,6 +364,10 @@ Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
 // Create an OSDomain from a saved state file.
 Qsim::OSDomain::OSDomain(const char* filename) {
   ifstream file(filename);
+  if (!file) {
+    cerr << "Could not open \"" << filename << "\" for reading.\n";
+    exit(1);
+  }
 
   uint32_t n_, ram_size_mb_;
   file.read((char*)&n_, sizeof(n_));
