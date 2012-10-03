@@ -8,7 +8,7 @@
 ###############################################################################
 CXXFLAGS ?= -O2 -g -Idistorm/
 QSIM_PREFIX ?= /usr/local
-LDFLAGS = -L$(QSIM_PREFIX)/lib
+LDFLAGS = -L./
 LDLIBS = -lqsim -ldl
 
 QEMU_DIR=qemu-0.12.3
