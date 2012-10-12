@@ -1,6 +1,6 @@
 diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
---- qemu-0.12.3/cpu-all.h	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/cpu-all.h	2012-06-06 08:16:46.021105936 -0700
+--- qemu-0.12.3/cpu-all.h	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/cpu-all.h	2012-09-13 14:08:10.000000000 -0400
 @@ -16,9 +16,13 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
@@ -27,8 +27,8 @@ diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
  
  #define ldub_raw(p) ldub_p(laddr((p)))
 diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
---- qemu-0.12.3/cpu-common.h	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/cpu-common.h	2012-06-06 08:16:46.021105936 -0700
+--- qemu-0.12.3/cpu-common.h	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/cpu-common.h	2012-09-13 14:08:10.000000000 -0400
 @@ -29,6 +29,7 @@
  }
  
@@ -38,8 +38,8 @@ diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
  void qemu_ram_free(ram_addr_t addr);
  /* This should only be used for ram local to a device.  */
 diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
---- qemu-0.12.3/cpu-exec.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/cpu-exec.c	2012-06-06 08:16:46.021105936 -0700
+--- qemu-0.12.3/cpu-exec.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/cpu-exec.c	2012-09-13 14:08:10.000000000 -0400
 @@ -38,6 +38,11 @@
  #endif
  #endif
@@ -90,8 +90,8 @@ diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
  
      /* never comes here */
 diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
---- qemu-0.12.3/exec.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/exec.c	2012-06-06 08:16:46.025105936 -0700
+--- qemu-0.12.3/exec.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/exec.c	2012-09-13 14:08:10.000000000 -0400
 @@ -438,7 +438,7 @@
  
          flags = MAP_PRIVATE | MAP_ANONYMOUS;
@@ -137,8 +137,8 @@ diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
  {
      RAMBlock *new_block;
 diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
---- qemu-0.12.3/hw/apic.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/hw/apic.c	2012-06-06 08:16:46.025105936 -0700
+--- qemu-0.12.3/hw/apic.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/hw/apic.c	2012-09-13 14:08:10.000000000 -0400
 @@ -185,7 +185,7 @@
  void apic_deliver_pic_intr(CPUState *env, int level)
  {
@@ -239,8 +239,8 @@ diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
      vmstate_register(s->idx, &vmstate_apic, s);
      qemu_register_reset(apic_reset, s);
 diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
---- qemu-0.12.3/hw/pc.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/hw/pc.c	2012-06-06 08:16:46.025105936 -0700
+--- qemu-0.12.3/hw/pc.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/hw/pc.c	2012-10-12 17:33:12.000000000 -0400
 @@ -45,6 +45,11 @@
  #include "loader.h"
  #include "elf.h"
@@ -481,8 +481,11 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  void ioport_set_a20(int enable)
  {
      /* XXX: send to all CPUs ? */
-@@ -986,7 +781,7 @@
-     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
+@@ -983,10 +778,9 @@
+     char *filename;
+     int ret, linux_boot, i;
+     ram_addr_t ram_addr, bios_offset, option_rom_offset;
+-    ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
      int bios_size, isa_bios_size;
      PCIBus *pci_bus;
 -    ISADevice *isa_dev;
@@ -490,16 +493,21 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
      int piix3_devfn = -1;
      CPUState *env;
      qemu_irq *cpu_irq;
-@@ -997,6 +792,8 @@
+@@ -997,12 +791,7 @@
      DriveInfo *fd[MAX_FD];
      void *fw_cfg;
  
+-    if (ram_size >= 0xe0000000 ) {
+-        above_4g_mem_size = ram_size - 0xe0000000;
+-        below_4g_mem_size = 0xe0000000;
+-    } else {
+-        below_4g_mem_size = ram_size;
+-    }
 +    pci_enabled = 0;
-+
-     if (ram_size >= 0xe0000000 ) {
-         above_4g_mem_size = ram_size - 0xe0000000;
-         below_4g_mem_size = 0xe0000000;
-@@ -1021,84 +818,74 @@
+ 
+     linux_boot = (kernel_filename != NULL);
+ 
+@@ -1021,84 +810,28 @@
  
      vmport_init();
  
@@ -518,51 +526,17 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 -    cpu_register_physical_memory(0x100000,
 -                 below_4g_mem_size - 0x100000,
 -                 ram_addr);
-+    if (qsim_ram == NULL) {
-+      /* allocate the qsim_ram structure */
-+      qsim_ram = qemu_mallocz(sizeof(qemu_ramdesc_t));
-+      qsim_ram->l = qemu_mallocz(sizeof(qsim_lockstruct));
-+
-+      /* initialize the sync. */
-+      qsim_lock_init(qsim_ram->l);
-+
-+      /* allocate RAM */
-+      ram_addr = qemu_ram_alloc(0xa0000);
-+      cpu_register_physical_memory(0, 0xa0000, ram_addr);
-+      qsim_ram->low_mem_sz  = 0xa0000;
-+      qsim_ram->low_mem_ptr = qemu_get_ram_ptr(ram_addr);
-+
-+      /* Allocate, even though we won't register, so we don't break the
-+       * phys_ram_base + PA assumption. This range includes vga,
-+       * and some bios areas, which will be registered later
-+       */
-+      ram_addr = qemu_ram_alloc(0x100000 - 0xa0000);
-+      ram_addr = qemu_ram_alloc(below_4g_mem_size - 0x100000);
-+      cpu_register_physical_memory(0x100000,
-+                   below_4g_mem_size - 0x100000,
-+                   ram_addr);
-+      qsim_ram->below_4g_sz  = below_4g_mem_size - 0x100000;
-+      qsim_ram->below_4g_ptr = qemu_get_ram_ptr(ram_addr);
- 
+-
 -    /* above 4giga memory allocation */
 -    if (above_4g_mem_size > 0) {
-+      /* above 4giga memory allocation */
-+      if (above_4g_mem_size > 0) {
- #if TARGET_PHYS_ADDR_BITS == 32
+-#if TARGET_PHYS_ADDR_BITS == 32
 -        hw_error("To much RAM for 32-bit physical address");
-+          hw_error("To much RAM for 32-bit physical address");
- #else
+-#else
 -        ram_addr = qemu_ram_alloc(above_4g_mem_size);
 -        cpu_register_physical_memory(0x100000000ULL,
 -                                     above_4g_mem_size,
 -                                     ram_addr);
-+          ram_addr = qemu_ram_alloc(above_4g_mem_size);
-+          cpu_register_physical_memory(0x100000000ULL,
-+                                       above_4g_mem_size,
-+                                       ram_addr);
-+          qsim_ram->above_4g_sz  = above_4g_mem_size;
-+          qsim_ram->above_4g_ptr = qemu_get_ram_ptr(ram_addr);
- #endif
+-#endif
 -    }
 -
 -
@@ -572,7 +546,19 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 -    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 -    if (filename) {
 -        bios_size = get_image_size(filename);
-+      }
++    if (qsim_ram == NULL) {
++      /* allocate the qsim_ram structure */
++      qsim_ram = qemu_mallocz(sizeof(qemu_ramdesc_t));
++      qsim_ram->l = qemu_mallocz(sizeof(qsim_lockstruct));
++
++      /* initialize the sync. */
++      qsim_lock_init(qsim_ram->l);
++
++      /* allocate RAM */
++      ram_addr = qemu_ram_alloc(ram_size);
++      cpu_register_physical_memory(0, ram_size, ram_addr);
++      qsim_ram->sz = ram_size;
++      qsim_ram->mem_ptr = qemu_get_ram_ptr(ram_addr);
      } else {
 -        bios_size = -1;
 -    }
@@ -607,32 +593,14 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 -    /* map all the bios at the top of memory */
 -    cpu_register_physical_memory((uint32_t)(-bios_size),
 -                                 bios_size, bios_offset | IO_MEM_ROM);
-+      if (qsim_ram->low_mem_sz != 0) {
-+        ram_addr = qemu_ram_share(qsim_ram->low_mem_sz, qsim_ram->low_mem_ptr);
-+        cpu_register_physical_memory(0, 
-+                                     qsim_ram->low_mem_sz, 
-+                                     ram_addr);
-+      }
- 
+-
 -    fw_cfg = bochs_bios_init();
 -    rom_set_fw(fw_cfg);
-+      if (qsim_ram->below_4g_sz != 0) {
-+        ram_addr = qemu_ram_share(qsim_ram->below_4g_sz, 
-+                                  qsim_ram->below_4g_ptr);
-+        cpu_register_physical_memory(0x100000, 
-+                                     qsim_ram->below_4g_sz,
-+                                     ram_addr);
-+      }
- 
+-
 -    if (linux_boot) {
 -        load_linux(fw_cfg, kernel_filename, initrd_filename, kernel_cmdline, below_4g_mem_size);
-+      if (qsim_ram->above_4g_sz != 0) {
-+        ram_addr = qemu_ram_share(qsim_ram->above_4g_sz, 
-+                                  qsim_ram->above_4g_ptr);
-+        cpu_register_physical_memory(0x100000000ULL,
-+                                     qsim_ram->above_4g_sz,
-+                                     ram_addr);
-+      }
++      ram_addr = qemu_ram_share(qsim_ram->sz, qsim_ram->mem_ptr);
++      cpu_register_physical_memory(0, qsim_ram->sz, ram_addr);
      }
  
 -    for (i = 0; i < nb_option_roms; i++) {
@@ -642,7 +610,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
      cpu_irq = qemu_allocate_irqs(pic_irq_request, NULL, 1);
      i8259 = i8259_init(cpu_irq[0]);
-@@ -1121,6 +908,7 @@
+@@ -1121,6 +854,7 @@
  
      register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
  
@@ -650,7 +618,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
      if (cirrus_vga_enabled) {
          if (pci_enabled) {
              pci_cirrus_vga_init(pci_bus);
-@@ -1139,10 +927,11 @@
+@@ -1139,10 +873,11 @@
              isa_vga_init();
          }
      }
@@ -664,7 +632,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
      register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
      register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
-@@ -1150,12 +939,13 @@
+@@ -1150,12 +885,13 @@
      if (pci_enabled) {
          isa_irq_state->ioapic = ioapic_init();
      }
@@ -680,7 +648,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
      for(i = 0; i < MAX_SERIAL_PORTS; i++) {
          if (serial_hds[i]) {
              serial_isa_init(i, serial_hds[i]);
-@@ -1167,6 +957,7 @@
+@@ -1167,6 +903,7 @@
              parallel_init(i, parallel_hds[i]);
          }
      }
@@ -688,7 +656,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
      for(i = 0; i < nb_nics; i++) {
          NICInfo *nd = &nd_table[i];
-@@ -1186,6 +977,7 @@
+@@ -1186,6 +923,7 @@
          hd[i] = drive_get(IF_IDE, i / MAX_IDE_DEVS, i % MAX_IDE_DEVS);
      }
  
@@ -696,7 +664,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
      if (pci_enabled) {
          pci_piix3_ide_init(pci_bus, hd, piix3_devfn + 1);
      } else {
-@@ -1194,9 +986,10 @@
+@@ -1194,9 +932,10 @@
  	                 hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
          }
      }
@@ -709,7 +677,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  #ifdef HAS_AUDIO
      audio_init(pci_enabled ? pci_bus : NULL, isa_irq);
  #endif
-@@ -1206,11 +999,13 @@
+@@ -1206,11 +945,13 @@
      }
      floppy_controller = fdctrl_init_isa(fd);
  
@@ -724,7 +692,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
      if (pci_enabled && acpi_enabled) {
          uint8_t *eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
-@@ -1283,8 +1078,8 @@
+@@ -1283,8 +1024,8 @@
     BIOS will read it and start S3 resume at POST Entry */
  void cmos_set_s3_resume(void)
  {
@@ -736,8 +704,8 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
  static QEMUMachine pc_machine = {
 diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
---- qemu-0.12.3/posix-aio-compat.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/posix-aio-compat.c	2012-06-06 08:16:46.025105936 -0700
+--- qemu-0.12.3/posix-aio-compat.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/posix-aio-compat.c	2012-09-13 14:08:10.000000000 -0400
 @@ -368,6 +368,9 @@
  {
      sigset_t set, oldset;
@@ -749,9 +717,9 @@ diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
      idle_threads++;
  
 diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
---- qemu-0.12.3/softmmu_header.h	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/softmmu_header.h	2012-06-06 08:16:46.025105936 -0700
-@@ -16,6 +16,48 @@
+--- qemu-0.12.3/softmmu_header.h	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/softmmu_header.h	2012-10-12 17:28:18.000000000 -0400
+@@ -16,6 +16,40 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
   */
@@ -769,17 +737,9 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
 +static inline uint64_t qsim_ram_addr_from_host(void* qsim_host_addr) {
 +  uint64_t paddr;
 +
-+  if (qsim_host_addr >= (void*)qsim_ram->low_mem_ptr && 
-+   qsim_host_addr < (void*)(qsim_ram->low_mem_ptr + qsim_ram->low_mem_sz))
-+    paddr = (uint64_t)qsim_host_addr - (uint64_t)qsim_ram->low_mem_ptr;
-+  else if (qsim_host_addr >= (void*)qsim_ram->below_4g_ptr &&
-+	qsim_host_addr < (void*)(qsim_ram->below_4g_ptr+qsim_ram->below_4g_sz))
-+    paddr = (uint64_t)qsim_host_addr - (uint64_t)qsim_ram->below_4g_ptr 
-+            + (1<<20);
-+  else if (qsim_host_addr >= (void*)qsim_ram->above_4g_ptr &&
-+	qsim_host_addr < (void*)(qsim_ram->above_4g_ptr+qsim_ram->above_4g_sz))
-+    paddr = (uint64_t)qsim_host_addr - (uint64_t)qsim_ram->above_4g_ptr
-+            + (4l<<30);
++  if (qsim_host_addr >= (void*)qsim_ram->mem_ptr && 
++   qsim_host_addr < (void*)(qsim_ram->mem_ptr + qsim_ram->sz))
++    paddr = (uint64_t)qsim_host_addr - (uint64_t)qsim_ram->mem_ptr;
 +  else
 +    paddr = 0;
 +  // Return null if this pointer is not in our RAM table.
@@ -800,7 +760,7 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
  #if DATA_SIZE == 8
  #define SUFFIX q
  #define USUFFIX q
-@@ -89,6 +131,10 @@
+@@ -89,6 +123,10 @@
          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
          res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
      }
@@ -811,7 +771,7 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
      return res;
  }
  
-@@ -110,6 +156,10 @@
+@@ -110,6 +148,10 @@
          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
          res = glue(glue(lds, SUFFIX), _raw)((uint8_t *)physaddr);
      }
@@ -822,7 +782,7 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
      return res;
  }
  #endif
-@@ -135,6 +185,9 @@
+@@ -135,6 +177,9 @@
          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
          glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, v);
      }
@@ -833,8 +793,8 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
  
  #endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
 diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.h
---- qemu-0.12.3/target-i386/helper.h	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/target-i386/helper.h	2012-06-06 08:16:46.025105936 -0700
+--- qemu-0.12.3/target-i386/helper.h	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/target-i386/helper.h	2012-09-13 14:08:10.000000000 -0400
 @@ -1,4 +1,5 @@
  #include "def-helper.h"
 +#include <stdint.h>
@@ -856,8 +816,8 @@ diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.
 +
  #include "def-helper.h"
 diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_helper.c
---- qemu-0.12.3/target-i386/op_helper.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/target-i386/op_helper.c	2012-06-06 08:16:46.029105936 -0700
+--- qemu-0.12.3/target-i386/op_helper.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/target-i386/op_helper.c	2012-09-13 14:08:10.000000000 -0400
 @@ -21,8 +21,41 @@
  #include "exec-all.h"
  #include "host-utils.h"
@@ -1406,8 +1366,8 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +  env = r14_val;
 +}
 diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/translate.c
---- qemu-0.12.3/target-i386/translate.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/target-i386/translate.c	2012-06-06 09:10:31.833153500 -0700
+--- qemu-0.12.3/target-i386/translate.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/target-i386/translate.c	2012-09-13 14:08:10.000000000 -0400
 @@ -5,7 +5,7 @@
   *
   * This library is free software; you can redistribute it and/or
@@ -2514,8 +2474,8 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          /* stop translation if indicated */
          if (dc->is_jmp)
 diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
---- qemu-0.12.3/vl.c	2010-02-23 12:54:38.000000000 -0800
-+++ qemu-0.12.3-qsim/vl.c	2012-06-06 09:03:38.509147783 -0700
+--- qemu-0.12.3/vl.c	2010-02-23 15:54:38.000000000 -0500
++++ qemu-0.12.3-qsim/vl.c	2012-09-13 14:08:10.000000000 -0400
 @@ -91,6 +91,9 @@
  #endif
  #endif

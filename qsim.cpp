@@ -145,11 +145,11 @@ void Qsim::QemuCpu::load_linux(const char* bzImage) {
 
   read_data_chunk(f, 
                   0x0000, 
-                  ramdesc->low_mem_ptr + 0x10000 - 0x200, 
+                  ramdesc->mem_ptr + 0x10000 - 0x200, 
                   setup_sects*512 + 512);
   read_data_chunk(f, 
                   setup_sects*512 + 512, 
-                  ramdesc->below_4g_ptr, 
+                  ramdesc->mem_ptr + 0x100000, 
                   syssize_16*16);
 
   // Set CPU registers to boot linux kernel.
@@ -279,9 +279,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb) :
   ramdesc = *ramdesc_p;
 
   // Read RAM state.
-  zrun_compress_read(file, (void*)ramdesc->low_mem_ptr, ramdesc->low_mem_sz);
-  zrun_compress_read(file, (void*)ramdesc->below_4g_ptr, ramdesc->below_4g_sz);
-  zrun_compress_read(file, (void*)ramdesc->above_4g_ptr, ramdesc->above_4g_sz);
+  zrun_compress_read(file, (void*)ramdesc->mem_ptr, ramdesc->sz);
 
   // TODO: The following should be moved to a utility function
   for (int i = 0; i < QSIM_N_REGS; i++) {
@@ -412,9 +410,7 @@ void Qsim::OSDomain::save_state(std::ostream &o) {
   o.write((const char*)&n_cores, sizeof(n_cores));
   o.write((const char*)&ram_size_mb, sizeof(ram_size_mb));
 
-  zrun_compress_write(o,(const void*)ramdesc.low_mem_ptr,ramdesc.low_mem_sz);
-  zrun_compress_write(o,(const void*)ramdesc.below_4g_ptr,ramdesc.below_4g_sz);
-  zrun_compress_write(o,(const void*)ramdesc.above_4g_ptr,ramdesc.above_4g_sz);
+  zrun_compress_write(o,(const void*)ramdesc.mem_ptr,ramdesc.sz);
 
   for (unsigned i = 0; i < n_cores; i++) cpus[i]->save_state(o);
 }

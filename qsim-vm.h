@@ -50,12 +50,8 @@ typedef void     (*reg_cb_t)   (int      cpu_id,
                                 int      type);
 
 typedef struct {
-  uint8_t *low_mem_ptr ;
-  size_t   low_mem_sz  ;
-  uint8_t *below_4g_ptr;
-  size_t   below_4g_sz ;
-  uint8_t *above_4g_ptr;
-  size_t   above_4g_sz ;
+  uint8_t *mem_ptr;
+  size_t   sz;
   qsim_lockstruct *l;
 } qemu_ramdesc_t;
 
