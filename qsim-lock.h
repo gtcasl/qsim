@@ -23,6 +23,7 @@ typedef pthread_rwlock_t qsim_rwlock_t;
 #endif
 
 #define QSIM_N_RWLOCKS 0x10000
+#define QSIM_BLOCK_SZ 64
 
 typedef struct {
   qsim_rwlock_t  locks[QSIM_N_RWLOCKS];
@@ -34,8 +35,9 @@ static inline void qsim_lock_init(qsim_lockstruct *l) {
 }
 
 static inline size_t qsim_lock_idx(uint64_t addr) {
-  return ((addr & 0xffff)      ^ ((addr>>16) & 0xffff)) ^
-        (((addr>>32) & 0xffff) ^ ((addr>>40) & 0xffff));
+  return ((addr/QSIM_BLOCK_SZ*QSIM_BLOCK_SZ) & 0xffff)
+          ^ ((addr>>16) & 0xffff)
+          ^ (((addr>>32) & 0xffff) ^ ((addr>>40) & 0xffff));
 }
 
 static inline void qsim_lock_addr(qsim_lockstruct *l, uint64_t addr) {
