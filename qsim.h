@@ -536,7 +536,7 @@ namespace Qsim {
     }
 
     // Get/set memory contents (physical address)
-    template <typename T> void mem_rd (T& d, uint64_t paddr) {
+    template <typename T> void mem_rd(T& d, uint64_t paddr) {
       size_t sz = sizeof(T);
       paddr += sz - 1;
       d = 0;
@@ -546,7 +546,7 @@ namespace Qsim {
       }
     }
 
-    template <typename T> void mem_wr (T d, uint64_t paddr) {
+    template <typename T> void mem_wr(T d, uint64_t paddr) {
       size_t sz = sizeof(T);
       while (sz--) {
 	cpus[0]->mem_wr(paddr++, (d)&0xff);
@@ -555,7 +555,7 @@ namespace Qsim {
     }
 
     // Get/set memory contents (virtual address)
-    template <typename T> void mem_rd_virt (unsigned cpu, T& d, uint64_t vaddr)
+    template <typename T> void mem_rd_virt(unsigned cpu, T& d, uint64_t vaddr)
     {
       size_t sz = sizeof(T);
       vaddr += sz - 1;
@@ -566,7 +566,7 @@ namespace Qsim {
       }
     }
 
-    template <typename T> void mem_wr_virt (unsigned cpu, T d, uint64_t vaddr)
+    template <typename T> void mem_wr_virt(unsigned cpu, T d, uint64_t vaddr)
     {
       size_t sz = sizeof(T);
       while (sz--) {
@@ -574,6 +574,12 @@ namespace Qsim {
 	d >>= 8;
       }
     }
+
+    uint8_t *mem_ptr() { return ramdesc.mem_ptr; }
+    size_t   mem_sz()  { return ramdesc.sz; }
+
+    void lock_addr(uint64_t pa);
+    void unlock_addr(uint64_t pa);
 
     ~OSDomain();
 
@@ -598,9 +604,9 @@ namespace Qsim {
     
     static int  magic_cb(int cpu_id, uint64_t rax);
     static int  atomic_cb(int cpu_id);
-    static void inst_cb(int cpu_id, uint64_t pa, uint64_t va, 
+    static void inst_cb(int cpu_id, uint64_t va, uint64_t pa, 
 			uint8_t l, const uint8_t *bytes, enum inst_type type);
-    static void mem_cb(int cpu_id, uint64_t pa, uint64_t va, 
+    static void mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
 		       uint8_t size, int type);
     static void io_cb(int cpu_id, uint64_t port, uint8_t s, 
 		      int type, uint32_t data);

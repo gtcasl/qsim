@@ -575,7 +575,7 @@ int Qsim::OSDomain::atomic_cb(int cpu_id) {
   return rval;
 }
 
-void Qsim::OSDomain::inst_cb(int cpu_id, uint64_t pa, uint64_t va, 
+void Qsim::OSDomain::inst_cb(int cpu_id, uint64_t va, uint64_t pa, 
                              uint8_t l, const uint8_t *bytes, 
                              enum inst_type type)
 {
@@ -583,15 +583,15 @@ void Qsim::OSDomain::inst_cb(int cpu_id, uint64_t pa, uint64_t va,
 
   // Just iterate through the callbacks and call them all.
   for (i = inst_cbs.begin(); i != inst_cbs.end(); ++i)
-    (**i)(cpu_id, pa, va, l, bytes, type);
+    (**i)(cpu_id, va, pa, l, bytes, type);
 }
 
-void Qsim::OSDomain::mem_cb(int cpu_id, uint64_t pa, uint64_t va,
+void Qsim::OSDomain::mem_cb(int cpu_id, uint64_t va, uint64_t pa,
 			   uint8_t s, int type) {
   std::vector<mem_cb_obj_base*>::iterator i;
 
   for (i = mem_cbs.begin(); i != mem_cbs.end(); ++i)
-    (**i)(cpu_id, pa, va, s, type);
+    (**i)(cpu_id, va, pa, s, type);
 }
 
 void Qsim::OSDomain::io_cb(int cpu_id, uint64_t port, uint8_t s, 
@@ -713,6 +713,10 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
 
   return rval;
 }
+
+void Qsim::OSDomain::lock_addr(uint64_t pa) {}
+void Qsim::OSDomain::unlock_addr(uint64_t pa) {}
+
 
 std::vector<Queue*> *Qsim::Queue::queues;
 
