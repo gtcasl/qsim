@@ -444,13 +444,8 @@ unsigned Qsim::OSDomain::run(uint16_t i, unsigned n) {
   if (!pending_ipis[i].empty()) {
     uint8_t fv = pending_ipis[i].front();
     int     rv = cpus[i]->interrupt(fv);
-    if (rv != fv && rv != -1) {
-      pending_ipis[i].pop();
-      if (rv != 0xef && rv != 0x30) {
-	// If it's not a timer interrupt, it's probably an IPI, so do it later.
-        pending_ipis[i].push(rv);
-      }
-    }
+    pending_ipis[i].pop();
+    if (rv != -1 && rv != 0xef && rv != 0x30) pending_ipis[i].push(rv);
   }
   pthread_mutex_unlock(&pending_ipis_mutex);
 

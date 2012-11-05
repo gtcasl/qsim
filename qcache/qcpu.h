@@ -166,7 +166,7 @@ public:
     MEM_BARRIER();
     while (instFlag[0]) { tick(); MEM_BARRIER(); }
 
-    if (issued >= ISSUE) tick();
+    if (++issued >= ISSUE) tick();
 
     while ((robHead+1)%ROBLEN == robTail) tick();
 
