@@ -123,7 +123,7 @@ private:
 
   TIMINGS t;
   int id, dloads, xloads, issued;
-  cycle_t cyc, now, stallCycles;
+  cycle_t cyc, now, stallCycles, krnInst, itypeCount[12];
   bool loadInst;
   addr_t loadAddr, loadPc;
   inst_type curType;
@@ -134,11 +134,12 @@ private:
 };
 
 template <int ISSUE, int RETIRE, int ROBLEN> class OOOCpuTimer {
+#define ROBSZ (ROBLEN+1)
 public:
   OOOCpuTimer(int id, MemSysDev &dMem, MemSysDev &iMem, Tickable *mc=NULL):
     id(id), dMem(&dMem), robHead(0), robTail(0), cyc(0),
     iMem(&iMem), now(0), issued(0), mc(mc), memOpIssued(false)
-  { for (unsigned i = 0; i < ROBLEN; ++i) rob[i] = 0;
+  { for (unsigned i = 0; i < ROBSZ; ++i) rob[i] = 0;
     instFlag[0] = 0;
   }
 
@@ -150,7 +151,7 @@ public:
 
   void instCallback(addr_t addr, inst_type type) {
     instFlag[0] = 1;
-    int latency = iMem->access(addr, addr, id, 0, &instFlag[0]);
+    int latency = iMem->access(addr, addr, id, 0);
     if (latency > 0) {
       sched(latency, instFlag);
     } else if (latency == 0) {
@@ -168,9 +169,9 @@ public:
 
     if (++issued >= ISSUE) tick();
 
-    while ((robHead+1)%ROBLEN == robTail) tick();
+    while ((robHead+1)%ROBSZ == robTail) tick();
 
-    robHead = (robHead+1)%ROBLEN;
+    robHead = (robHead+1)%ROBSZ;
   }
 
   void regCallback(regs r, int wr) {}
@@ -202,13 +203,15 @@ private:
     issued = 0;
     unsigned retired;
     for (retired = 0; retired < RETIRE && robTail != robHead; ++retired) {
-      MEM_BARRIER();
-      if (rob[robTail] == true) break;
-      MEM_BARRIER();
-      if ((robTail+1)%ROBLEN != robHead) robTail = (robTail+1)%ROBLEN;
+      if (rob[robTail]) break;
+      robTail = (robTail+1)%ROBSZ;
     }
 
-    //std::cout << now << ": retired " << retired << '\n';
+#if 0
+    std::cout << id  << ": " << now << ": retired " << retired
+              << "; occupancy " << ((robHead - robTail) + ROBSZ)%ROBSZ
+              << '\n';
+#endif
   }
 
   int id, issued;
@@ -217,7 +220,7 @@ private:
   Tickable *mc;
   bool memOpIssued;
 
-  unsigned rob[ROBLEN+1], instFlag[1];
+  unsigned rob[ROBSZ], instFlag[1];
   int robHead, robTail;
 
   void sched(int ticks, unsigned* it) {
