@@ -589,12 +589,18 @@ void Qsim::OSDomain::mem_cb(int cpu_id, uint64_t va, uint64_t pa,
     (**i)(cpu_id, va, pa, s, type);
 }
 
-void Qsim::OSDomain::io_cb(int cpu_id, uint64_t port, uint8_t s, 
+uint32_t *Qsim::OSDomain::io_cb(int cpu_id, uint64_t port, uint8_t s, 
 			  int type, uint32_t data) {
   std::vector<io_cb_obj_base*>::iterator i;
 
-  for (i = io_cbs.begin(); i != io_cbs.end(); ++i)
-    (**i)(cpu_id, port, s, type, data);
+  uint32_t *rval = NULL;
+
+  for (i = io_cbs.begin(); i != io_cbs.end(); ++i) {
+    uint32_t *p = (**i)(cpu_id, port, s, type, data);
+    if (p) rval = p;
+  }
+
+  return rval;
 }
 
 int Qsim::OSDomain::int_cb(int cpu_id, uint8_t vec) {

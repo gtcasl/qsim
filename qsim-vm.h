@@ -30,11 +30,9 @@ typedef void     (*mem_cb_t)   (int      cpu_id,
                                 uint8_t  size,
                                 int      type);
 
-typedef void     (*io_cb_t)    (int      cpu_id,
-                                uint64_t addr,
-                                uint8_t  size,
-                                int      type,
-                                uint32_t val);
+typedef uint32_t* (*io_cb_t) (
+  int cpu_id, uint64_t addr, uint8_t size, int type, uint32_t val
+);
 
 typedef int      (*int_cb_t)   (int      cpu_id, 
                                 uint8_t  vector);

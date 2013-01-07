@@ -294,7 +294,7 @@ namespace Qsim {
  
     struct io_cb_obj_base {
       virtual ~io_cb_obj_base() {}
-      virtual void operator()(int, uint64_t, uint8_t, int, uint32_t)=0;
+      virtual uint32_t *operator()(int, uint64_t, uint8_t, int, uint32_t)=0;
     };
 
     struct mem_cb_obj_base {
@@ -346,15 +346,25 @@ namespace Qsim {
     };
 
     template <typename T> struct io_cb_obj : public io_cb_obj_base {
-      typedef void (T::*io_cb_t)(int, uint64_t, uint8_t, int, uint32_t);
+      typedef uint32_t *(T::*io_cb_t)(int, uint64_t, uint8_t, int, uint32_t);
       T* p; io_cb_t f;
       io_cb_obj(T* p, io_cb_t f) : p(p), f(f) {}
-      void operator()(int cpu_id,
-		      uint64_t port,
-		      uint8_t size,
-		      int type,
-		      uint32_t val) {
-	((p)->*(f))(cpu_id, port, size, type, val);
+      uint32_t *operator()
+        (int cpu_id, uint64_t port, uint8_t size, int type, uint32_t val)
+      {
+	return ((p)->*(f))(cpu_id, port, size, type, val);
+      }
+    };
+
+    template <typename T> struct io_cb_old_obj : public io_cb_obj_base {
+      typedef void (T::*io_cb_t)(int, uint64_t, uint8_t, int, uint32_t);
+      T* p; io_cb_t f;
+      io_cb_old_obj(T* p, io_cb_t f) : p(p), f(f) {}
+      uint32_t *operator()
+        (int cpu_id, uint64_t port, uint8_t size, int type, uint32_t val)
+      {
+        ((p)->*(f))(cpu_id, port, size, type, val);
+        return NULL;
       }
     };
 
@@ -459,6 +469,14 @@ namespace Qsim {
       io_cb_handle_t set_io_cb(T* p, typename io_cb_obj<T>::io_cb_t f)
     {
       io_cbs.push_back(new io_cb_obj<T>(p, f));
+      set_io_cb(io_cb);
+      return io_cbs.end() - 1;
+    }
+
+    template <typename T>
+      io_cb_handle_t set_io_cb(T* p, typename io_cb_old_obj<T>::io_cb_t f)
+    {
+      io_cbs.push_back(new io_cb_old_obj<T>(p, f));
       set_io_cb(io_cb);
       return io_cbs.end() - 1;
     }
@@ -608,8 +626,8 @@ namespace Qsim {
 			uint8_t l, const uint8_t *bytes, enum inst_type type);
     static void mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
 		       uint8_t size, int type);
-    static void io_cb(int cpu_id, uint64_t port, uint8_t s, 
-		      int type, uint32_t data);
+    static uint32_t *io_cb
+      (int cpu_id, uint64_t port, uint8_t s, int type, uint32_t data);
     static int  int_cb(int cpu_id, uint8_t vec);
     static void reg_cb(int cpu_id, int reg, uint8_t size, int type);
   };
