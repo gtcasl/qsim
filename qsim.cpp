@@ -31,6 +31,11 @@ using std::stringstream; using std::istringstream; using std::ostringstream;
 using std::string;       using std::cerr;          using std::vector;
 using std::ofstream;     using std::ifstream;      using std::istream;
 
+// This way autoconf can easily determine that the QSim library is present.
+extern "C" {
+  void qsim_present() {}
+};
+
 template <typename T> static inline void read_header_field(FILE*    f, 
                                                            uint64_t offset, 
                                                            T&       field) 
