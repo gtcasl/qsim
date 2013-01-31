@@ -1,3 +1,8 @@
+These instructions are written in bash-ese. Know which shell you're using
+(echo $SHELL) and if you're not sure how to translate, perform the install in
+a bash session. (Just run "bash" on the command line. It's installed by
+default on most Linux distros.)
+
 Building Qemu
 -------------
 
