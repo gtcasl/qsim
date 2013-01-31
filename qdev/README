@@ -1,9 +1,0 @@
-QDev Device Emulation Infrastructure
-====================================
-
-Since QSim no longer supports device drivers or has a working BIOS, running
-unmodified kernels is not supported and transitioning to 64 bits, despite QEMU
-support for this, is difficult. To make the transition, we are going to try to
-create a layer, "QDev" that will add thread safe device support back to QSim,
-and add a debug mode that traps and prompts for all unexpected memory and I/O
-accesses.

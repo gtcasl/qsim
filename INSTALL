@@ -24,12 +24,13 @@ $ ./getbusybox.sh
 $ cd busybox-1.19.3
 $ make CFLAGS="-m32" LDFLAGS="-m32"
 $ cp busybox ../sbin
+$ cd ..
 
 Building initrd
 ---------------
 
-Change the init script to suit your needs, and put the appropriate benchmark in
-the sbin/ directory.
+You can modify the init script to suit your needs. This used to be the way
+applications were loaded, but now they're 
 
 $ make
 $ cd ..
