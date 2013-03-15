@@ -46,6 +46,7 @@ namespace Qcache {
 
     void lockAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
+      if (banks[getBankIdx(addr)].getEntry(addr).lockHolder == id) return;
       spin_lock(&banks[getBankIdx(addr)].getEntry(addr).lock);
       #ifdef DEBUG
       pthread_mutex_lock(&errLock);
@@ -57,14 +58,14 @@ namespace Qcache {
 
     void unlockAddr(addr_t addr, int id) {
       ASSERT(addr%(1<<L2LINESZ) == 0);
-      ASSERT(id == banks[getBankIdx(addr)].getEntry(addr).lockHolder);
+      if (banks[getBankIdx(addr)].getEntry(addr).lockHolder != id) return;
       banks[getBankIdx(addr)].getEntry(addr).lockHolder = -1;
+      spin_unlock(&banks[getBankIdx(addr)].getEntry(addr).lock);
       #ifdef DEBUG
       pthread_mutex_lock(&errLock);
       std::cout << id << ": Unlock " << std::hex << addr << '\n';
       pthread_mutex_unlock(&errLock);
       #endif
-      spin_unlock(&banks[getBankIdx(addr)].getEntry(addr).lock);
     }
 
     void addAddr(addr_t addr, int id) {
