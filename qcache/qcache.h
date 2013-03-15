@@ -65,7 +65,7 @@ namespace Qcache {
     virtual uint64_t *cprotLookup(addr_t addr, spinlock_t *&l, bool inv,
                                   bool lock=true)
     {
-      ASSERT(false);
+      return NULL;
     }
 
     virtual void l1LockAddr(addr_t addr) { ASSERT(false); }
