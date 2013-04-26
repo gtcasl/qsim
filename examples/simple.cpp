@@ -97,10 +97,11 @@ public:
     return 0;
   }
 
-  void io_cb(int c, uint64_t p, uint8_t s, int w, uint32_t v) {
+  uint32_t *io_cb(int c, uint64_t p, uint8_t s, int w, uint32_t v) {
     tracefile << std::dec << c << ": I/O " << (w?"WR":"RD") << ": (0x" 
               << std::hex << p << "): " << std::dec << (unsigned)(s*8) 
               << " bits.\n";
+    return NULL;
   }
 
   void reg_cb(int c, int r, uint8_t s, int type) {
