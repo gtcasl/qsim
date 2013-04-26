@@ -32,7 +32,9 @@ public:
     Qsim::load_file(osd, in);
     std::cout << "Finished loading app.\n";
 
-    //osd.set_inst_cb(this, &TraceWriter::inst_cb);
+    osd.set_int_cb(this, &TraceWriter::int_cb);
+    osd.set_inst_cb(this, &TraceWriter::inst_cb);
+    osd.set_mem_cb(this, &TraceWriter::mem_cb);
     osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
   }
 
@@ -45,12 +47,21 @@ public:
     return 0;
   }
 
+  void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
+    ++memopcount;
+    tracefile << std::dec << c << ":   Mem" << (w?"Wr":"Rd") << " 0x"
+              << std::hex << v << '(' << std::dec << memopcount << ')'
+              << std::endl;
+  }
+
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
                enum inst_type t)
   {
     _DecodedInst inst[15];
     unsigned int shouldBeOne;
     distorm_decode(0, b, l, Decode32Bits, inst, 15, &shouldBeOne);
+
+    memopcount = 0;
 
     tracefile << std::dec << c << ": Inst@(0x" << std::hex << v << "/0x" << p 
               << ", tid=" << std::dec << osd.get_tid(c) << ", "
@@ -68,6 +79,7 @@ public:
   }
 
   int int_cb(int c, uint8_t v) {
+    memopcount = 0;
     tracefile << std::dec << c << ": Interrupt 0x" << std::hex << std::setw(2)
               << std::setfill('0') << (unsigned)v << '\n';
     return 0;
@@ -80,6 +92,7 @@ public:
   }
 
 private:
+  int memopcount;
   OSDomain &osd;
   ostream &tracefile;
   bool finished;
