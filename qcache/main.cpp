@@ -164,18 +164,20 @@ struct thread_arg_t {
 const Qcache::cycle_t BARRIER_INTERVAL = 10000;
 const Qcache::cycle_t BARRIERS_PER_TICK = 20;
 const Qcache::cycle_t BARRIERS_PER_OUTPUT = 1;
+const Qcache::cycle_t LIMIT = 100000;
 
 void *thread_main(void *arg_vp) {
   bool runningLocal(true);
   unsigned outputCountdown(BARRIERS_PER_OUTPUT),
-           timerCountdown(BARRIERS_PER_TICK);
+           timerCountdown(BARRIERS_PER_TICK),
+           topCount(0);
 
   thread_arg_t *arg((thread_arg_t*)arg_vp);
 
   arg->nextBarrier = BARRIER_INTERVAL;
 
   pthread_barrier_wait(&b0);
-  while(runningLocal) {
+  while(runningLocal && topCount < LIMIT) {
     bool doBarrier(true);
     for (unsigned i = 0; i < 1000; ++i) {
       for (unsigned c = arg->cpuStart; c < arg->cpuEnd; ++c) {
@@ -208,6 +210,7 @@ void *thread_main(void *arg_vp) {
     }
 
     // if (arg->cpuStart == 0 && runningLocal) osd_p->timer_interrupt();
+    ++topCount;
   }
 
   return 0;
