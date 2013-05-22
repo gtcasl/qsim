@@ -1560,20 +1560,16 @@ contains pointers to blocks allocated for each of three memory regions and
 values representing their size. It will contain at least the following fields:
 
 \begin{verbatim}
-    typedef struct {
-      uint8_t *low_mem_ptr;
-      size_t   low_mem_sz;
-      uint8_t *below_4g_ptr;
-      size_t   below_4g_sz;
-      uint8_t *above_4g_ptr;
-      size_t   above_4g_sz;
-    } qsim_ramdesc_t;
+  typedef struct {
+    uint8_t *mem_ptr;
+    size_t   sz;
+    qsim_lockstruct *l;
+  } qemu_ramdesc_t;
 \end{verbatim}
 
 These can be used to translate host addresses to guest physical addresses and 
-vice-versa. ``Low memory'' is RAM below 640k; ``Below 4g'' is RAM starting at
-1M, and ``above 4g'' is RAM starting at 4G, available only with PAE or 64-bit
-addressing.
+vice-versa. \texttt{mem_ptr} is a pointer to the base of physical memory and
+\texttt{sz} is the size of this region in bytes.
 
 \newpage
 
