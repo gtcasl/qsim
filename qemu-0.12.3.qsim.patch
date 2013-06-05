@@ -1,6 +1,6 @@
 diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
---- qemu-0.12.3/cpu-all.h	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/cpu-all.h	2013-01-14 02:44:22.000000000 -0500
+--- qemu-0.12.3/cpu-all.h	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/cpu-all.h	2013-05-21 13:49:01.149563570 -0600
 @@ -16,9 +16,13 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
@@ -27,8 +27,8 @@ diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
  
  #define ldub_raw(p) ldub_p(laddr((p)))
 diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
---- qemu-0.12.3/cpu-common.h	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/cpu-common.h	2013-01-14 02:44:22.000000000 -0500
+--- qemu-0.12.3/cpu-common.h	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/cpu-common.h	2013-05-21 13:49:01.149563570 -0600
 @@ -29,6 +29,7 @@
  }
  
@@ -38,8 +38,8 @@ diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
  void qemu_ram_free(ram_addr_t addr);
  /* This should only be used for ram local to a device.  */
 diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
---- qemu-0.12.3/cpu-exec.c	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/cpu-exec.c	2013-01-14 02:44:22.000000000 -0500
+--- qemu-0.12.3/cpu-exec.c	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/cpu-exec.c	2013-05-21 13:49:01.150563569 -0600
 @@ -38,6 +38,11 @@
  #endif
  #endif
@@ -90,9 +90,38 @@ diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
  
      /* never comes here */
 diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
---- qemu-0.12.3/exec.c	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/exec.c	2013-01-14 02:44:22.000000000 -0500
-@@ -438,7 +438,7 @@
+--- qemu-0.12.3/exec.c	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/exec.c	2013-05-31 10:32:37.696781569 -0600
+@@ -42,6 +42,9 @@
+ #include <qemu.h>
+ #endif
+ 
++#define QSIM_DEFS
++#include "qsim-vm.h"
++
+ //#define DEBUG_TB_INVALIDATE
+ //#define DEBUG_FLUSH
+ //#define DEBUG_TLB
+@@ -237,6 +240,18 @@
+ }
+ #endif
+ 
++extern int qsim_memop_flag;
++int qsim_memop_recursed = 0;
++
++void qsim_memop_phys(uint64_t adr, uint64_t size, int type) {
++  if (!qsim_memop_recursed && !qsim_memop_flag) {
++    qsim_memop_recursed = 1;
++    if (qsim_mem_cb)
++      qsim_mem_cb(qsim_cur_cpu, 0, adr, size, type);
++    qsim_memop_recursed = 0;
++  }
++}
++
+ static void page_init(void)
+ {
+     /* NOTE: we can always suppose that qemu_host_page_size >=
+@@ -438,7 +453,7 @@
  
          flags = MAP_PRIVATE | MAP_ANONYMOUS;
  #if defined(__x86_64__)
@@ -101,7 +130,7 @@ diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
          /* Cannot map more than that */
          if (code_gen_buffer_size > (800 * 1024 * 1024))
              code_gen_buffer_size = (800 * 1024 * 1024);
-@@ -2404,6 +2404,34 @@
+@@ -2404,6 +2419,34 @@
          kvm_uncoalesce_mmio_region(addr, size);
  }
  
@@ -136,9 +165,103 @@ diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
  ram_addr_t qemu_ram_alloc(ram_addr_t size)
  {
      RAMBlock *new_block;
+@@ -3042,6 +3085,8 @@
+     unsigned long pd;
+     PhysPageDesc *p;
+ 
++    // printf("%x %c %d\n", (unsigned)addr, (is_write?'W':'R'), len);
++
+     while (len > 0) {
+         page = addr & TARGET_PAGE_MASK;
+         l = (page + TARGET_PAGE_SIZE) - addr;
+@@ -3315,6 +3360,8 @@
+ /* warning: addr must be aligned */
+ uint32_t ldl_phys(target_phys_addr_t addr)
+ {
++   qsim_memop_phys(addr, 4, 0);
++
+     int io_index;
+     uint8_t *ptr;
+     uint32_t val;
+@@ -3347,6 +3394,8 @@
+ /* warning: addr must be aligned */
+ uint64_t ldq_phys(target_phys_addr_t addr)
+ {
++    qsim_memop_phys(addr, 8, 0);
++
+     int io_index;
+     uint8_t *ptr;
+     uint64_t val;
+@@ -3386,6 +3435,7 @@
+ uint32_t ldub_phys(target_phys_addr_t addr)
+ {
+     uint8_t val;
++    qsim_memop_phys(addr, 1, 0);
+     cpu_physical_memory_read(addr, &val, 1);
+     return val;
+ }
+@@ -3394,6 +3444,7 @@
+ uint32_t lduw_phys(target_phys_addr_t addr)
+ {
+     uint16_t val;
++    qsim_memop_phys(addr, 2, 0);
+     cpu_physical_memory_read(addr, (uint8_t *)&val, 2);
+     return tswap16(val);
+ }
+@@ -3435,6 +3486,8 @@
+             }
+         }
+     }
++
++    qsim_memop_phys(addr, 4, 1);
+ }
+ 
+ void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val)
+@@ -3467,6 +3520,8 @@
+             (addr & ~TARGET_PAGE_MASK);
+         stq_p(ptr, val);
+     }
++
++    qsim_memop_phys(addr, 8, 1);
+ }
+ 
+ /* warning: addr must be aligned */
+@@ -3503,6 +3558,8 @@
+                 (0xff & ~CODE_DIRTY_FLAG);
+         }
+     }
++
++    qsim_memop_phys(addr, 4, 1);
+ }
+ 
+ /* XXX: optimize */
+@@ -3510,6 +3567,7 @@
+ {
+     uint8_t v = val;
+     cpu_physical_memory_write(addr, &v, 1);
++    qsim_memop_phys(addr, 1, 1);
+ }
+ 
+ /* XXX: optimize */
+@@ -3517,6 +3575,7 @@
+ {
+     uint16_t v = tswap16(val);
+     cpu_physical_memory_write(addr, (const uint8_t *)&v, 2);
++    qsim_memop_phys(addr, 2, 1);
+ }
+ 
+ /* XXX: optimize */
+@@ -3524,6 +3583,7 @@
+ {
+     val = tswap64(val);
+     cpu_physical_memory_write(addr, (const uint8_t *)&val, 8);
++    qsim_memop_phys(addr, 8, 1);
+ }
+ 
+ #endif
 diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
---- qemu-0.12.3/hw/apic.c	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/hw/apic.c	2013-01-14 02:44:22.000000000 -0500
+--- qemu-0.12.3/hw/apic.c	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/hw/apic.c	2013-05-21 13:49:01.152563567 -0600
 @@ -185,7 +185,7 @@
  void apic_deliver_pic_intr(CPUState *env, int level)
  {
@@ -239,8 +362,8 @@ diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
      vmstate_register(s->idx, &vmstate_apic, s);
      qemu_register_reset(apic_reset, s);
 diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
---- qemu-0.12.3/hw/pc.c	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/hw/pc.c	2013-01-14 02:44:22.000000000 -0500
+--- qemu-0.12.3/hw/pc.c	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/hw/pc.c	2013-05-21 13:49:01.154563565 -0600
 @@ -45,6 +45,11 @@
  #include "loader.h"
  #include "elf.h"
@@ -704,8 +827,8 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  
  static QEMUMachine pc_machine = {
 diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
---- qemu-0.12.3/posix-aio-compat.c	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/posix-aio-compat.c	2013-01-14 02:44:22.000000000 -0500
+--- qemu-0.12.3/posix-aio-compat.c	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/posix-aio-compat.c	2013-05-21 13:49:01.154563565 -0600
 @@ -368,6 +368,9 @@
  {
      sigset_t set, oldset;
@@ -717,9 +840,9 @@ diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
      idle_threads++;
  
 diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
---- qemu-0.12.3/softmmu_header.h	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/softmmu_header.h	2013-01-14 02:44:22.000000000 -0500
-@@ -16,6 +16,40 @@
+--- qemu-0.12.3/softmmu_header.h	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/softmmu_header.h	2013-06-05 10:01:29.300136752 -0600
+@@ -16,6 +16,46 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
   */
@@ -747,12 +870,18 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
 +  return paddr;
 +}
 +
++extern int qsim_memop_flag;
++extern int qsim_memop_recursed;
 +
-+static inline void qsim_memop(uint64_t adr, uint64_t size, int type) {
-+  if (qsim_mem_cb) {
++static inline int qsim_memop(uint64_t adr, uint64_t size, int type) {
++  if (qsim_mem_cb && !qsim_memop_recursed && !qsim_memop_flag) {
++    qsim_memop_recursed = 1;
 +    qsim_phys_addr = qsim_ram_addr_from_host((void *)qsim_host_addr);
 +    qsim_mem_cb(qsim_cur_cpu, adr, qsim_phys_addr, size, type);
++    qsim_memop_recursed = 0;
++    return 1;
 +  }
++  return 0;
 +}
 +
 +#endif
@@ -760,41 +889,116 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
  #if DATA_SIZE == 8
  #define SUFFIX q
  #define USUFFIX q
-@@ -89,6 +123,10 @@
+@@ -89,6 +129,22 @@
          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
          res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
      }
 +
-+    if (strcmp(QSIM_STRING(MEMSUFFIX), "_code"))
-+      qsim_memop(ptr, DATA_SIZE, 0);
++    if (/*strcmp(QSIM_STRING(MEMSUFFIX), "_code")*/1) {
++      if (qsim_memop(ptr, DATA_SIZE, 0)) {
++        addr = ptr;
++        page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
++        mmu_idx = CPU_MMU_INDEX;
++        if (unlikely(env->tlb_table[mmu_idx][page_index].ADDR_READ !=
++                 (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
++          res = glue(glue(__ld, SUFFIX), MMUSUFFIX)(addr, mmu_idx);
++        } else {
++          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
++          res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
++        }
++      }
++    }
 + 
      return res;
  }
  
-@@ -110,6 +148,10 @@
+@@ -99,7 +155,7 @@
+     target_ulong addr;
+     unsigned long physaddr;
+     int mmu_idx;
+-
++ 
+     addr = ptr;
+     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
+     mmu_idx = CPU_MMU_INDEX;
+@@ -110,6 +166,22 @@
          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
          res = glue(glue(lds, SUFFIX), _raw)((uint8_t *)physaddr);
      }
 +
-+    if (strcmp(QSIM_STRING(MEMSUFFIX), "_code"))
-+      qsim_memop(ptr, DATA_SIZE, 0);
++    if (/*strcmp(QSIM_STRING(MEMSUFFIX), "_code")*/1) {
++      if (qsim_memop(ptr, DATA_SIZE, 0)) {
++        addr = ptr;
++        page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
++        mmu_idx = CPU_MMU_INDEX;
++        if (unlikely(env->tlb_table[mmu_idx][page_index].ADDR_READ !=
++                 (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
++          res = (DATA_STYPE)glue(glue(__ld, SUFFIX), MMUSUFFIX)(addr, mmu_idx);
++        } else {
++          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
++          res = glue(glue(lds, SUFFIX), _raw)((uint8_t *)physaddr);
++        }
++      }
++    }
 +
      return res;
  }
  #endif
-@@ -135,6 +177,9 @@
+@@ -135,6 +207,9 @@
          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
          glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, v);
      }
 +
-+    if (strcmp(QSIM_STRING(MEMSUFFIX), "_code"))
++    if (/*strcmp(QSIM_STRING(MEMSUFFIX), "_code")*/1)
 +      qsim_memop(ptr, DATA_SIZE, 1);
  }
  
  #endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
+diff -r -u qemu-0.12.3/target-i386/helper.c qemu-0.12.3-qsim/target-i386/helper.c
+--- qemu-0.12.3/target-i386/helper.c	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/target-i386/helper.c	2013-06-04 13:57:26.959681546 -0600
+@@ -1055,9 +1055,14 @@
+    1  = generate PF fault
+    2  = soft MMU activation required for this block
+ */
++extern int qsim_memop_flag;
++
+ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
+                              int is_write1, int mmu_idx, int is_softmmu)
+ {
++    int qsim_memop_bak = qsim_memop_flag;
++    qsim_memop_flag = 0;
++
+     uint64_t ptep, pte;
+     target_ulong pde_addr, pte_addr;
+     int error_code, is_dirty, prot, page_size, ret, is_write, is_user;
+@@ -1094,6 +1099,7 @@
+             if (sext != 0 && sext != -1) {
+                 env->error_code = 0;
+                 env->exception_index = EXCP0D_GPF;
++                qsim_memop_flag = qsim_memop_bak;
+                 return 1;
+             }
+ 
+@@ -1322,6 +1328,7 @@
+     vaddr = virt_addr + page_offset;
+ 
+     ret = tlb_set_page_exec(env, vaddr, paddr, prot, mmu_idx, is_softmmu);
++    qsim_memop_flag = qsim_memop_bak;
+     return ret;
+  do_fault_protect:
+     error_code = PG_ERROR_P_MASK;
+@@ -1342,6 +1349,7 @@
+     }
+     env->error_code = error_code;
+     env->exception_index = EXCP0E_PAGE;
++    qsim_memop_flag = qsim_memop_bak;
+     return 1;
+ }
+ 
 diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.h
---- qemu-0.12.3/target-i386/helper.h	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/target-i386/helper.h	2013-01-14 02:44:22.000000000 -0500
+--- qemu-0.12.3/target-i386/helper.h	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/target-i386/helper.h	2013-05-21 13:49:01.154563565 -0600
 @@ -1,4 +1,5 @@
  #include "def-helper.h"
 +#include <stdint.h>
@@ -815,10 +1019,12 @@ diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.
 +DEF_HELPER_3(store_callback_post, tl, tl, tl, tl)
 +
  #include "def-helper.h"
+Only in qemu-0.12.3-qsim/target-i386: .#op_helper.c
+Only in qemu-0.12.3-qsim/target-i386: #op_helper.c#
 diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_helper.c
---- qemu-0.12.3/target-i386/op_helper.c	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/target-i386/op_helper.c	2013-01-15 15:49:23.000000000 -0500
-@@ -21,8 +21,41 @@
+--- qemu-0.12.3/target-i386/op_helper.c	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/target-i386/op_helper.c	2013-06-04 14:36:19.998434512 -0600
+@@ -21,8 +21,43 @@
  #include "exec-all.h"
  #include "host-utils.h"
  
@@ -843,7 +1049,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +
 +extern uint8_t  qsim_irq_vec;
 +extern int      qsim_irq_pending;
- 
++
 +extern int qsim_vm_id;
 +//extern int qsim_cur_cpu;
 +
@@ -857,11 +1063,13 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +
 +uint64_t qsim_eip;
 +
++extern int qsim_memop_flag;
+ 
 +//#define DEBUG_PCALL
  
  #ifdef DEBUG_PCALL
  #  define LOG_PCALL(...) qemu_log_mask(CPU_LOG_PCALL, ## __VA_ARGS__)
-@@ -104,18 +137,35 @@
+@@ -104,18 +139,35 @@
      3.32192809488736234781L,  /*l2t*/
  };
  
@@ -900,7 +1108,14 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
  }
  
  void helper_write_eflags(target_ulong t0, uint32_t update_mask)
-@@ -140,10 +190,12 @@
+@@ -136,21 +188,34 @@
+ static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
+                                int selector)
+ {
++    int qsim_memop_bak = qsim_memop_flag, rval;
++    qsim_memop_flag = 0;
++
+     SegmentCache *dt;
      int index;
      target_ulong ptr;
  
@@ -911,9 +1126,27 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
          dt = &env->gdt;
 +
      index = selector & ~7;
-     if ((index + 7) > dt->limit)
-         return -1;
-@@ -558,32 +610,47 @@
+-    if ((index + 7) > dt->limit)
+-        return -1;
++    if ((index + 7) > dt->limit) {
++      rval = -1;
++      goto ls_end;
++    }
+     ptr = dt->base + index;
++    ldub_kernel(ptr + 3);
+     *e1_ptr = ldl_kernel(ptr);
+     *e2_ptr = ldl_kernel(ptr + 4);
+-    return 0;
++
++    rval = 0;
++
++ ls_end:
++    qsim_memop_flag = qsim_memop_bak;
++    return rval;
+ }
+ 
+ static inline unsigned int get_seg_limit(uint32_t e1, uint32_t e2)
+@@ -558,32 +623,47 @@
  
  void helper_outb(uint32_t port, uint32_t data)
  {
@@ -964,10 +1197,11 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
  }
  
  static inline unsigned int get_sp_mask(unsigned int e2)
-@@ -1211,6 +1278,17 @@
+@@ -1211,6 +1291,18 @@
  void do_interrupt(int intno, int is_int, int error_code,
                    target_ulong next_eip, int is_hw)
  {
++  qsim_memop_flag = 0;
 +  if (atomic_flag) helper_unlock();
 +  if (nonatomic_locked) {
 +    qsim_unlock_addr(qsim_ram_l, qsim_phys_addr);
@@ -982,7 +1216,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
      if (qemu_loglevel_mask(CPU_LOG_INT)) {
          if ((env->cr[0] & CR0_PE_MASK)) {
              static int count;
-@@ -1930,13 +2008,23 @@
+@@ -1930,13 +2022,23 @@
  {
      uint32_t eax, ebx, ecx, edx;
  
@@ -1011,7 +1245,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
  }
  
  void helper_enter_level(int level, int data32, target_ulong t1)
-@@ -2193,31 +2281,38 @@
+@@ -2193,31 +2295,38 @@
  
      if ((new_cs & 0xfffc) == 0)
          raise_exception_err(EXCP0D_GPF, 0);
@@ -1057,7 +1291,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
          cpu_x86_load_seg_cache(env, R_CS, (new_cs & 0xfffc) | cpl,
                         get_seg_base(e1, e2), limit, e2);
          EIP = new_eip;
-@@ -2943,6 +3038,7 @@
+@@ -2943,6 +3052,7 @@
      helper_write_crN(0, t0);
  }
  
@@ -1065,7 +1299,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
  void helper_clts(void)
  {
      env->cr[0] &= ~CR0_TS_MASK;
-@@ -2964,7 +3060,7 @@
+@@ -2964,7 +3074,7 @@
      }
      helper_svm_check_intercept_param(SVM_EXIT_RDTSC, 0);
  
@@ -1074,7 +1308,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
      EAX = (uint32_t)(val);
      EDX = (uint32_t)(val >> 32);
  }
-@@ -3003,6 +3099,9 @@
+@@ -3003,6 +3113,9 @@
  
      val = ((uint32_t)EAX) | ((uint64_t)((uint32_t)EDX) << 32);
  
@@ -1084,7 +1318,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
      switch((uint32_t)ECX) {
      case MSR_IA32_SYSENTER_CS:
          env->sysenter_cs = val & 0xffff;
-@@ -3136,6 +3235,8 @@
+@@ -3136,6 +3249,8 @@
  
      helper_svm_check_intercept_param(SVM_EXIT_MSR, 0);
  
@@ -1093,7 +1327,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
      switch((uint32_t)ECX) {
      case MSR_IA32_SYSENTER_CS:
          val = env->sysenter_cs;
-@@ -5656,3 +5757,305 @@
+@@ -5656,3 +5771,327 @@
  #endif
      }
  }
@@ -1154,6 +1388,8 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +                                   target_ulong size, 
 +                                   target_ulong data) 
 +{
++  qsim_memop_flag = 1;
++
 +  __ldb_mmu(vaddr, 0);
 +  qsim_phys_addr = qsim_ram_addr_from_host((void *)qsim_host_addr);
 +
@@ -1171,6 +1407,8 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +
 +target_ulong helper_load_callback_pre(target_ulong vaddr, target_ulong size) 
 +{
++  qsim_memop_flag = 1;
++
 +  __ldb_mmu(vaddr, 0);
 +  qsim_phys_addr = qsim_ram_addr_from_host((void *)qsim_host_addr);
 +
@@ -1199,6 +1437,8 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +    nonatomic_locked = 0;
 +  }
 +
++  qsim_memop_flag = 0;
++
 +  return 0;
 +}
 +
@@ -1209,27 +1449,43 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +    nonatomic_locked = 0;
 +  }
 +
++  qsim_memop_flag = 0;
++
 +  return 0;
 +}
 +
 +
 +uint8_t mem_rd(uint64_t paddr) {
-+  return ldub_phys(paddr); // ldub_kernel(vaddr)*/0;
++  int bak = qsim_memop_flag;
++  qsim_memop_flag = 1;
++  uint8_t b = ldub_phys(paddr); // ldub_kernel(vaddr)*/0;
++  qsim_memop_flag = bak;
++  return b;
 +}
 +
 +void mem_wr(uint64_t paddr, uint8_t value) {
++  int bak = qsim_memop_flag;
++  qsim_memop_flag = 1;
 +  stb_phys(paddr, value);
++  qsim_memop_flag = bak;
 +}
 +
 +uint8_t mem_rd_virt(uint64_t vaddr) {
 +  // This is known to fail on guest operating systems that support the NX bit.
-+  return ldub_code(vaddr);
++  int bak = qsim_memop_flag;
++  qsim_memop_flag = 1;
++  char b = ldub_code(vaddr);
++  qsim_memop_flag = bak;
++  return b;
 +}
 +
 +void mem_wr_virt(uint64_t vaddr, uint8_t value) {
 +  // This is known to fail on guest operating systems that support the NX bit.
++  int bak = qsim_memop_flag;
++  qsim_memop_flag = 1;
 +  ldub_code(vaddr); // discard result but get the host address
 +  (*(uint8_t *)qsim_host_addr) = value;
++  qsim_memop_flag = bak;
 +}
 +
 +target_ulong helper_reg_read_callback(target_ulong reg, target_ulong size) {
@@ -1400,18 +1656,21 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +  env = r14_val;
 +}
 diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/translate.c
---- qemu-0.12.3/target-i386/translate.c	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/target-i386/translate.c	2013-02-28 16:18:25.000000000 -0500
-@@ -5,7 +5,7 @@
-  *
-  * This library is free software; you can redistribute it and/or
-  * modify it under the terms of the GNU Lesser General Public
-- * License as published by the Free Software Foundation; either
-+5B * License as published by the Free Software Foundation; either
-  * version 2 of the License, or (at your option) any later version.
-  *
-  * This library is distributed in the hope that it will be useful,
-@@ -58,6 +58,65 @@
+--- qemu-0.12.3/target-i386/translate.c	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/target-i386/translate.c	2013-06-05 10:24:00.073256786 -0600
+@@ -28,6 +28,11 @@
+ #include "disas.h"
+ #include "tcg-op.h"
+ 
++#include "qsim-vm.h"
++#include "vm-func.h"
++
++extern trans_cb_t qsim_trans_cb;
++
+ #include "helper.h"
+ #define GEN_HELPER 1
+ #include "helper.h"
+@@ -58,6 +63,65 @@
  
  //#define MACRO_TEST   1
  
@@ -1477,7 +1736,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  /* global register indexes */
  static TCGv_ptr cpu_env;
  static TCGv cpu_A0, cpu_cc_src, cpu_cc_dst, cpu_cc_tmp;
-@@ -272,10 +331,12 @@
+@@ -272,10 +336,12 @@
  
  static inline void gen_op_mov_reg_v(int ot, int reg, TCGv t0)
  {
@@ -1490,7 +1749,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          tmp = tcg_temp_new();
          tcg_gen_ext8u_tl(tmp, t0);
          if (reg < 4 X86_64_DEF( || reg >= 8 || x86_64_hregs)) {
-@@ -289,6 +350,7 @@
+@@ -289,6 +355,7 @@
          tcg_temp_free(tmp);
          break;
      case OT_WORD:
@@ -1498,7 +1757,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          tmp = tcg_temp_new();
          tcg_gen_ext16u_tl(tmp, t0);
          tcg_gen_andi_tl(cpu_regs[reg], cpu_regs[reg], ~0xffff);
-@@ -297,16 +359,20 @@
+@@ -297,16 +364,20 @@
          break;
      default: /* XXX this shouldn't be reached;  abort? */
      case OT_LONG:
@@ -1519,7 +1778,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  }
  
  static inline void gen_op_mov_reg_T0(int ot, int reg)
-@@ -343,6 +409,8 @@
+@@ -343,6 +414,8 @@
          break;
  #endif
      }
@@ -1528,7 +1787,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  }
  
  static inline void gen_op_mov_v_reg(int ot, TCGv t0, int reg)
-@@ -361,6 +429,16 @@
+@@ -361,6 +434,16 @@
          tcg_gen_mov_tl(t0, cpu_regs[reg]);
          break;
      }
@@ -1545,7 +1804,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  }
  
  static inline void gen_op_mov_TN_reg(int ot, int t_index, int reg)
-@@ -371,6 +449,7 @@
+@@ -371,6 +454,7 @@
  static inline void gen_op_movl_A0_reg(int reg)
  {
      tcg_gen_mov_tl(cpu_A0, cpu_regs[reg]);
@@ -1553,7 +1812,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  }
  
  static inline void gen_op_addl_A0_im(int32_t val)
-@@ -405,11 +484,14 @@
+@@ -405,11 +489,14 @@
  
  static inline void gen_op_jmp_T0(void)
  {
@@ -1568,7 +1827,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      switch(size) {
      case 0:
          tcg_gen_addi_tl(cpu_tmp0, cpu_regs[reg], val);
-@@ -430,10 +512,14 @@
+@@ -430,10 +517,14 @@
          break;
  #endif
      }
@@ -1583,7 +1842,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      switch(size) {
      case 0:
          tcg_gen_add_tl(cpu_tmp0, cpu_regs[reg], cpu_T[0]);
-@@ -454,6 +540,8 @@
+@@ -454,6 +545,8 @@
          break;
  #endif
      }
@@ -1592,7 +1851,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  }
  
  static inline void gen_op_set_cc_op(int32_t val)
-@@ -463,6 +551,7 @@
+@@ -463,6 +556,7 @@
  
  static inline void gen_op_addl_A0_reg_sN(int shift, int reg)
  {
@@ -1600,7 +1859,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      tcg_gen_mov_tl(cpu_tmp0, cpu_regs[reg]);
      if (shift != 0)
          tcg_gen_shli_tl(cpu_tmp0, cpu_tmp0, shift);
-@@ -501,11 +590,13 @@
+@@ -501,11 +595,13 @@
  static inline void gen_op_movq_A0_reg(int reg)
  {
      tcg_gen_mov_tl(cpu_A0, cpu_regs[reg]);
@@ -1614,7 +1873,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      if (shift != 0)
          tcg_gen_shli_tl(cpu_tmp0, cpu_tmp0, shift);
      tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
-@@ -517,14 +608,14 @@
+@@ -517,14 +613,14 @@
      int mem_index = (idx >> 2) - 1;
      switch(idx & 3) {
      case 0:
@@ -1632,7 +1891,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      }
  }
-@@ -534,19 +625,19 @@
+@@ -534,19 +630,19 @@
      int mem_index = (idx >> 2) - 1;
      switch(idx & 3) {
      case 0:
@@ -1656,7 +1915,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  #endif
          break;
      }
-@@ -573,19 +664,19 @@
+@@ -573,19 +669,19 @@
      int mem_index = (idx >> 2) - 1;
      switch(idx & 3) {
      case 0:
@@ -1680,7 +1939,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  #endif
          break;
      }
-@@ -706,14 +797,18 @@
+@@ -706,14 +802,18 @@
  static inline void gen_op_jnz_ecx(int size, int label1)
  {
      tcg_gen_mov_tl(cpu_tmp0, cpu_regs[R_ECX]);
@@ -1699,7 +1958,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, label1);
  }
  
-@@ -949,6 +1044,29 @@
+@@ -949,6 +1049,29 @@
      inv = b & 1;
      jcc_op = (b >> 1) & 7;
  
@@ -1729,7 +1988,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      switch(cc_op) {
          /* we optimize the cmp/jcc case */
      case CC_OP_SUBB:
-@@ -1278,14 +1396,22 @@
+@@ -1278,14 +1401,22 @@
  static void gen_helper_fp_arith_ST0_FT0(int op)
  {
      switch (op) {
@@ -1760,7 +2019,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      }
  }
  
-@@ -1294,18 +1420,25 @@
+@@ -1294,18 +1425,25 @@
  {
      TCGv_i32 tmp = tcg_const_i32(opreg);
      switch (op) {
@@ -1792,7 +2051,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      if (d != OR_TMP0) {
          gen_op_mov_TN_reg(ot, 0, d);
      } else {
-@@ -1313,6 +1446,7 @@
+@@ -1313,6 +1451,7 @@
      }
      switch(op) {
      case OP_ADCL:
@@ -1800,7 +2059,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          if (s1->cc_op != CC_OP_DYNAMIC)
              gen_op_set_cc_op(s1->cc_op);
          gen_compute_eflags_c(cpu_tmp4);
-@@ -1328,8 +1462,10 @@
+@@ -1328,8 +1467,10 @@
          tcg_gen_shli_i32(cpu_tmp2_i32, cpu_tmp2_i32, 2);
          tcg_gen_addi_i32(cpu_cc_op, cpu_tmp2_i32, CC_OP_ADDB + ot);
          s1->cc_op = CC_OP_DYNAMIC;
@@ -1811,7 +2070,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          if (s1->cc_op != CC_OP_DYNAMIC)
              gen_op_set_cc_op(s1->cc_op);
          gen_compute_eflags_c(cpu_tmp4);
-@@ -1345,6 +1481,7 @@
+@@ -1345,6 +1486,7 @@
          tcg_gen_shli_i32(cpu_tmp2_i32, cpu_tmp2_i32, 2);
          tcg_gen_addi_i32(cpu_cc_op, cpu_tmp2_i32, CC_OP_SUBB + ot);
          s1->cc_op = CC_OP_DYNAMIC;
@@ -1819,7 +2078,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      case OP_ADDL:
          gen_op_addl_T0_T1();
-@@ -1354,6 +1491,7 @@
+@@ -1354,6 +1496,7 @@
              gen_op_st_T0_A0(ot + s1->mem_index);
          gen_op_update2_cc();
          s1->cc_op = CC_OP_ADDB + ot;
@@ -1827,7 +2086,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      case OP_SUBL:
          tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-@@ -1363,6 +1501,7 @@
+@@ -1363,6 +1506,7 @@
              gen_op_st_T0_A0(ot + s1->mem_index);
          gen_op_update2_cc();
          s1->cc_op = CC_OP_SUBB + ot;
@@ -1835,7 +2094,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      default:
      case OP_ANDL:
-@@ -1373,6 +1512,7 @@
+@@ -1373,6 +1517,7 @@
              gen_op_st_T0_A0(ot + s1->mem_index);
          gen_op_update1_cc();
          s1->cc_op = CC_OP_LOGICB + ot;
@@ -1843,7 +2102,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      case OP_ORL:
          tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-@@ -1382,6 +1522,7 @@
+@@ -1382,6 +1527,7 @@
              gen_op_st_T0_A0(ot + s1->mem_index);
          gen_op_update1_cc();
          s1->cc_op = CC_OP_LOGICB + ot;
@@ -1851,7 +2110,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      case OP_XORL:
          tcg_gen_xor_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
-@@ -1391,10 +1532,12 @@
+@@ -1391,10 +1537,12 @@
              gen_op_st_T0_A0(ot + s1->mem_index);
          gen_op_update1_cc();
          s1->cc_op = CC_OP_LOGICB + ot;
@@ -1864,7 +2123,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      }
  }
-@@ -1421,6 +1564,7 @@
+@@ -1421,6 +1569,7 @@
          gen_op_st_T0_A0(ot + s1->mem_index);
      gen_compute_eflags_c(cpu_cc_src);
      tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
@@ -1872,7 +2131,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  }
  
  static void gen_shift_rm_T1(DisasContext *s, int ot, int op1, 
-@@ -1909,57 +2053,74 @@
+@@ -1909,57 +2058,74 @@
  
  static void gen_shift(DisasContext *s1, int op, int ot, int d, int s)
  {
@@ -1947,7 +2206,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      }
  }
-@@ -2291,6 +2452,7 @@
+@@ -2291,6 +2457,7 @@
  
      pc = s->cs_base + eip;
      tb = s->tb;
@@ -1955,7 +2214,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      /* NOTE: we handle the case where the TB spans two pages here */
      if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) ||
          (pc & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK))  {
-@@ -2299,6 +2461,8 @@
+@@ -2299,6 +2466,8 @@
          gen_jmp_im(eip);
          tcg_gen_exit_tb((long)tb + tb_num);
      } else {
@@ -1964,7 +2223,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          /* jump to another page: currently not optimized */
          gen_jmp_im(eip);
          gen_eob(s);
-@@ -2310,6 +2474,8 @@
+@@ -2310,6 +2479,8 @@
  {
      int l1, l2, cc_op;
  
@@ -1973,7 +2232,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      cc_op = s->cc_op;
      if (s->cc_op != CC_OP_DYNAMIC) {
          gen_op_set_cc_op(s->cc_op);
-@@ -2451,6 +2617,7 @@
+@@ -2451,6 +2622,7 @@
  /* generate a push. It depends on ss32, addseg and dflag */
  static void gen_push_T0(DisasContext *s)
  {
@@ -1981,7 +2240,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  #ifdef TARGET_X86_64
      if (CODE64(s)) {
          gen_op_movq_A0_reg(R_ESP);
-@@ -2492,6 +2659,7 @@
+@@ -2492,6 +2664,7 @@
  /* slower version for T1, only used for call Ev */
  static void gen_push_T1(DisasContext *s)
  {
@@ -1989,7 +2248,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  #ifdef TARGET_X86_64
      if (CODE64(s)) {
          gen_op_movq_A0_reg(R_ESP);
-@@ -2531,6 +2699,7 @@
+@@ -2531,6 +2704,7 @@
  /* two step pop is necessary for precise exceptions */
  static void gen_pop_T0(DisasContext *s)
  {
@@ -1997,7 +2256,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  #ifdef TARGET_X86_64
      if (CODE64(s)) {
          gen_op_movq_A0_reg(R_ESP);
-@@ -2552,6 +2721,7 @@
+@@ -2552,6 +2726,7 @@
  
  static void gen_pop_update(DisasContext *s)
  {
@@ -2005,7 +2264,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  #ifdef TARGET_X86_64
      if (CODE64(s) && s->dflag) {
          gen_stack_update(s, 8);
-@@ -2564,6 +2734,7 @@
+@@ -2564,6 +2739,7 @@
  
  static void gen_stack_A0(DisasContext *s)
  {
@@ -2013,7 +2272,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      gen_op_movl_A0_reg(R_ESP);
      if (!s->ss32)
          gen_op_andl_A0_ffff();
-@@ -2575,6 +2746,7 @@
+@@ -2575,6 +2751,7 @@
  /* NOTE: wrap around in 16 bit not fully handled */
  static void gen_pusha(DisasContext *s)
  {
@@ -2021,7 +2280,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      int i;
      gen_op_movl_A0_reg(R_ESP);
      gen_op_addl_A0_im(-16 <<  s->dflag);
-@@ -2594,6 +2766,7 @@
+@@ -2594,6 +2771,7 @@
  /* NOTE: wrap around in 16 bit not fully handled */
  static void gen_popa(DisasContext *s)
  {
@@ -2029,7 +2288,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      int i;
      gen_op_movl_A0_reg(R_ESP);
      if (!s->ss32)
-@@ -2616,6 +2789,7 @@
+@@ -2616,6 +2794,7 @@
  static void gen_enter(DisasContext *s, int esp_addend, int level)
  {
      int ot, opsize;
@@ -2037,7 +2296,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  
      level &= 0x1f;
  #ifdef TARGET_X86_64
-@@ -2681,6 +2855,9 @@
+@@ -2681,6 +2860,9 @@
  static void gen_interrupt(DisasContext *s, int intno,
                            target_ulong cur_eip, target_ulong next_eip)
  {
@@ -2047,7 +2306,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      if (s->cc_op != CC_OP_DYNAMIC)
          gen_op_set_cc_op(s->cc_op);
      gen_jmp_im(cur_eip);
-@@ -2739,13 +2916,14 @@
+@@ -2739,13 +2921,14 @@
  
  static void gen_jmp(DisasContext *s, target_ulong eip)
  {
@@ -2063,7 +2322,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, offset);
  }
  
-@@ -2753,16 +2931,16 @@
+@@ -2753,16 +2936,16 @@
  {
      int mem_index = (idx >> 2) - 1;
      tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, offset);
@@ -2083,7 +2342,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
      tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(1)));
  }
  
-@@ -2770,10 +2948,10 @@
+@@ -2770,10 +2953,10 @@
  {
      int mem_index = (idx >> 2) - 1;
      tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(0)));
@@ -2096,7 +2355,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
  }
  
  static inline void gen_op_movo(int d_offset, int s_offset)
-@@ -3718,14 +3896,14 @@
+@@ -3718,14 +3901,14 @@
                          break;
                      case 0x21: case 0x31: /* pmovsxbd, pmovzxbd */
                      case 0x24: case 0x34: /* pmovsxwq, pmovzxwq */
@@ -2113,7 +2372,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                            (s->mem_index >> 2) - 1);
                          tcg_gen_st16_tl(cpu_tmp0, cpu_env, op2_offset +
                                          offsetof(XMMReg, XMM_W(0)));
-@@ -3815,7 +3993,7 @@
+@@ -3815,7 +3998,7 @@
                      if (mod == 3)
                          gen_op_mov_reg_T0(ot, rm);
                      else
@@ -2122,7 +2381,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                          (s->mem_index >> 2) - 1);
                      break;
                  case 0x15: /* pextrw */
-@@ -3824,7 +4002,7 @@
+@@ -3824,7 +4007,7 @@
                      if (mod == 3)
                          gen_op_mov_reg_T0(ot, rm);
                      else
@@ -2131,7 +2390,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                          (s->mem_index >> 2) - 1);
                      break;
                  case 0x16:
-@@ -3836,7 +4014,7 @@
+@@ -3836,7 +4019,7 @@
                          if (mod == 3)
                              gen_op_mov_reg_v(ot, rm, cpu_T[0]);
                          else
@@ -2140,7 +2399,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                              (s->mem_index >> 2) - 1);
                      } else { /* pextrq */
  #ifdef TARGET_X86_64
-@@ -3846,7 +4024,7 @@
+@@ -3846,7 +4029,7 @@
                          if (mod == 3)
                              gen_op_mov_reg_v(ot, rm, cpu_tmp1_i64);
                          else
@@ -2149,7 +2408,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                              (s->mem_index >> 2) - 1);
  #else
                          goto illegal_op;
-@@ -3859,14 +4037,14 @@
+@@ -3859,14 +4042,14 @@
                      if (mod == 3)
                          gen_op_mov_reg_T0(ot, rm);
                      else
@@ -2166,7 +2425,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                          (s->mem_index >> 2) - 1);
                      tcg_gen_st8_tl(cpu_tmp0, cpu_env, offsetof(CPUX86State,
                                              xmm_regs[reg].XMM_B(val & 15)));
-@@ -3877,7 +4055,7 @@
+@@ -3877,7 +4060,7 @@
                                          offsetof(CPUX86State,xmm_regs[rm]
                                                  .XMM_L((val >> 6) & 3)));
                      } else {
@@ -2175,7 +2434,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                          (s->mem_index >> 2) - 1);
                          tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_tmp0);
                      }
-@@ -3906,7 +4084,7 @@
+@@ -3906,7 +4089,7 @@
                          if (mod == 3)
                              gen_op_mov_v_reg(ot, cpu_tmp0, rm);
                          else
@@ -2184,7 +2443,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                              (s->mem_index >> 2) - 1);
                          tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_tmp0);
                          tcg_gen_st_i32(cpu_tmp2_i32, cpu_env,
-@@ -3917,7 +4095,7 @@
+@@ -3917,7 +4100,7 @@
                          if (mod == 3)
                              gen_op_mov_v_reg(ot, cpu_tmp1_i64, rm);
                          else
@@ -2193,7 +2452,16 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                              (s->mem_index >> 2) - 1);
                          tcg_gen_st_i64(cpu_tmp1_i64, cpu_env,
                                          offsetof(CPUX86State,
-@@ -4366,6 +4544,8 @@
+@@ -4083,6 +4266,8 @@
+     target_ulong next_eip, tval;
+     int rex_w, rex_r;
+ 
++    if (qsim_trans_cb) qsim_trans_cb(qsim_cur_cpu);
++
+     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
+         tcg_gen_debug_insn_start(pc_start);
+     s->pc = pc_start;
+@@ -4366,6 +4551,8 @@
              gen_op_movl_T1_im(val);
              gen_op_testl_T0_T1_cc();
              s->cc_op = CC_OP_LOGICB + ot;
@@ -2202,7 +2470,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
              break;
          case 2: /* not */
              tcg_gen_not_tl(cpu_T[0], cpu_T[0]);
-@@ -4374,6 +4554,7 @@
+@@ -4374,6 +4561,7 @@
              } else {
                  gen_op_mov_reg_T0(ot, rm);
              }
@@ -2210,7 +2478,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
              break;
          case 3: /* neg */
              tcg_gen_neg_tl(cpu_T[0], cpu_T[0]);
-@@ -4384,8 +4565,10 @@
+@@ -4384,8 +4572,10 @@
              }
              gen_op_update_neg_cc();
              s->cc_op = CC_OP_SUBB + ot;
@@ -2221,7 +2489,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
              switch(ot) {
              case OT_BYTE:
                  gen_op_mov_TN_reg(OT_BYTE, 1, R_EAX);
-@@ -4452,6 +4635,7 @@
+@@ -4452,6 +4642,7 @@
              }
              break;
          case 5: /* imul */
@@ -2229,7 +2497,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
              switch(ot) {
              case OT_BYTE:
                  gen_op_mov_TN_reg(OT_BYTE, 1, R_EAX);
-@@ -4522,47 +4706,81 @@
+@@ -4522,47 +4713,81 @@
              }
              break;
          case 6: /* div */
@@ -2311,7 +2579,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                  break;
  #endif
              }
-@@ -4631,6 +4849,7 @@
+@@ -4631,6 +4856,7 @@
              gen_push_T1(s);
              gen_op_jmp_T0();
              gen_eob(s);
@@ -2319,7 +2587,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
              break;
          case 3: /* lcall Ev */
              gen_op_ld_T1_A0(ot + s->mem_index);
-@@ -4651,6 +4870,7 @@
+@@ -4651,6 +4877,7 @@
                                        tcg_const_i32(dflag), 
                                        tcg_const_i32(s->pc - s->cs_base));
              }
@@ -2327,7 +2595,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
              gen_eob(s);
              break;
          case 4: /* jmp Ev */
-@@ -4676,6 +4896,7 @@
+@@ -4676,6 +4903,7 @@
                  gen_op_movl_T0_T1();
                  gen_op_jmp_T0();
              }
@@ -2335,7 +2603,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
              gen_eob(s);
              break;
          case 6: /* push Ev */
-@@ -4702,6 +4923,9 @@
+@@ -4702,6 +4930,9 @@
          gen_op_mov_TN_reg(ot, 1, reg);
          gen_op_testl_T0_T1_cc();
          s->cc_op = CC_OP_LOGICB + ot;
@@ -2345,7 +2613,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
  
      case 0xa8: /* test eAX, Iv */
-@@ -4716,6 +4940,8 @@
+@@ -4716,6 +4947,8 @@
          gen_op_movl_T1_im(val);
          gen_op_testl_T0_T1_cc();
          s->cc_op = CC_OP_LOGICB + ot;
@@ -2354,7 +2622,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
  
      case 0x98: /* CWDE/CBW */
-@@ -4820,6 +5046,7 @@
+@@ -4820,6 +5053,7 @@
          break;
      case 0x1c0:
      case 0x1c1: /* xadd Ev, Gv */
@@ -2362,7 +2630,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          if ((b & 1) == 0)
              ot = OT_BYTE;
          else
-@@ -4844,9 +5071,11 @@
+@@ -4844,9 +5078,11 @@
          }
          gen_op_update2_cc();
          s->cc_op = CC_OP_ADDB + ot;
@@ -2374,7 +2642,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          {
              int label1, label2;
              TCGv t0, t1, t2, a0;
-@@ -4898,8 +5127,10 @@
+@@ -4898,8 +5134,10 @@
              tcg_temp_free(t2);
              tcg_temp_free(a0);
          }
@@ -2385,7 +2653,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          modrm = ldub_code(s->pc++);
          mod = (modrm >> 6) & 3;
          if ((mod == 3) || ((modrm & 0x38) != 0x8))
-@@ -4925,6 +5156,7 @@
+@@ -4925,6 +5163,7 @@
              gen_helper_cmpxchg8b(cpu_A0);
          }
          s->cc_op = CC_OP_EFLAGS;
@@ -2393,7 +2661,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
  
          /**************************/
-@@ -5489,7 +5721,7 @@
+@@ -5489,7 +5728,7 @@
                          gen_helper_fildl_FT0(cpu_tmp2_i32);
                          break;
                      case 2:
@@ -2402,7 +2670,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                            (s->mem_index >> 2) - 1);
                          gen_helper_fldl_FT0(cpu_tmp1_i64);
                          break;
-@@ -5528,7 +5760,7 @@
+@@ -5528,7 +5767,7 @@
                          gen_helper_fildl_ST0(cpu_tmp2_i32);
                          break;
                      case 2:
@@ -2411,7 +2679,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                            (s->mem_index >> 2) - 1);
                          gen_helper_fldl_ST0(cpu_tmp1_i64);
                          break;
-@@ -5550,7 +5782,7 @@
+@@ -5550,7 +5789,7 @@
                          break;
                      case 2:
                          gen_helper_fisttll_ST0(cpu_tmp1_i64);
@@ -2420,7 +2688,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                            (s->mem_index >> 2) - 1);
                          break;
                      case 3:
-@@ -5576,7 +5808,7 @@
+@@ -5576,7 +5815,7 @@
                          break;
                      case 2:
                          gen_helper_fstl_ST0(cpu_tmp1_i64);
@@ -2429,7 +2697,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                            (s->mem_index >> 2) - 1);
                          break;
                      case 3:
-@@ -5658,13 +5890,13 @@
+@@ -5658,13 +5897,13 @@
                  gen_helper_fpop();
                  break;
              case 0x3d: /* fildll */
@@ -2445,7 +2713,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
                                    (s->mem_index >> 2) - 1);
                  gen_helper_fpop();
                  break;
-@@ -6186,6 +6418,7 @@
+@@ -6186,6 +6425,7 @@
              gen_op_andl_T0_ffff();
          gen_op_jmp_T0();
          gen_eob(s);
@@ -2453,7 +2721,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      case 0xc3: /* ret */
          gen_pop_T0(s);
-@@ -6194,6 +6427,7 @@
+@@ -6194,6 +6434,7 @@
              gen_op_andl_T0_ffff();
          gen_op_jmp_T0();
          gen_eob(s);
@@ -2461,7 +2729,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      case 0xca: /* lret im */
          val = ldsw_code(s->pc);
-@@ -6221,6 +6455,7 @@
+@@ -6221,6 +6462,7 @@
              /* add stack offset */
              gen_stack_update(s, val + (4 << s->dflag));
          }
@@ -2469,7 +2737,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          gen_eob(s);
          break;
      case 0xcb: /* lret */
-@@ -6247,7 +6482,9 @@
+@@ -6247,7 +6489,9 @@
                                        tcg_const_i32(s->pc - s->cs_base));
              s->cc_op = CC_OP_EFLAGS;
          }
@@ -2479,7 +2747,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      case 0xe8: /* call im */
          {
-@@ -6265,6 +6502,7 @@
+@@ -6265,6 +6509,7 @@
              gen_push_T0(s);
              gen_jmp(s, tval);
          }
@@ -2487,7 +2755,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      case 0x9a: /* lcall im */
          {
-@@ -6334,6 +6572,7 @@
+@@ -6334,6 +6579,7 @@
          modrm = ldub_code(s->pc++);
          gen_setcc(s, b);
          gen_ldst_modrm(s, modrm, OT_BYTE, OR_TMP0, 1);
@@ -2495,7 +2763,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
      case 0x140 ... 0x14f: /* cmov Gv, Ev */
          {
-@@ -6375,6 +6614,8 @@
+@@ -6375,6 +6621,8 @@
          /************************/
          /* flags */
      case 0x9c: /* pushf */
@@ -2504,7 +2772,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          gen_svm_check_intercept(s, pc_start, SVM_EXIT_PUSHF);
          if (s->vm86 && s->iopl != 3) {
              gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-@@ -6386,6 +6627,7 @@
+@@ -6386,6 +6634,7 @@
          }
          break;
      case 0x9d: /* popf */
@@ -2512,7 +2780,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          gen_svm_check_intercept(s, pc_start, SVM_EXIT_POPF);
          if (s->vm86 && s->iopl != 3) {
              gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-@@ -6420,6 +6662,7 @@
+@@ -6420,6 +6669,7 @@
              }
              gen_pop_update(s);
              s->cc_op = CC_OP_EFLAGS;
@@ -2520,7 +2788,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
              /* abort translation because TF flag may change */
              gen_jmp_im(s->pc - s->cs_base);
              gen_eob(s);
-@@ -6436,8 +6679,10 @@
+@@ -6436,8 +6686,10 @@
          tcg_gen_andi_tl(cpu_T[0], cpu_T[0], CC_S | CC_Z | CC_A | CC_P | CC_C);
          tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, cpu_T[0]);
          s->cc_op = CC_OP_EFLAGS;
@@ -2531,7 +2799,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          if (CODE64(s) && !(s->cpuid_ext3_features & CPUID_EXT3_LAHF_LM))
              goto illegal_op;
          if (s->cc_op != CC_OP_DYNAMIC)
-@@ -6921,6 +7166,7 @@
+@@ -6921,6 +7173,7 @@
          }
          gen_jmp_im(pc_start - s->cs_base);
          gen_helper_syscall(tcg_const_i32(s->pc - pc_start));
@@ -2539,7 +2807,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          gen_eob(s);
          break;
      case 0x107: /* sysret */
-@@ -6938,6 +7184,7 @@
+@@ -6938,6 +7191,7 @@
                  s->cc_op = CC_OP_EFLAGS;
              gen_eob(s);
          }
@@ -2547,7 +2815,15 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          break;
  #endif
      case 0x1a2: /* cpuid */
-@@ -7848,8 +8095,25 @@
+@@ -7823,6 +8077,7 @@
+     if (max_insns == 0)
+         max_insns = CF_COUNT_MASK;
+ 
++
+     gen_icount_start();
+     for(;;) {
+         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
+@@ -7848,8 +8103,25 @@
          }
          if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
              gen_io_start();
@@ -2574,8 +2850,8 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          /* stop translation if indicated */
          if (dc->is_jmp)
 diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
---- qemu-0.12.3/vl.c	2010-02-23 15:54:38.000000000 -0500
-+++ qemu-0.12.3-qsim/vl.c	2013-01-14 02:44:22.000000000 -0500
+--- qemu-0.12.3/vl.c	2010-02-23 13:54:38.000000000 -0700
++++ qemu-0.12.3-qsim/vl.c	2013-06-05 10:23:04.452334197 -0600
 @@ -91,6 +91,9 @@
  #endif
  #endif
@@ -2598,15 +2874,14 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  //#define DEBUG_NET
  //#define DEBUG_SLIRP
  
-@@ -293,6 +301,40 @@
+@@ -293,6 +301,39 @@
      { .driver = "vmware-svga",          .flag = &default_vga       },
  };
  
 +#include <pthread.h>
 +#include <qsim-lock.h>
 +
-+int qsim_vm_id;
-+int qsim_cur_cpu;
++int qsim_vm_id, qsim_cur_cpu, qsim_memop_flag = 0;
 +
 +atomic_cb_t qsim_atomic_cb = NULL;
 +magic_cb_t  qsim_magic_cb  = NULL;
@@ -2615,7 +2890,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
 +inst_cb_t   qsim_inst_cb   = NULL;
 +io_cb_t     qsim_io_cb     = NULL;
 +reg_cb_t    qsim_reg_cb    = NULL;
-+
++trans_cb_t  qsim_trans_cb  = NULL;
 +
 +uint64_t qsim_host_addr;
 +uint64_t qsim_phys_addr;
@@ -2639,7 +2914,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static int default_driver_check(QemuOpts *opts, void *opaque)
  {
      const char *driver = qemu_opt_get(opts, "driver");
-@@ -651,6 +693,7 @@
+@@ -651,6 +692,7 @@
  static void init_get_clock(void)
  {
      use_rt_clock = 0;
@@ -2647,7 +2922,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  #if defined(__linux__) || (defined(__FreeBSD__) && __FreeBSD_version >= 500000) \
      || defined(__DragonFly__) || defined(__FreeBSD_kernel__)
      {
-@@ -660,6 +703,7 @@
+@@ -660,6 +702,7 @@
          }
      }
  #endif
@@ -2655,7 +2930,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  }
  
  static int64_t get_clock(void)
-@@ -910,6 +954,7 @@
+@@ -910,6 +953,7 @@
  }
  
  static struct qemu_alarm_timer alarm_timers[] = {
@@ -2663,7 +2938,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  #ifndef _WIN32
  #ifdef __linux__
      {"dynticks", ALARM_FLAG_DYNTICKS, dynticks_start_timer,
-@@ -926,6 +971,7 @@
+@@ -926,6 +970,7 @@
      {"win32", 0, win32_start_timer,
       win32_stop_timer, NULL, &alarm_win32_data},
  #endif
@@ -2671,7 +2946,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      {NULL, }
  };
  
-@@ -1189,8 +1235,8 @@
+@@ -1189,8 +1234,8 @@
  static void host_alarm_handler(int host_signum)
  #endif
  {
@@ -2681,7 +2956,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      {
          static int64_t delta_min = INT64_MAX;
          static int64_t delta_max, delta_cum, last_clock, delta, ti;
-@@ -1217,27 +1263,29 @@
+@@ -1217,27 +1262,29 @@
          }
          last_clock = ti;
      }
@@ -2721,7 +2996,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  }
  
  static int64_t qemu_next_deadline(void)
-@@ -1417,7 +1465,7 @@
+@@ -1417,7 +1464,7 @@
      act.sa_flags = 0;
      act.sa_handler = host_alarm_handler;
  
@@ -2730,7 +3005,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
      /* 
       * Initialize ev struct to 0 to avoid valgrind complaining
-@@ -1426,7 +1474,7 @@
+@@ -1426,7 +1473,7 @@
      memset(&ev, 0, sizeof(ev));
      ev.sigev_value.sival_int = 0;
      ev.sigev_notify = SIGEV_SIGNAL;
@@ -2739,7 +3014,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
      if (timer_create(CLOCK_REALTIME, &ev, &host_timer)) {
          perror("timer_create");
-@@ -1469,6 +1517,7 @@
+@@ -1469,6 +1516,7 @@
          fprintf(stderr, "Internal timer error: aborting\n");
          exit(1);
      }
@@ -2747,7 +3022,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      current_us = timeout.it_value.tv_sec * 1000000 + timeout.it_value.tv_nsec/1000;
      if (current_us && current_us <= nearest_delta_us)
          return;
-@@ -1623,11 +1672,13 @@
+@@ -1623,11 +1671,13 @@
      return err;
  }
  
@@ -2761,7 +3036,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
  /***********************************************************/
  /* host time/date access */
-@@ -3409,34 +3460,6 @@
+@@ -3409,34 +3459,6 @@
      } while ((len == -1 && errno == EINTR) || len > 0);
  }
  
@@ -2796,7 +3071,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  #else
  HANDLE qemu_event_handle;
  
-@@ -3444,17 +3467,6 @@
+@@ -3444,17 +3466,6 @@
  {
  }
  
@@ -2814,7 +3089,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void qemu_event_increment(void)
  {
      if (!SetEvent(qemu_event_handle)) {
-@@ -3477,7 +3489,7 @@
+@@ -3477,7 +3488,7 @@
  #ifndef CONFIG_IOTHREAD
  static int qemu_init_main_loop(void)
  {
@@ -2823,7 +3098,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  }
  
  void qemu_init_vcpu(void *_env)
-@@ -3514,7 +3526,7 @@
+@@ -3514,7 +3525,7 @@
      CPUState *env = cpu_single_env;
  
      if (env) {
@@ -2832,7 +3107,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      }
  }
  
-@@ -3553,10 +3565,6 @@
+@@ -3553,10 +3564,6 @@
  {
      int ret;
  
@@ -2843,7 +3118,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
      qemu_cond_init(&qemu_pause_cond);
      qemu_mutex_init(&qemu_fair_mutex);
      qemu_mutex_init(&qemu_global_mutex);
-@@ -3568,6 +3576,7 @@
+@@ -3568,6 +3575,7 @@
      return 0;
  }
  
@@ -2851,7 +3126,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void qemu_wait_io_event(CPUState *env)
  {
      while (!tcg_has_work())
-@@ -3590,9 +3599,11 @@
+@@ -3590,9 +3598,11 @@
          qemu_cond_signal(&qemu_pause_cond);
      }
  }
@@ -2863,7 +3138,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void *kvm_cpu_thread_fn(void *arg)
  {
      CPUState *env = arg;
-@@ -3612,16 +3623,18 @@
+@@ -3612,16 +3622,18 @@
          qemu_cond_timedwait(&qemu_system_cond, &qemu_global_mutex, 100);
  
      while (1) {
@@ -2884,7 +3159,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void *tcg_cpu_thread_fn(void *arg)
  {
      CPUState *env = arg;
-@@ -3646,6 +3659,7 @@
+@@ -3646,6 +3658,7 @@
  
      return NULL;
  }
@@ -2892,7 +3167,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
  void qemu_cpu_kick(void *_env)
  {
-@@ -3746,6 +3760,7 @@
+@@ -3746,6 +3759,7 @@
      return 1;
  }
  
@@ -2900,7 +3175,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static void pause_all_vcpus(void)
  {
      CPUState *penv = first_cpu;
-@@ -3820,6 +3835,7 @@
+@@ -3820,6 +3834,7 @@
      else
          tcg_init_vcpu(env);
  }
@@ -2908,7 +3183,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  
  void qemu_notify_event(void)
  {
-@@ -4033,32 +4049,6 @@
+@@ -4033,32 +4048,6 @@
      return ret;
  }
  
@@ -2941,7 +3216,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  static int cpu_has_work(CPUState *env)
  {
      if (env->stop)
-@@ -4150,7 +4140,15 @@
+@@ -4150,7 +4139,15 @@
  
  qemu_irq qemu_system_powerdown;
  
@@ -2958,7 +3233,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
  {
      int r;
  
-@@ -4159,21 +4157,22 @@
+@@ -4159,21 +4156,22 @@
      qemu_cond_broadcast(&qemu_system_cond);
  #endif
  
@@ -2984,7 +3259,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
          } while (vm_can_run());
  
          if (qemu_debug_requested()) {
-@@ -4846,7 +4845,75 @@
+@@ -4846,7 +4844,76 @@
      return 0;
  }
  
@@ -2996,6 +3271,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
 +void set_magic_cb (magic_cb_t  cb) { qsim_magic_cb  = cb; }
 +void set_io_cb    (io_cb_t     cb) { qsim_io_cb     = cb; }
 +void set_reg_cb   (reg_cb_t    cb) { qsim_reg_cb    = cb; }
++void set_trans_cb (trans_cb_t  cb) { qsim_trans_cb  = cb; }
 +
 +int interrupt(uint8_t vec) {
 +  int rvec;

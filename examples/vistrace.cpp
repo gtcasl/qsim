@@ -19,17 +19,17 @@
 #include <Imlib2.h>
 
 #include <qsim.h>
+#include <qsim-load.h>
 
 using std::cout; using std::vector; using std::ofstream; using std::string;
 using Qsim::OSDomain; using std::map;
 
-const uint64_t OFFSET        = (3072l<<20) + (4096l<<12);
-const uint64_t GRAN          = 4l<<10       ;
-const uint64_t RANGE         = 32l<<20      ;
+const uint64_t OFFSET        = 0;
+const uint64_t GRAN          = (1<<19)      ;
+const uint64_t RANGE         = (1l<<32)     ;
 const unsigned ROWS_PER_MILN = 100          ;
 const unsigned VERT_DOWNSAMP = 1            ;
-const unsigned MILLION_INSTS = 400          ;
-const unsigned N_CPUS        = 4            ;
+const unsigned MILLION_INSTS = 40           ;
 const uint32_t COLOR_GRAY    = 0x000f0f0f   ;
 const uint32_t ONE_RED       = 0x00010000   ;
 const uint32_t COLOR_RED     = 0x00ff0000   ;
@@ -37,6 +37,7 @@ const uint32_t ONE_GREEN     = 0x00000100   ;
 const uint32_t COLOR_GREEN   = 0x0000ff00   ;
 const uint32_t ONE_BLUE      = 0x00000001   ;
 const uint32_t COLOR_BLUE    = 0x000000ff   ;
+const unsigned N_CPUS        = 8            ;
 
 double         current_max_red   = 0;
 double         current_max_green = 0;
@@ -64,7 +65,7 @@ bool app_started = false;
 
 struct thread_arg_t {
   int       cpu   ;
-  OSDomain  *cd    ;
+  OSDomain  *cd   ;
   bool      atomic;
   bool      draw_atomic;
   uint64_t  last_vaddr;
@@ -83,7 +84,7 @@ void next_row() {
   current_max_red = 0;
 
   for (unsigned i = 0; i < RANGE/GRAN; i++) {
-    img_buf[RANGE/GRAN*img_row + i] |=
+   img_buf[RANGE/GRAN*img_row + i] |=
       ((uint8_t)((current_row_green[i]/*>0*//current_max_green)*255)) << 8;
     current_row_green[i] = 0;
   }
@@ -142,8 +143,8 @@ void *cpu_thread_main(void* thread_arg) {
       if (i % ROWS_PER_MILN == (ROWS_PER_MILN - 1)) {
         std::cout << "Timer interrupt.\n";
         arg->cd->timer_interrupt();
-	if (img_row*VERT_DOWNSAMP/ROWS_PER_MILN % 200 == 0 
-            && last_tick_announcement != img_row) {
+	/*if (img_row*VERT_DOWNSAMP/ROWS_PER_MILN % 200 == 0 
+	  && last_tick_announcement != img_row)*/ {
 	  cout << "Tick " << img_row * VERT_DOWNSAMP / ROWS_PER_MILN << '\n';
 	  last_tick_announcement = img_row;
 	}
@@ -228,13 +229,13 @@ void mem_cb(int cpu_id, uint64_t vaddr, uint64_t paddr, uint8_t size, int type)
 {
   uint16_t tid = thread_args[cpu_id]->cd->get_tid(cpu_id);
   memop_counts[tid]++;
-  thread_args[cpu_id]->last_vaddr = vaddr;
+  thread_args[cpu_id]->last_vaddr = paddr;
   //if (type) { 
   //  if (thread_args[cpu_id]->draw_atomic) mark_grn (paddr);
   //  else                                  mark_blu (paddr);
   //}
 
-  if (type) mark_blu(vaddr); else mark_grn(vaddr);
+  if (type) mark_blu(paddr); else mark_grn(paddr);
 
   //color-coded CPU fun
   //if (cpu_id == 0) mark_red(paddr);
@@ -252,10 +253,11 @@ void app_start_cb(int cpu_id) {
   next_row();
 }
 
-void app_end_cb(int cpu_id) {
+int app_end_cb(int cpu_id) {
   pthread_mutex_lock(&app_end_lock);
   pthread_cond_signal(&app_end);
   pthread_mutex_unlock(&app_end_lock);
+  return 0;
 }
 
 int main(int argc, char** argv) {
@@ -273,7 +275,9 @@ int main(int argc, char** argv) {
   pthread_barrier_init(&cpu_barrier2, NULL, N_CPUS);
 
   // Create a runnable OSDomain.
-  OSDomain *cd = new OSDomain(N_CPUS, "linux/bzImage", 1024);
+  if (argc != 3) return 1;
+  OSDomain *cd = new OSDomain(argv[1]);
+  load_file(*cd, argv[2]);
 
   // Set callbacks.
   cd->set_atomic_cb  (atomic_cb);
@@ -298,9 +302,10 @@ int main(int argc, char** argv) {
   }
 
   // Wait for threads to return
-  for (unsigned i = 0; i < N_CPUS; ++i) pthread_join(*threads[i], NULL);
-  //pthread_mutex_lock(&app_end_lock);
-  //pthread_cond_wait(&app_end, &app_end_lock);
+  //for (unsigned i = 0; i < N_CPUS; ++i) pthread_join(*threads[i], NULL);
+  pthread_mutex_lock(&app_end_lock);
+  pthread_cond_wait(&app_end, &app_end_lock);
+  for (unsigned i = 0; i < N_CPUS; ++i) pthread_cancel(*threads[i]);
 
   // Print stats
   for( map<uint16_t, uint64_t>::iterator i = memop_counts.begin();

@@ -17,35 +17,19 @@ extern "C" {
 #include "qsim-regs.h"
 #include "qsim-lock.h"
 
-typedef void     (*inst_cb_t)  (int            cpu_id,
-                                uint64_t       vaddr,
-                                uint64_t       paddr,
-                                uint8_t        length,
-                                const uint8_t *bytes,
-                                enum inst_type type);
+typedef void (*inst_cb_t)(int cpu_id, uint64_t vaddr, uint64_t paddr,
+                          uint8_t length, const uint8_t *bytes,
+                          enum inst_type type);
+typedef void (*mem_cb_t)(int cpu_id, uint64_t vaddr, uint64_t paddr,
+                         uint8_t  size, int type);
+typedef uint32_t* (*io_cb_t) (int cpu_id, uint64_t addr, uint8_t size,
+                              int type, uint32_t val);
 
-typedef void     (*mem_cb_t)   (int      cpu_id,
-                                uint64_t vaddr,
-                                uint64_t paddr,
-                                uint8_t  size,
-                                int      type);
-
-typedef uint32_t* (*io_cb_t) (
-  int cpu_id, uint64_t addr, uint8_t size, int type, uint32_t val
-);
-
-typedef int      (*int_cb_t)   (int      cpu_id, 
-                                uint8_t  vector);
-
-typedef int      (*magic_cb_t) (int      cpu_id, 
-                                uint64_t rax);
-
-typedef int      (*atomic_cb_t)(int      cpu_id);
-
-typedef void     (*reg_cb_t)   (int      cpu_id,
-                                int      reg,
-                                uint8_t  val,
-                                int      type);
+typedef int (*int_cb_t)(int cpu_id, uint8_t  vector);
+typedef int (*magic_cb_t) (int cpu_id, uint64_t rax);
+typedef int (*atomic_cb_t)(int cpu_id);
+typedef void (*reg_cb_t)(int cpu_id, int reg, uint8_t  val, int type);
+typedef void (*trans_cb_t)(int cpu_id);
 
 typedef struct {
   uint8_t *mem_ptr;

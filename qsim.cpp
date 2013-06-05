@@ -191,6 +191,7 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   Mgzd::sym(qemu_set_magic_cb,    qemu_lib, "set_magic_cb"        );
   Mgzd::sym(qemu_set_io_cb,       qemu_lib, "set_io_cb"           );
   Mgzd::sym(qemu_set_reg_cb,      qemu_lib, "set_reg_cb"          );
+  Mgzd::sym(qemu_set_trans_cb,    qemu_lib, "set_trans_cb"        );
   Mgzd::sym(ramdesc_p,            qemu_lib, "qsim_ram"            );
   Mgzd::sym(qemu_get_reg,         qemu_lib, "get_reg"             );
   Mgzd::sym(qemu_set_reg,         qemu_lib, "set_reg"             );
@@ -496,6 +497,10 @@ void Qsim::OSDomain::set_reg_cb(reg_cb_t cb) {
   for (unsigned i = 0; i < n; i++) cpus[i]->set_reg_cb(cb);
 }
 
+void Qsim::OSDomain::set_trans_cb(trans_cb_t cb) {
+  for (unsigned i = 0; i < n; ++i) cpus[i]->set_trans_cb(cb);
+}
+
 void Qsim::OSDomain::set_app_start_cb(int (*fp)(int)) {
   app_start_cb = fp;
 }
@@ -543,6 +548,10 @@ void Qsim::OSDomain::unset_reg_cb(reg_cb_handle_t h) {
   reg_cbs.erase(h);
 }
 
+void Qsim::OSDomain::unset_trans_cb(trans_cb_handle_t h) {
+  trans_cbs.erase(h);
+}
+
 void Qsim::OSDomain::unset_app_start_cb(start_cb_handle_t h) {
   start_cbs.erase(h);
 }
@@ -558,6 +567,7 @@ std::vector<Qsim::OSDomain::mem_cb_obj_base*>    Qsim::OSDomain::mem_cbs;
 std::vector<Qsim::OSDomain::int_cb_obj_base*>    Qsim::OSDomain::int_cbs;
 std::vector<Qsim::OSDomain::inst_cb_obj_base*>   Qsim::OSDomain::inst_cbs;
 std::vector<Qsim::OSDomain::reg_cb_obj_base*>    Qsim::OSDomain::reg_cbs;
+std::vector<Qsim::OSDomain::trans_cb_obj_base*>  Qsim::OSDomain::trans_cbs;
 std::vector<Qsim::OSDomain::start_cb_obj_base*>  Qsim::OSDomain::start_cbs;
 std::vector<Qsim::OSDomain::end_cb_obj_base*>    Qsim::OSDomain::end_cbs;
 
@@ -624,6 +634,12 @@ void Qsim::OSDomain::reg_cb(int cpu_id, int reg, uint8_t size, int type) {
   std::vector<reg_cb_obj_base*>::iterator i;
   for (i = reg_cbs.begin(); i != reg_cbs.end(); ++i)
     (**i)(cpu_id, reg, size, type);
+}
+
+void Qsim::OSDomain::trans_cb(int cpu_id) {
+  std::vector<trans_cb_obj_base*>::iterator i;
+  for (i = trans_cbs.begin(); i != trans_cbs.end(); ++i)
+    (**i)(cpu_id);
 }
 
 int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {

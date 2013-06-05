@@ -82,6 +82,7 @@ namespace Qsim {
     virtual void set_inst_cb  (inst_cb_t   cb) = 0;
     virtual void set_mem_cb   (mem_cb_t    cb) = 0;
     virtual void set_reg_cb   (reg_cb_t    cb) = 0;
+    virtual void set_trans_cb (trans_cb_t  cb) = 0;
   };
 
   class QemuCpu : public Cpu {
@@ -110,6 +111,7 @@ namespace Qsim {
     void (*qemu_set_magic_cb) (magic_cb_t );
     void (*qemu_set_io_cb)    (io_cb_t    );
     void (*qemu_set_reg_cb)   (reg_cb_t   );
+    void (*qemu_set_trans_cb) (trans_cb_t );
 
     uint64_t (*qemu_get_reg) (enum regs r               );
     void     (*qemu_set_reg) (enum regs r, uint64_t val );
@@ -180,6 +182,12 @@ namespace Qsim {
     virtual void set_reg_cb(reg_cb_t cb) {
       pthread_mutex_lock(&cb_mutex);
       qemu_set_reg_cb(cb);
+      pthread_mutex_unlock(&cb_mutex);
+    }
+
+    virtual void set_trans_cb(trans_cb_t cb) {
+      pthread_mutex_lock(&cb_mutex);
+      qemu_set_trans_cb(cb);
       pthread_mutex_unlock(&cb_mutex);
     }
 
@@ -280,6 +288,8 @@ namespace Qsim {
     void set_io_cb    (io_cb_t     cb);
     void set_reg_cb   (uint16_t i, reg_cb_t cb)   {cpus[i]->set_reg_cb   (cb);}
     void set_reg_cb   (reg_cb_t    cb);
+    void set_trans_cb (uint16_t i, trans_cb_t cb) {cpus[i]->set_trans_cb (cb);}
+    void set_trans_cb (trans_cb_t  cb);
 
     // Better callback support. Variadic templates would make this prettier.
     struct atomic_cb_obj_base { 
@@ -327,6 +337,11 @@ namespace Qsim {
     struct end_cb_obj_base {
       virtual ~end_cb_obj_base() {}
       virtual int operator()(int)=0;
+    };
+
+    struct trans_cb_obj_base {
+      virtual ~trans_cb_obj_base() {}
+      virtual void operator()(int)=0;
     };
 
     template <typename T> struct atomic_cb_obj : public atomic_cb_obj_base {
@@ -428,6 +443,15 @@ namespace Qsim {
       }
     };
 
+    template <typename T> struct trans_cb_obj : public trans_cb_obj_base {
+      typedef void(T::*trans_cb_t)(int);
+      T* p; trans_cb_t f;
+      trans_cb_obj(T* p, trans_cb_t f): p(p), f(f) {}
+      void operator()(int cpu_id) {
+        ((p)->*(f))(cpu_id);
+      }
+    };
+
     static std::vector<atomic_cb_obj_base*> atomic_cbs;
     static std::vector<magic_cb_obj_base*>  magic_cbs;
     static std::vector<io_cb_obj_base*>     io_cbs;
@@ -437,6 +461,7 @@ namespace Qsim {
     static std::vector<reg_cb_obj_base*>    reg_cbs;
     static std::vector<start_cb_obj_base*>  start_cbs;
     static std::vector<end_cb_obj_base*>    end_cbs;
+    static std::vector<trans_cb_obj_base*>  trans_cbs;
 
     typedef std::vector<atomic_cb_obj_base*>::iterator atomic_cb_handle_t;
     typedef std::vector<magic_cb_obj_base*>::iterator  magic_cb_handle_t;
@@ -447,6 +472,7 @@ namespace Qsim {
     typedef std::vector<reg_cb_obj_base*>::iterator    reg_cb_handle_t;
     typedef std::vector<start_cb_obj_base*>::iterator  start_cb_handle_t;
     typedef std::vector<end_cb_obj_base*>::iterator    end_cb_handle_t;
+    typedef std::vector<trans_cb_obj_base*>::iterator  trans_cb_handle_t;
 
     template <typename T>
       atomic_cb_handle_t
@@ -528,6 +554,15 @@ namespace Qsim {
       return end_cbs.end() - 1;
     }
 
+    template <typename T>
+      trans_cb_handle_t
+        set_trans_cb(T* p, typename trans_cb_obj<T>::trans_cb_t f)
+    {
+      trans_cbs.push_back(new trans_cb_obj<T>(p, f));
+      set_trans_cb(trans_cb);
+      return trans_cbs.end() - 1;
+    }
+
     void unset_atomic_cb(atomic_cb_handle_t);
     void unset_magic_cb(magic_cb_handle_t);
     void unset_io_cb(io_cb_handle_t);
@@ -536,6 +571,7 @@ namespace Qsim {
     void unset_reg_cb(reg_cb_handle_t);
     void unset_app_start_cb(start_cb_handle_t);
     void unset_app_end_cb(end_cb_handle_t);
+    void unset_trans_cb(trans_cb_handle_t);
 
     // Set the "application start" and "application end" callbacks.
     void set_app_start_cb(int (*)(int));
@@ -630,6 +666,7 @@ namespace Qsim {
       (int cpu_id, uint64_t port, uint8_t s, int type, uint32_t data);
     static int  int_cb(int cpu_id, uint8_t vec);
     static void reg_cb(int cpu_id, int reg, uint8_t size, int type);
+    static void trans_cb(int cpu_id);
   };
 
   // These can be attached on a per-CPU basis to store info about the
