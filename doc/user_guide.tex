@@ -121,6 +121,7 @@ including:
   \item{Register reads/writes}
   \item{Interrupts}
   \item{``Magic'' CPUID instructions}
+  \item{Instruction read for translation}
 \end{itemize}
 
 The atomic memory operation and read/write callbacks are given in addition to
@@ -1005,6 +1006,16 @@ does allow reading the value (\texttt{val}) provided by the \texttt{OUT}
 instruction. New callbacks assigned with this function replace the old ones. A
 null assignment will disable the callback.
 
+\label{func:set_trans_cb} \begin{verbatim}
+    typedef void (*trans_cb_t)(int cpu);
+    void set_trans_cb(uint16_t i, trans_cb_t cb);
+    void set_trans_cb(trans_cb_t cb);
+\end{verbatim}
+Set a translation callback. When this callback is set, any set memory operation
+callbacks will be called when instructions are being read for translation. The
+addition of the translation callback enables memory state to be maintained
+externally to QSim.
+
 \label{func:set_reg_cb} \begin{verbatim}
     typedef void (*reg_cb_t)(int     cpu,
                              int     reg,
@@ -1124,6 +1135,14 @@ The equivalent of \texttt{set\_atomic\_cb()} (see page
 The equivalent of \texttt{set\_atomic\_cb()} (see page
 \pageref{tf:set_atomic_cb}) for the interrupt callback (see 
 \texttt{set\_int\_cb()}, page \pageref{func:set_int_cb}).
+
+\label{tf:set_int_cb} \begin{verbatim}
+    template <typename T>
+      void set_trans_cb(T* o, int (T::*f)(int cpu));
+\end{verbatim}
+The equivalent of \texttt{set\_atomic\_cb()} (see page
+\pageref{tf:set_atomic_cb}) for the translation (see
+\texttt{set\_trans\_cb()}, page \pageref{func:set_trans_cb}).
 
 \label{tf:set_inst_cb} \begin{verbatim}
     template <typename T>
@@ -1568,7 +1587,7 @@ values representing their size. It will contain at least the following fields:
 \end{verbatim}
 
 These can be used to translate host addresses to guest physical addresses and 
-vice-versa. \texttt{mem_ptr} is a pointer to the base of physical memory and
+vice-versa. \texttt{mem\_ptr} is a pointer to the base of physical memory and
 \texttt{sz} is the size of this region in bytes.
 
 \newpage
