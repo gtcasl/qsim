@@ -190,3 +190,5 @@
 * Added models for cache, DRAM, and CPU beyond what was provided by simplesim.
   With these models, QSim could be used as a standalone simulation
   infrastructure or a trace generator for further simulation tools.
+
+* Added callback type for translation.
