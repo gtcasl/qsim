@@ -74,8 +74,9 @@ template <typename CBObj> struct CallbackAdaptor {
     cpus[c]->instCB(v, p, l, b, t);
   }
 
-  void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
+  int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
     cpus[c]->memCB(v, p, s, w);
+    return 0;
   }
 
   void reg_cb(int c, int r, uint8_t s, int w) {

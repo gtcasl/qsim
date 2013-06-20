@@ -119,10 +119,11 @@ public:
     cpu[c].regCallback(size==0?QSIM_RFLAGS:regs(r), wr);
   }
 
-  void mem_cb(int c, uint64_t va, uint64_t pa, uint8_t sz, int wr) {
-    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return;
+  int mem_cb(int c, uint64_t va, uint64_t pa, uint8_t sz, int wr) {
+    if (!running || osd.get_prot(c) == Qsim::OSDomain::PROT_KERN) return 0;
     //l1d.getCache(c).access(pa, osd.get_reg(c, QSIM_RIP), c, wr);
     cpu[c].memCallback(pa, osd.get_reg(c, QSIM_RIP), wr);
+    return 0;
   }
 
   int app_end_cb(int core) {

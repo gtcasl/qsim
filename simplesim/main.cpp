@@ -114,7 +114,7 @@ int Main(int argc, char **argv) {
       unsigned n(nCycles>=1000?1000:nCycles);
       bool finished = !Slide::_advance(Slide::_now + n);
       SimpleSim::Counter::printAll(cout);
-      SimpleSim::Counter::resetAll();
+      //SimpleSim::Counter::resetAll();
       nCycles -= n;
       if (finished) break;
     }

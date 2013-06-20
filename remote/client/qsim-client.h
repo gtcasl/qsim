@@ -207,7 +207,7 @@ public:
 
   void inst_cb(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
                enum inst_type t);
-  void mem_cb(int, uint64_t, uint64_t, uint8_t, int);
+  int mem_cb(int, uint64_t, uint64_t, uint8_t, int);
   int int_cb(int, uint8_t);
 
 private:

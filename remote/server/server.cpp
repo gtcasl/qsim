@@ -49,7 +49,7 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b,
                enum inst_type t);
   int int_cb(int c, uint8_t v);
-  void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int t);
+  int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int t);
   int magic_cb(int c, uint64_t a);
   void io_cb(int c, uint64_t p, uint8_t s, int t, uint32_t v);
   void reg_cb(int c, int r, uint8_t s, int t);
@@ -261,15 +261,17 @@ public:
     return get_cb_rval();
   }
 
-  void mem_cb(int cpu_id, uint64_t vaddr, uint64_t paddr, uint8_t size, 
+  int mem_cb(int cpu_id, uint64_t vaddr, uint64_t paddr, uint8_t size, 
               int type) 
   {
-    if (!mem_cb_f) return;
+    if (!mem_cb_f) return 0;
 
     SockBinStream sbs(&sock);
     uint16_t i(cpu_id);
     uint8_t t(type);
     sbs << 'm' << i << vaddr << paddr << size << t;
+   
+    return 0;
   }
 
   int magic_cb(int cpu_id, uint64_t rax) {
@@ -333,7 +335,7 @@ int CallbackAdaptor::int_cb(int c, uint8_t v) {
   else return 0;
 }
 
-void CallbackAdaptor::mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int t) {
+int CallbackAdaptor::mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int t) {
   if (runmap[c]) runmap[c]->mem_cb(c, v, p, s, t);
 }
 

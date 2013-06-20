@@ -963,7 +963,13 @@ on which they execute, virtual and physical addresses, their size, and a flag
 that is 1 if the operation is a write and 0 if the operation is a read. These
 callbacks can be set for specific CPUs \texttt{i} or for all of the CPUs in the
 \texttt{OSDomain}. New callback assignments replace the previous assignment. If
-a null pointer is provided, the callback will be disabled.
+a null pointer is provided, the callback will be disabled. Some memory
+operations occur at the physical level with no corresponding virtual address.
+For these, the virtual address is set to zero.
+
+If the return value of the memory operation callback is nonzero, \texttt{run()}
+will return from that point. If the operation is a read, this will allow other
+routines in the main loop to provide data.
 
 \label{func:set_int_cb} \begin{verbatim}
     typedef int (*int_cb_t)(int cpu, uint8_t vec);
@@ -1116,11 +1122,11 @@ The equivalent of \texttt{set\_atomic\_cb()} (see page
 \label{tf:set_mem_cb} \begin{verbatim}
     template <typename T>
       void set_mem_cb(T* o,
-                      void (T::*f)(int      cpu,
-                                   uint64_t vaddr, 
-                                   uint64_t paddr,
-                                   uint8_t  size,
-                                   int      write));
+                      int (T::*f)(int      cpu,
+                                  uint64_t vaddr, 
+                                  uint64_t paddr,
+                                  uint8_t  size,
+                                  int      write));
 \end{verbatim}
 The equivalent of \texttt{set\_atomic\_cb()} (see page 
 \pageref{tf:set_atomic_cb}) for the memory operation callback (see 

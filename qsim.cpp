@@ -596,12 +596,16 @@ void Qsim::OSDomain::inst_cb(int cpu_id, uint64_t va, uint64_t pa,
     (**i)(cpu_id, va, pa, l, bytes, type);
 }
 
-void Qsim::OSDomain::mem_cb(int cpu_id, uint64_t va, uint64_t pa,
+int Qsim::OSDomain::mem_cb(int cpu_id, uint64_t va, uint64_t pa,
 			   uint8_t s, int type) {
   std::vector<mem_cb_obj_base*>::iterator i;
 
+  int rval(0);
+
   for (i = mem_cbs.begin(); i != mem_cbs.end(); ++i)
-    (**i)(cpu_id, va, pa, s, type);
+    if ((**i)(cpu_id, va, pa, s, type)) rval = 1;
+
+  return rval;
 }
 
 uint32_t *Qsim::OSDomain::io_cb(int cpu_id, uint64_t port, uint8_t s, 
@@ -838,15 +842,16 @@ void Qsim::Queue::inst_cb_flt(int cpu_id,
   if (q->hlt && len == 1 && *bytes == 0xf4) cd->timer_interrupt();
 }
 
-void Qsim::Queue::mem_cb(int cpu_id, 
+int Qsim::Queue::mem_cb(int cpu_id, 
 			 uint64_t vaddr, 
 			 uint64_t paddr, 
 			 uint8_t size, 
 			 int type) {
   (*queues)[cpu_id]->push(QueueItem(vaddr, paddr, size, type));
+  return 0;
 }
 
-void Qsim::Queue::mem_cb_flt(int cpu_id, 
+int Qsim::Queue::mem_cb_flt(int cpu_id, 
  			     uint64_t vaddr, 
 			     uint64_t paddr, 
 			     uint8_t size, 
@@ -865,6 +870,7 @@ void Qsim::Queue::mem_cb_flt(int cpu_id,
          (flt_prot      && cd->get_mode(cpu) == OSDomain::MODE_PROT) || 
 	 (flt_real      && cd->get_mode(cpu) == OSDomain::MODE_REAL)))
     (*queues)[cpu_id]->push(QueueItem(vaddr, paddr, size, type));
+  return 0;
 }
 
 int Qsim::Queue::int_cb(int cpu_id, uint8_t vec) {

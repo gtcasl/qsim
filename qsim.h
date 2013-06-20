@@ -309,7 +309,7 @@ namespace Qsim {
 
     struct mem_cb_obj_base {
       virtual ~mem_cb_obj_base() {}
-      virtual void operator()(int, uint64_t, uint64_t, uint8_t, int)=0;
+      virtual int operator()(int, uint64_t, uint64_t, uint8_t, int)=0;
     };
  
     struct int_cb_obj_base {
@@ -384,11 +384,11 @@ namespace Qsim {
     };
 
     template <typename T> struct mem_cb_obj : public mem_cb_obj_base {
-      typedef void (T::*mem_cb_t)(int, uint64_t, uint64_t, uint8_t, int);
+      typedef int (T::*mem_cb_t)(int, uint64_t, uint64_t, uint8_t, int);
       T* p; mem_cb_t f;
       mem_cb_obj(T* p, mem_cb_t f) : p(p), f(f) {}
-      void operator()(int cpu_id, uint64_t pa, uint64_t va, uint8_t s, int t) {
-	((p)->*(f))(cpu_id, pa, va, s, t);
+      int operator()(int cpu_id, uint64_t pa, uint64_t va, uint8_t s, int t) {
+	return ((p)->*(f))(cpu_id, pa, va, s, t);
       }
     };
 
@@ -660,8 +660,8 @@ namespace Qsim {
     static int  atomic_cb(int cpu_id);
     static void inst_cb(int cpu_id, uint64_t va, uint64_t pa, 
 			uint8_t l, const uint8_t *bytes, enum inst_type type);
-    static void mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
-		       uint8_t size, int type);
+    static int mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
+	              uint8_t size, int type);
     static uint32_t *io_cb
       (int cpu_id, uint64_t port, uint8_t s, int type, uint32_t data);
     static int  int_cb(int cpu_id, uint8_t vec);
@@ -698,8 +698,8 @@ namespace Qsim {
     static void inst_cb    (int, uint64_t, uint64_t, uint8_t, const uint8_t *,
                             enum inst_type);
 
-    static void mem_cb     (int, uint64_t, uint64_t, uint8_t, int            );
-    static void mem_cb_flt (int, uint64_t, uint64_t, uint8_t, int            );
+    static int  mem_cb     (int, uint64_t, uint64_t, uint8_t, int            );
+    static int  mem_cb_flt (int, uint64_t, uint64_t, uint8_t, int            );
 
     static int  int_cb     (int, uint8_t                                     );
     static int  int_cb_flt (int, uint8_t                                     );

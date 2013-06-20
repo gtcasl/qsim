@@ -25,11 +25,12 @@ struct CbTester {
     cout << '\n';
   }
 
-  void mem(int cpu, uint64_t va, uint64_t pa, uint8_t s, int t) {
+  int mem(int cpu, uint64_t va, uint64_t pa, uint8_t s, int t) {
     static unsigned count = 0; 
-    if (count++ == 1000000) count = 0; else return;
+    if (count++ == 1000000) count = 0; else return 0;
     cout << "Memory op, CPU " << cpu << " va=0x" << std::hex << va << " size="
          << (s&0xff) << ' ' << (t?'W':'R') << '\n';
+    return 0;
   }
 
   int app_start(int cpu) { cout << "APP START\n"; return 0; }

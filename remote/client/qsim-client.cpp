@@ -12,10 +12,11 @@ void Qsim::ClientQueue::inst_cb
   if (cpu == c) this->push(Qsim::QueueItem(va, pa, l, b));
 }
 
-void Qsim::ClientQueue::mem_cb
+int Qsim::ClientQueue::mem_cb
 (int c, uint64_t va, uint64_t pa, uint8_t s, int t)
 {
   if (cpu == c) this->push(Qsim::QueueItem(va, pa, s, t));
+  return 0;
 }
 
 int Qsim::ClientQueue::int_cb(int c, uint8_t v) {
