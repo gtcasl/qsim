@@ -1,3 +1,6 @@
+#ifndef QSIM_CONTEXT_H
+#define QSIM_CONTEXT_H
+
 #if __linux__ && (__i386__ || __x86_64__)
 typedef struct {
   struct {
@@ -93,4 +96,6 @@ static void getcontext(qsim_ucontext_t *p) {}
 #else
 #include <ucontext.h>
 typedef ucontext_t qsim_ucontext_t;
+#endif
+
 #endif

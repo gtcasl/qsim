@@ -272,6 +272,9 @@ namespace Qsim {
       return runnable(i);
     }
 
+    // Return the size of RAM in MB.
+    unsigned get_ram_size_mb() { return ram_size_mb; }
+
     // Return true if CPU i is executing in its idle loop.
     bool idle(unsigned i) const { return idlevec[i]; }
     

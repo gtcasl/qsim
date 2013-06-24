@@ -1,6 +1,6 @@
 diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
 --- qemu-0.12.3/cpu-all.h	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/cpu-all.h	2013-06-12 11:28:42.513127602 -0600
++++ qemu-0.12.3-qsim/cpu-all.h	2013-06-20 15:08:36.582739264 -0600
 @@ -16,9 +16,13 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
@@ -28,7 +28,7 @@ diff -r -u qemu-0.12.3/cpu-all.h qemu-0.12.3-qsim/cpu-all.h
  #define ldub_raw(p) ldub_p(laddr((p)))
 diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
 --- qemu-0.12.3/cpu-common.h	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/cpu-common.h	2013-06-12 11:28:42.513127602 -0600
++++ qemu-0.12.3-qsim/cpu-common.h	2013-06-20 15:08:36.582739264 -0600
 @@ -29,6 +29,7 @@
  }
  
@@ -39,7 +39,7 @@ diff -r -u qemu-0.12.3/cpu-common.h qemu-0.12.3-qsim/cpu-common.h
  /* This should only be used for ram local to a device.  */
 diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
 --- qemu-0.12.3/cpu-exec.c	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/cpu-exec.c	2013-06-12 11:28:42.514127601 -0600
++++ qemu-0.12.3-qsim/cpu-exec.c	2013-06-20 15:08:36.582739264 -0600
 @@ -38,6 +38,11 @@
  #endif
  #endif
@@ -91,7 +91,7 @@ diff -r -u qemu-0.12.3/cpu-exec.c qemu-0.12.3-qsim/cpu-exec.c
      /* never comes here */
 diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
 --- qemu-0.12.3/exec.c	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/exec.c	2013-06-20 14:57:12.311708444 -0600
++++ qemu-0.12.3-qsim/exec.c	2013-06-20 15:08:36.583739262 -0600
 @@ -42,6 +42,13 @@
  #include <qemu.h>
  #endif
@@ -275,7 +275,7 @@ diff -r -u qemu-0.12.3/exec.c qemu-0.12.3-qsim/exec.c
  #endif
 diff -r -u qemu-0.12.3/fpu/softfloat.h qemu-0.12.3-qsim/fpu/softfloat.h
 --- qemu-0.12.3/fpu/softfloat.h	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/fpu/softfloat.h	2013-06-12 11:28:42.516127599 -0600
++++ qemu-0.12.3-qsim/fpu/softfloat.h	2013-06-20 15:08:36.583739262 -0600
 @@ -86,12 +86,12 @@
  *----------------------------------------------------------------------------*/
  #ifdef CONFIG_SOFTFLOAT
@@ -294,7 +294,7 @@ diff -r -u qemu-0.12.3/fpu/softfloat.h qemu-0.12.3-qsim/fpu/softfloat.h
  
 diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
 --- qemu-0.12.3/hw/apic.c	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/hw/apic.c	2013-06-12 11:28:42.517127598 -0600
++++ qemu-0.12.3-qsim/hw/apic.c	2013-06-20 15:08:36.583739262 -0600
 @@ -185,7 +185,7 @@
  void apic_deliver_pic_intr(CPUState *env, int level)
  {
@@ -396,7 +396,7 @@ diff -r -u qemu-0.12.3/hw/apic.c qemu-0.12.3-qsim/hw/apic.c
      qemu_register_reset(apic_reset, s);
 diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
 --- qemu-0.12.3/hw/pc.c	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/hw/pc.c	2013-06-12 11:28:42.518127597 -0600
++++ qemu-0.12.3-qsim/hw/pc.c	2013-06-20 15:08:36.583739262 -0600
 @@ -45,6 +45,11 @@
  #include "loader.h"
  #include "elf.h"
@@ -861,7 +861,7 @@ diff -r -u qemu-0.12.3/hw/pc.c qemu-0.12.3-qsim/hw/pc.c
  static QEMUMachine pc_machine = {
 diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
 --- qemu-0.12.3/posix-aio-compat.c	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/posix-aio-compat.c	2013-06-12 11:28:42.518127597 -0600
++++ qemu-0.12.3-qsim/posix-aio-compat.c	2013-06-20 15:08:36.584739261 -0600
 @@ -368,6 +368,9 @@
  {
      sigset_t set, oldset;
@@ -874,14 +874,18 @@ diff -r -u qemu-0.12.3/posix-aio-compat.c qemu-0.12.3-qsim/posix-aio-compat.c
  
 diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
 --- qemu-0.12.3/softmmu_header.h	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/softmmu_header.h	2013-06-12 11:28:42.519127596 -0600
-@@ -16,6 +16,46 @@
++++ qemu-0.12.3-qsim/softmmu_header.h	2013-06-21 11:32:36.896864069 -0600
+@@ -16,6 +16,51 @@
   * You should have received a copy of the GNU Lesser General Public
   * License along with this library; if not, see <http://www.gnu.org/licenses/>.
   */
 +#ifndef QSIM_DEFS
 +#define QSIM_DEFS
 +#include "qsim-vm.h"
++#include "qsim-context.h"
++
++extern qsim_ucontext_t qemu_context;
++extern qsim_ucontext_t main_context;
 +
 +#define QSIM_XSTRING(x) #x
 +#define QSIM_STRING(x) QSIM_XSTRING(x)
@@ -910,7 +914,8 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
 +  if (qsim_mem_cb && !qsim_memop_recursed && !qsim_memop_flag) {
 +    qsim_memop_recursed = 1;
 +    qsim_phys_addr = qsim_ram_addr_from_host((void *)qsim_host_addr);
-+    qsim_mem_cb(qsim_cur_cpu, adr, qsim_phys_addr, size, type);
++    if (qsim_mem_cb(qsim_cur_cpu, adr, qsim_phys_addr, size, type))
++      swapcontext(&qemu_context, &main_context);
 +    qsim_memop_recursed = 0;
 +    return 1;
 +  }
@@ -922,7 +927,7 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
  #if DATA_SIZE == 8
  #define SUFFIX q
  #define USUFFIX q
-@@ -89,6 +129,22 @@
+@@ -89,6 +134,22 @@
          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
          res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
      }
@@ -945,7 +950,7 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
      return res;
  }
  
-@@ -99,7 +155,7 @@
+@@ -99,7 +160,7 @@
      target_ulong addr;
      unsigned long physaddr;
      int mmu_idx;
@@ -954,7 +959,7 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
      addr = ptr;
      page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
      mmu_idx = CPU_MMU_INDEX;
-@@ -110,6 +166,22 @@
+@@ -110,6 +171,22 @@
          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
          res = glue(glue(lds, SUFFIX), _raw)((uint8_t *)physaddr);
      }
@@ -977,7 +982,7 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
      return res;
  }
  #endif
-@@ -135,6 +207,9 @@
+@@ -135,6 +212,9 @@
          physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
          glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, v);
      }
@@ -989,7 +994,7 @@ diff -r -u qemu-0.12.3/softmmu_header.h qemu-0.12.3-qsim/softmmu_header.h
  #endif /* ACCESS_TYPE != (NB_MMU_MODES + 1) */
 diff -r -u qemu-0.12.3/target-i386/helper.c qemu-0.12.3-qsim/target-i386/helper.c
 --- qemu-0.12.3/target-i386/helper.c	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/target-i386/helper.c	2013-06-12 11:28:42.520127594 -0600
++++ qemu-0.12.3-qsim/target-i386/helper.c	2013-06-20 15:08:36.584739261 -0600
 @@ -1055,9 +1055,14 @@
     1  = generate PF fault
     2  = soft MMU activation required for this block
@@ -1031,7 +1036,7 @@ diff -r -u qemu-0.12.3/target-i386/helper.c qemu-0.12.3-qsim/target-i386/helper.
  
 diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.h
 --- qemu-0.12.3/target-i386/helper.h	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/target-i386/helper.h	2013-06-12 11:28:42.520127594 -0600
++++ qemu-0.12.3-qsim/target-i386/helper.h	2013-06-20 15:08:36.584739261 -0600
 @@ -1,4 +1,5 @@
  #include "def-helper.h"
 +#include <stdint.h>
@@ -1054,7 +1059,7 @@ diff -r -u qemu-0.12.3/target-i386/helper.h qemu-0.12.3-qsim/target-i386/helper.
  #include "def-helper.h"
 diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_helper.c
 --- qemu-0.12.3/target-i386/op_helper.c	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/target-i386/op_helper.c	2013-06-20 14:56:45.261746195 -0600
++++ qemu-0.12.3-qsim/target-i386/op_helper.c	2013-06-20 15:08:36.585739260 -0600
 @@ -21,8 +21,43 @@
  #include "exec-all.h"
  #include "host-utils.h"
@@ -1715,7 +1720,7 @@ diff -r -u qemu-0.12.3/target-i386/op_helper.c qemu-0.12.3-qsim/target-i386/op_h
 +}
 diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/translate.c
 --- qemu-0.12.3/target-i386/translate.c	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/target-i386/translate.c	2013-06-12 11:28:42.524127589 -0600
++++ qemu-0.12.3-qsim/target-i386/translate.c	2013-06-20 15:08:36.586739259 -0600
 @@ -28,6 +28,13 @@
  #include "disas.h"
  #include "tcg-op.h"
@@ -2927,7 +2932,7 @@ diff -r -u qemu-0.12.3/target-i386/translate.c qemu-0.12.3-qsim/target-i386/tran
          if (dc->is_jmp)
 diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
 --- qemu-0.12.3/vl.c	2010-02-23 13:54:38.000000000 -0700
-+++ qemu-0.12.3-qsim/vl.c	2013-06-12 11:28:42.525127588 -0600
++++ qemu-0.12.3-qsim/vl.c	2013-06-20 15:08:36.587739258 -0600
 @@ -91,6 +91,9 @@
  #endif
  #endif

@@ -56,8 +56,8 @@ typedef Qcache::Cache   <20, CPNull,    16, 9, 6, ReplLRU,  true, true> l3_t;
 //typedef MemController<DramTiming1067, Dim4GB2Rank, AddrMappingA,30,3> mc_t;
 typedef Qcache::FuncDram<200, 100, 3, Dim4GB2Rank, AddrMappingA> mc_t;
 
-//typedef Qcache::CPUTimer<Qcache::InstLatencyForward, 2> CPUTimer_t;
-typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
+typedef Qcache::CPUTimer<Qcache::InstLatencyForward, 2> CPUTimer_t;
+//typedef Qcache::OOOCpuTimer<6, 4, 64> CPUTimer_t;
 
 // Tiny 512k LLC to use (without L2) when validating replacement policies
 //typedef Qcache::Cache   <CPNull,   8, 10, 6, ReplBRRIP, true> l3_t;
@@ -163,7 +163,7 @@ struct thread_arg_t {
 
 // Number of cycles between barriers.
 const Qcache::cycle_t BARRIER_INTERVAL = 10000;
-const Qcache::cycle_t BARRIERS_PER_TICK = 20;
+const Qcache::cycle_t BARRIERS_PER_TICK = 100;
 const Qcache::cycle_t BARRIERS_PER_OUTPUT = 1;
 const Qcache::cycle_t LIMIT = 100000;
 

@@ -47,11 +47,12 @@ public:
     return 0;
   }
 
-  void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
+  int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
     ++memopcount;
     tracefile << std::dec << c << ":   Mem" << (w?"Wr":"Rd") << " 0x"
               << std::hex << v << '(' << std::dec << memopcount << ')'
               << std::endl;
+    return 0;
   }
 
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 

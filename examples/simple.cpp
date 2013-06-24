@@ -1,6 +1,6 @@
 /*****************************************************************************\
 * Qemu Simulation Framework (qsim)                                            *
-* Qsim is a modified version of the Qemu emulator (www.qemu.org), coupled     *
+* Qsim is a modified version of the Qemu emulator (www.qemu.org), couled     *
 * a C++ API, for the use of computer architecture researchers.                *
 *                                                                             *
 * This work is licensed under the terms of the GNU GPL, version 2. See the    *
