@@ -117,8 +117,3 @@ Building Examples
 
 $ cd examples
 $ make
-
-Running Examples
-----------------
-
-$ ./simple 1 TRACE
