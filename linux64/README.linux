@@ -1,7 +1,0 @@
-QSim 64-bit Linux Kernel
-========================
-
-The goal of the x86-64 incarnation of QSim is to use an unmodified operating
-system with minimal custom configuration. Toward this end, the 64-bit QSim
-kernel is simply a copy of the most recent stable Linux kernel at the time of
-writing (3.5.2) with a simple custom configuration.
