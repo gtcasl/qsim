@@ -1,4 +1,4 @@
-initrd.cpio: sbin/test_threads sbin/qsim_io sbin/mark_app etc/fstab init sbin/hexdump
+initrd.cpio: sbin/test_threads sbin/qsim_io sbin/mark_app etc/fstab init sbin/hexdump dev proc sys data
 	find dev sbin proc init etc sys data -path "*/.*" -o -print |\
           cpio -H newc -o > initrd.cpio
 
@@ -11,6 +11,10 @@ sbin/hexdump : sbin/busybox
 
 sbin/% : %.c
 	gcc -m32 -o $@ -pthread -static $<
+
+dev proc sys data:
+	mkdir dev proc sys data
+
 
 clean: 
 	rm -f sbin/qsim_io sbin/test_threads sbin/mark_app initrd.cpio *~ \#*

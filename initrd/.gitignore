@@ -1,0 +1,7 @@
+dev
+proc
+sys
+data
+*.cpio
+*.tar.bz2
+busybox-1.19.3
