@@ -1,0 +1,15 @@
+examples/io-test
+examples/qtm
+examples/simple
+examples/simple-client
+*.so
+*.o
+qdb/*.o
+qdb/lex.yy.c
+qdb/parser.tab.cpp
+qdb/parser.output
+qdb/tok.h
+qdb/qdb
+*.tar.gz
+qemu-0.12.3
+qsim-fastforwarder

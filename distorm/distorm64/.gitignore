@@ -1,0 +1,3 @@
+src/*.o
+*.a
+build/linux/*.so
