@@ -21,48 +21,6 @@
 #include "mgzd.h"
 
 namespace Qsim {
-  struct QueueItem {
-    // Constructors for use within Queue; automatically set type field to
-    // appropriate value.
-    QueueItem(uint64_t vadr, uint64_t padr, uint8_t len, const uint8_t *bytes):
-      type(INST)
-    {
-      data.inst.vaddr = vadr ;
-      data.inst.paddr = padr ; 
-      data.inst.len   = len  ;
-      memcpy((void *)data.inst.bytes, (const void *)bytes, len); 
-    }
-
-    QueueItem(uint64_t vaddr, uint64_t paddr, uint8_t size, int      type ):
-      type(MEM)
-    {
-      data.mem.vaddr  = vaddr;  
-      data.mem.paddr  = paddr; 
-      data.mem.size   = size ;
-      data.mem.type   = type ;
-    }
-
-    QueueItem(uint8_t vec): 
-      type(INTR)
-    {
-      data.intr.vec   = vec  ;
-      type            = INTR ;
-    }
-
-    enum {INST, MEM, INTR} type;
-    union {
-      struct {
-	uint64_t vaddr; uint64_t paddr; uint8_t len ; uint8_t  bytes[15];
-      } inst;
-      struct {
-	uint64_t vaddr; uint64_t paddr; uint8_t size; int      type ;
-      } mem;
-      struct {
-	uint8_t    vec;
-      } intr;
-    }                     data;
-  };
-
   class Cpu {
   public:
     // Initialize with named parameter set p.
@@ -671,43 +629,6 @@ namespace Qsim {
     static void reg_cb(int cpu_id, int reg, uint8_t size, int type);
     static void trans_cb(int cpu_id);
   };
-
-  // These can be attached on a per-CPU basis to store info about the
-  // instruction stream.
-  class Queue : public std::queue<QueueItem> {
-  public:
-    Queue(OSDomain &cd, int cpu, bool make_hlt_timer_interrupt = true);
-    ~Queue();
-    void set_filt(bool user, bool krnl, bool prot, bool real, int tid = -1);
-
-  private:
-    OSDomain *cd     ;
-    int      cpu     ;
-    bool     hlt     ;
-
-    int      flt_tid ;
-    bool     flt_krnl;
-    bool     flt_user;
-    bool     flt_prot;
-    bool     flt_real;
-
-    static std::vector<Queue*> *queues;
-
-    // The callbacks; static. Use queues[cpuid] to find the appropriate queue.
-    static void inst_cb_flt(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
-                            enum inst_type);
-    static void inst_cb_hlt(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
-                            enum inst_type);
-    static void inst_cb    (int, uint64_t, uint64_t, uint8_t, const uint8_t *,
-                            enum inst_type);
-
-    static int  mem_cb     (int, uint64_t, uint64_t, uint8_t, int            );
-    static int  mem_cb_flt (int, uint64_t, uint64_t, uint8_t, int            );
-
-    static int  int_cb     (int, uint8_t                                     );
-    static int  int_cb_flt (int, uint8_t                                     );
-  };
-
 };
 
 #endif
