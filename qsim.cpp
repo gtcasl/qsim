@@ -127,9 +127,6 @@ void zrun_compress_write(std::ostream &f, const void *data, size_t n) {
   }
 }
 
-// Put the vtable for Cpu here.
-Qsim::Cpu::~Cpu() {}
-
 void Qsim::QemuCpu::load_linux(const char* bzImage) {
   // Open bzImage
   FILE *f = fopen(bzImage, "r");

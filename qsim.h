@@ -21,29 +21,7 @@
 #include "mgzd.h"
 
 namespace Qsim {
-  class Cpu {
-  public:
-    // Initialize with named parameter set p.
-    Cpu() {}
-    virtual ~Cpu();
-
-    // Run for n instructions.
-    virtual uint64_t run(unsigned n) = 0;
-
-    // Trigger an interrupt with vector v.
-    virtual int interrupt(uint8_t v) = 0;
-
-    // Set appropriate callbacks.
-    virtual void set_atomic_cb(atomic_cb_t cb) = 0;
-    virtual void set_magic_cb (magic_cb_t  cb) = 0;
-    virtual void set_int_cb   (int_cb_t    cb) = 0;
-    virtual void set_inst_cb  (inst_cb_t   cb) = 0;
-    virtual void set_mem_cb   (mem_cb_t    cb) = 0;
-    virtual void set_reg_cb   (reg_cb_t    cb) = 0;
-    virtual void set_trans_cb (trans_cb_t  cb) = 0;
-  };
-
-  class QemuCpu : public Cpu {
+  class QemuCpu {
   private:
     // Local copy of ID number                                                 
     int cpu_id;
