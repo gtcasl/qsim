@@ -512,10 +512,6 @@ namespace Qsim {
     void unset_app_end_cb(end_cb_handle_t);
     void unset_trans_cb(trans_cb_handle_t);
 
-    // Set the "application start" and "application end" callbacks.
-    void set_app_start_cb(int (*)(int));
-    void set_app_end_cb  (int (*)(int));
-
     // Get the number of CPUs
     int get_n() const { return n; }
 
@@ -587,9 +583,6 @@ namespace Qsim {
     std::vector<bool>     idlevec;       // Whether CPU is in idle loop.
     std::vector<uint16_t> tids   ;       // Current tid of each CPU
     std::vector<bool>     running;       // Whether CPU is running.
-
-    int (*app_start_cb)(int);  // Call this when the app starts running
-    int (*app_end_cb  )(int);  // Call this when the app finishes
 
     std::vector<std::queue<uint8_t> > pending_ipis;
     std::vector<std::ostream *>       consoles;

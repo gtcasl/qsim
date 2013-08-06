@@ -46,7 +46,7 @@ namespace Mgzd {
     int r;
     if ((r = system(cp_command.str().c_str())) != 0) {
       std::cerr << "system(\"" << cp_command.str() 
-                << "\") returned " << r <<".\n";
+                << "\") returned " << r <<".\nrm /";
       exit(1);
     }
 
@@ -59,7 +59,7 @@ namespace Mgzd {
     return lib;
   }
 
-  static void close(lib_t lib) {
+  static void close(const lib_t &lib) {
     dlclose(lib.handle);
     unlink(lib.file.c_str());
   }

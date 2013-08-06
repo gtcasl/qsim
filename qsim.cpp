@@ -488,14 +488,6 @@ void Qsim::OSDomain::set_trans_cb(trans_cb_t cb) {
   for (unsigned i = 0; i < n; ++i) cpus[i]->set_trans_cb(cb);
 }
 
-void Qsim::OSDomain::set_app_start_cb(int (*fp)(int)) {
-  app_start_cb = fp;
-}
-
-void Qsim::OSDomain::set_app_end_cb  (int (*fp)(int)) {
-  app_end_cb  = fp;
-}
-
 Qsim::OSDomain::~OSDomain() {
   // Destroy the callback objects.
   for (unsigned i = 0; i < atomic_cbs.size(); ++i) delete atomic_cbs[i];
@@ -729,8 +721,6 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     cpus[cpu_id]->set_reg(QSIM_RAX, ram_size_mb);
   } else if ( (rax & 0xffffffff) == 0xaaaaaaaa ) {
     // Application start marker.
-    if (app_start_cb) app_start_cb(cpu_id);
-     
     std::vector<start_cb_obj_base*>::iterator i;
     for (i = start_cbs.begin(); i != start_cbs.end(); ++i) {
       if ((**i)(cpu_id)) rval = 1;
@@ -738,8 +728,6 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
 
   } else if ( (rax & 0xffffffff) == 0xfa11dead ) {
     // Shutdown/application end marker.
-    if (app_end_cb) app_end_cb(cpu_id);
-
     std::vector<end_cb_obj_base*>::iterator i;
     for (i = end_cbs.begin(); i != end_cbs.end(); ++i) {
       if ((**i)(cpu_id)) rval = 1;
