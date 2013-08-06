@@ -577,6 +577,9 @@ namespace Qsim {
     ~OSDomain();
 
   private:
+    int id;
+    void assign_id();
+
     static uint16_t              n      ;       // Number of CPUs
     static std::vector<QemuCpu*> cpus   ;       // Vector of CPU objects
     static std::vector<bool>     idlevec;       // Whether CPU is in idle loop.
@@ -606,6 +609,9 @@ namespace Qsim {
     static int  int_cb(int cpu_id, uint8_t vec);
     static void reg_cb(int cpu_id, int reg, uint8_t size, int type);
     static void trans_cb(int cpu_id);
+
+    static std::vector<OSDomain *> osdomains;
+    static pthread_mutex_t osdomains_lock;
   };
 };
 

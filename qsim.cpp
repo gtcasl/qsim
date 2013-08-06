@@ -208,7 +208,7 @@ Qsim::QemuCpu::QemuCpu(int id,
   load_and_grab_pointers(get_qemu_lib());
 
   // Initialize Qemu library
-  qemu_init(NULL, ram_size_ss.str().c_str(), id);
+  qemu_init(NULL, ram_size_ss.str().c_str(), (id << 16) | id);
   ramdesc = *ramdesc_p;
 
   // Load the Linux kernel
@@ -233,7 +233,7 @@ Qsim::QemuCpu::QemuCpu(int id,
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
   load_and_grab_pointers(get_qemu_lib());
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id);
+  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), (id << 16) | id);
   ramdesc = master_cpu->ramdesc;
 
   // Set initial values for registers.
@@ -256,7 +256,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
   load_and_grab_pointers(get_qemu_lib());
 
   // Initialize Qemu library
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id);
+  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), (id << 16) | id);
   ramdesc = master_cpu->ramdesc;
 
   // TODO: The following should be moved to a utility function
@@ -278,7 +278,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb) :
 
   load_and_grab_pointers(get_qemu_lib());
 
-  qemu_init(NULL, ram_size_ss.str().c_str(), id);
+  qemu_init(NULL, ram_size_ss.str().c_str(), (id << 16) | id);
   ramdesc = *ramdesc_p;
 
   // Read RAM state.
@@ -312,11 +312,22 @@ vector<bool> Qsim::OSDomain::idlevec;
 vector<uint16_t> Qsim::OSDomain::tids;
 vector<bool> Qsim::OSDomain::running;
 vector<ostream*> Qsim::OSDomain::consoles;
+vector<OSDomain*> Qsim::OSDomain::osdomains;
+pthread_mutex_t Qsim::OSDomain::osdomains_lock = PTHREAD_MUTEX_INITIALIZER;
 int (*Qsim::OSDomain::app_start_cb)(int) = NULL;
 int (*Qsim::OSDomain::app_end_cb  )(int) = NULL;
 
+void Qsim::OSDomain::assign_id() {
+  pthread_mutex_lock(&osdomains_lock);
+  id = osdomains.size();
+  osdomains.push_back(this);
+  pthread_mutex_unlock(&osdomains_lock);
+}
+
 Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
 {
+  assign_id();
+
   ram_size_mb = ram_mb;
 
   if (n != 0) {
@@ -364,6 +375,8 @@ Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
 
 // Create an OSDomain from a saved state file.
 Qsim::OSDomain::OSDomain(const char* filename) {
+  assign_id();
+
   ifstream file(filename);
   if (!file) {
     cerr << "Could not open \"" << filename << "\" for reading.\n";
@@ -569,6 +582,7 @@ std::vector<Qsim::OSDomain::start_cb_obj_base*>  Qsim::OSDomain::start_cbs;
 std::vector<Qsim::OSDomain::end_cb_obj_base*>    Qsim::OSDomain::end_cbs;
 
 int Qsim::OSDomain::atomic_cb(int cpu_id) {
+  cpu_id &= 0xffff;
   std::vector<atomic_cb_obj_base*>::iterator i;
 
   int rval = 0;
@@ -586,6 +600,7 @@ void Qsim::OSDomain::inst_cb(int cpu_id, uint64_t va, uint64_t pa,
                              uint8_t l, const uint8_t *bytes, 
                              enum inst_type type)
 {
+  cpu_id &= 0xffff;
   std::vector<inst_cb_obj_base*>::iterator i;
 
   // Just iterate through the callbacks and call them all.
@@ -596,6 +611,7 @@ void Qsim::OSDomain::inst_cb(int cpu_id, uint64_t va, uint64_t pa,
 int Qsim::OSDomain::mem_cb(int cpu_id, uint64_t va, uint64_t pa,
 			   uint8_t s, int type) {
   std::vector<mem_cb_obj_base*>::iterator i;
+  cpu_id &= 0xffff;
 
   int rval(0);
 
@@ -607,6 +623,8 @@ int Qsim::OSDomain::mem_cb(int cpu_id, uint64_t va, uint64_t pa,
 
 uint32_t *Qsim::OSDomain::io_cb(int cpu_id, uint64_t port, uint8_t s, 
 			  int type, uint32_t data) {
+  cpu_id &= 0xffff;
+
   std::vector<io_cb_obj_base*>::iterator i;
 
   uint32_t *rval = NULL;
@@ -620,6 +638,8 @@ uint32_t *Qsim::OSDomain::io_cb(int cpu_id, uint64_t port, uint8_t s,
 }
 
 int Qsim::OSDomain::int_cb(int cpu_id, uint8_t vec) {
+  cpu_id &= 0xffff;
+
   std::vector<int_cb_obj_base*>::iterator i;
 
   int rval = 0;
@@ -632,18 +652,24 @@ int Qsim::OSDomain::int_cb(int cpu_id, uint8_t vec) {
 }
 
 void Qsim::OSDomain::reg_cb(int cpu_id, int reg, uint8_t size, int type) {
+  cpu_id &= 0xffff;
+
   std::vector<reg_cb_obj_base*>::iterator i;
   for (i = reg_cbs.begin(); i != reg_cbs.end(); ++i)
     (**i)(cpu_id, reg, size, type);
 }
 
 void Qsim::OSDomain::trans_cb(int cpu_id) {
+  cpu_id &= 0xffff;
+
   std::vector<trans_cb_obj_base*>::iterator i;
   for (i = trans_cbs.begin(); i != trans_cbs.end(); ++i)
     (**i)(cpu_id);
 }
 
 int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
+  cpu_id &= 0xffff;
+
   static int waiting_for_eip = -1;
 
   int rval = 0;
