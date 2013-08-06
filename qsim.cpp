@@ -54,25 +54,15 @@ static inline void read_data_chunk(FILE*    f,
 }
 
 // Find the libqemu-qsim.so library.
-#define MAX_QEMU_PATH_LEN 512
-const char *get_qemu_lib() {
-  static char outstr[MAX_QEMU_PATH_LEN];
-  outstr[0] = '\0';
+string get_qemu_lib() {
+  string outstr;
 
   const char *suffix = "/lib/libqemu-qsim.so";
   const char *qsim_prefix = getenv("QSIM_PREFIX");
 
   if (!qsim_prefix) qsim_prefix = "/usr/local";
 
-  if (strlen(qsim_prefix) + strlen(suffix) > MAX_QEMU_PATH_LEN) {
-    std::cerr << "Path to libqemu-qsim.so too long.";
-    exit(1);
-  } else {
-    strcat(outstr, qsim_prefix);
-    strcat(outstr, suffix);
-  }
-
-  return outstr;
+  return string(qsim_prefix) + string(suffix);
 }
 
 // Simple zero-run compression for state files. We could use libz, but avoiding
@@ -200,15 +190,15 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
 
 Qsim::QemuCpu::QemuCpu(int id, 
 		       const char* kernel, 
-		       unsigned ram_mb) : cpu_id(id), ram_size_mb(ram_mb)
+		       unsigned ram_mb) : cpu_id(id&0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
   // Load the library file and get pointers
-  load_and_grab_pointers(get_qemu_lib());
+  load_and_grab_pointers(get_qemu_lib().c_str());
 
   // Initialize Qemu library
-  qemu_init(NULL, ram_size_ss.str().c_str(), (id << 16) | id);
+  qemu_init(NULL, ram_size_ss.str().c_str(), id);
   ramdesc = *ramdesc_p;
 
   // Load the Linux kernel
@@ -228,12 +218,12 @@ Qsim::QemuCpu::QemuCpu(int id,
 
 Qsim::QemuCpu::QemuCpu(int id, 
 		       Qsim::QemuCpu* master_cpu, 
-		       unsigned ram_mb) : cpu_id(id), ram_size_mb(ram_mb)
+		       unsigned ram_mb) : cpu_id(id&0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
-  load_and_grab_pointers(get_qemu_lib());
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), (id << 16) | id);
+  load_and_grab_pointers(get_qemu_lib().c_str());
+  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id);
   ramdesc = master_cpu->ramdesc;
 
   // Set initial values for registers.
@@ -248,15 +238,15 @@ Qsim::QemuCpu::QemuCpu(int id,
 
 Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu, 
                        unsigned ram_mb)
-  : cpu_id(id), ram_size_mb(master_cpu->ram_size_mb)
+  : cpu_id(id&0xffff), ram_size_mb(master_cpu->ram_size_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
   // Load the library file and get pointers.
-  load_and_grab_pointers(get_qemu_lib());
+  load_and_grab_pointers(get_qemu_lib().c_str());
 
   // Initialize Qemu library
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), (id << 16) | id);
+  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id);
   ramdesc = master_cpu->ramdesc;
 
   // TODO: The following should be moved to a utility function
@@ -272,13 +262,13 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
 }
 
 Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb) :
-  cpu_id(id), ram_size_mb(ram_mb)
+  cpu_id(id&0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
-  load_and_grab_pointers(get_qemu_lib());
+  load_and_grab_pointers(get_qemu_lib().c_str());
 
-  qemu_init(NULL, ram_size_ss.str().c_str(), (id << 16) | id);
+  qemu_init(NULL, ram_size_ss.str().c_str(), id);
   ramdesc = *ramdesc_p;
 
   // Read RAM state.
@@ -329,7 +319,7 @@ Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
 
   if (n > 0) {
     // Create a master CPU using the given kernel
-    cpus.push_back(new QemuCpu(0, kernel_path.c_str(), ram_mb));
+    cpus.push_back(new QemuCpu(id << 16, kernel_path.c_str(), ram_mb));
     cpus[0]->set_magic_cb(magic_cb_s);
 
     // Set master CPU state to "running"
@@ -344,7 +334,7 @@ Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
 
     // Create n-1 slave CPUs
     for (unsigned i = 1; i < n; i++) {
-      cpus.push_back(new QemuCpu(i, cpus[0], ram_mb));
+      cpus.push_back(new QemuCpu(i | (id << 16), cpus[0], ram_mb));
       cpus[i]->set_magic_cb(magic_cb_s);
   
       // Set slave CPU state to "not running"
@@ -383,14 +373,14 @@ Qsim::OSDomain::OSDomain(const char* filename) {
 
   // Read CPU states (including RAM state)
   if (n > 0) {
-    cpus.push_back(new QemuCpu(0, file, ram_size_mb));
+    cpus.push_back(new QemuCpu(id << 16, file, ram_size_mb));
     cpus[0]->set_magic_cb(magic_cb_s);
     pending_ipis.push_back(queue<uint8_t>());
     tids.push_back(0);
     idlevec.push_back(true);
     running.push_back(true);
     for (unsigned i = 1; i < n; i++) {
-      cpus.push_back(new QemuCpu(i, file, cpus[0], ram_size_mb));
+      cpus.push_back(new QemuCpu(i | (id << 16), file, cpus[0], ram_size_mb));
       cpus[i]->set_magic_cb(magic_cb_s);
       pending_ipis.push_back(queue<uint8_t>());
       running.push_back(true);
@@ -705,17 +695,16 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   // Take appropriate action
   if ( (rax&0xffffff00) == 0xc501e000 ) {
     // Console output
-    static string s = "";
     char c = rax & 0xff;
     if (isprint(c)) {
-      s += c;
+      linebuf += c;
     }
     if (c == '\n') {
       std::vector<std::ostream *>::iterator i;
       for (i = consoles.begin(); i != consoles.end(); i++) {
-	**i << s << '\n';
+	**i << linebuf << '\n';
       }
-      s = "";
+      linebuf = "";
     }
   } else if ( (rax & 0xffffffff) == 0x1d1e1d1e ) {
     // This CPU is now in the idle loop.

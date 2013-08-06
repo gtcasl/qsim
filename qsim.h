@@ -580,6 +580,8 @@ namespace Qsim {
     int id;
     void assign_id();
 
+    std::string linebuf;
+
     uint16_t              n      ;       // Number of CPUs
     std::vector<QemuCpu*> cpus   ;       // Vector of CPU objects
     std::vector<bool>     idlevec;       // Whether CPU is in idle loop.
