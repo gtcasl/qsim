@@ -28,6 +28,6 @@ fi
 echo === UNPACKING ARCHIVE ===
 $UNPACK $BBOX_ARCHIVE
 
-#echo === COPYING CONFIG ===
-#sed "s#\\%LINUX_DIR\\%#$LINUX_DIR#g" < busybox-config \
-#  > $BBOX/.config
+echo === COPYING CONFIG ===
+sed "s#\\%LINUX_DIR\\%#$LINUX_DIR#g" < busybox-config \
+  > $BBOX/.config
