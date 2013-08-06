@@ -303,19 +303,13 @@ void Qsim::OSDomain::assign_id() {
   pthread_mutex_unlock(&osdomains_lock);
 }
 
-Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
+Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, unsigned ram_mb):
+  n(n)
 {
   pthread_mutex_init(&pending_ipis_mutex, NULL);
   assign_id();
 
   ram_size_mb = ram_mb;
-
-  if (n != 0) {
-    cerr << "Tried to create more than one OSDomain. There can be only one!\n";
-    exit(1);
-  }
- 
-  n = n_;
 
   if (n > 0) {
     // Create a master CPU using the given kernel
