@@ -54,7 +54,7 @@ struct Magic_cb_s {
 int main(int argc, char** argv) {
   if (argc != 5) {
     std::cout << "Usage:\n  " << argv[0] 
-              << " <bzImage> <# CPUs> <ram size (MB)> <state file>\n";
+              << " <bzImage> <# CPUs> <ram size (MB)> <output state file>\n";
     return 1;
   }
 
@@ -115,7 +115,9 @@ int main(int argc, char** argv) {
   Qsim::save_state(osd, argv[4]);
 #endif
 
+#ifdef DEBUG
   std::cout << "Tracing 1M instructions.\n";
+#endif
 
 #ifdef LOAD
   int runfor = 10000;

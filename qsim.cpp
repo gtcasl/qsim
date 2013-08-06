@@ -304,7 +304,7 @@ void Qsim::OSDomain::assign_id() {
 }
 
 Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, unsigned ram_mb):
-  n(n)
+  n(n), waiting_for_eip(0)
 {
   pthread_mutex_init(&pending_ipis_mutex, NULL);
   assign_id();
@@ -348,7 +348,9 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, unsigned ram_mb):
 }
 
 // Create an OSDomain from a saved state file.
-Qsim::OSDomain::OSDomain(const char* filename) {
+Qsim::OSDomain::OSDomain(const char* filename):
+  waiting_for_eip(0)
+{
   pthread_mutex_init(&pending_ipis_mutex, NULL);
   assign_id();
 
@@ -663,8 +665,6 @@ int Qsim::OSDomain::magic_cb_s(int cpu_id, uint64_t rax) {
 }
 
 int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
-  waiting_for_eip = -1;
-
   int rval = 0;
   
   // Start by calling other registered magic instruction callbacks. 
@@ -673,10 +673,10 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   for (i = magic_cbs.begin(); i != magic_cbs.end(); ++i)
     if ((**i)(cpu_id, rax)) rval = 1;
 
-  if (waiting_for_eip != -1) {
+  if (waiting_for_eip != 0) {
     cpus[waiting_for_eip]->set_reg(QSIM_CS, rax>>4);
     running[waiting_for_eip] = true;
-    waiting_for_eip = -1;
+    waiting_for_eip = 0;
     return rval;
   }
 
