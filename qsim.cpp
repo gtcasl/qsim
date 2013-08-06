@@ -305,13 +305,10 @@ Qsim::QemuCpu::~QemuCpu() {
 
 uint16_t Qsim::OSDomain::n = 0;
 unsigned Qsim::OSDomain::ram_size_mb = 0;
-vector<queue <uint8_t> > Qsim::OSDomain::pending_ipis;
-pthread_mutex_t  Qsim::OSDomain::pending_ipis_mutex = PTHREAD_MUTEX_INITIALIZER;
 vector<QemuCpu*> Qsim::OSDomain::cpus;
 vector<bool> Qsim::OSDomain::idlevec;
 vector<uint16_t> Qsim::OSDomain::tids;
 vector<bool> Qsim::OSDomain::running;
-vector<ostream*> Qsim::OSDomain::consoles;
 vector<OSDomain*> Qsim::OSDomain::osdomains;
 pthread_mutex_t Qsim::OSDomain::osdomains_lock = PTHREAD_MUTEX_INITIALIZER;
 int (*Qsim::OSDomain::app_start_cb)(int) = NULL;
@@ -326,6 +323,7 @@ void Qsim::OSDomain::assign_id() {
 
 Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
 {
+  pthread_mutex_init(&pending_ipis_mutex, NULL);
   assign_id();
 
   ram_size_mb = ram_mb;
@@ -340,7 +338,7 @@ Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
   if (n > 0) {
     // Create a master CPU using the given kernel
     cpus.push_back(new QemuCpu(0, kernel_path.c_str(), ram_mb));
-    cpus[0]->set_magic_cb(magic_cb);
+    cpus[0]->set_magic_cb(magic_cb_s);
 
     // Set master CPU state to "running"
     running.push_back(true);
@@ -355,7 +353,7 @@ Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
     // Create n-1 slave CPUs
     for (unsigned i = 1; i < n; i++) {
       cpus.push_back(new QemuCpu(i, cpus[0], ram_mb));
-      cpus[i]->set_magic_cb(magic_cb);
+      cpus[i]->set_magic_cb(magic_cb_s);
   
       // Set slave CPU state to "not running"
       running.push_back(false);
@@ -375,6 +373,7 @@ Qsim::OSDomain::OSDomain(uint16_t n_, string kernel_path, unsigned ram_mb)
 
 // Create an OSDomain from a saved state file.
 Qsim::OSDomain::OSDomain(const char* filename) {
+  pthread_mutex_init(&pending_ipis_mutex, NULL);
   assign_id();
 
   ifstream file(filename);
@@ -393,14 +392,14 @@ Qsim::OSDomain::OSDomain(const char* filename) {
   // Read CPU states (including RAM state)
   if (n > 0) {
     cpus.push_back(new QemuCpu(0, file, ram_size_mb));
-    cpus[0]->set_magic_cb(magic_cb);
+    cpus[0]->set_magic_cb(magic_cb_s);
     pending_ipis.push_back(queue<uint8_t>());
     tids.push_back(0);
     idlevec.push_back(true);
     running.push_back(true);
     for (unsigned i = 1; i < n; i++) {
       cpus.push_back(new QemuCpu(i, file, cpus[0], ram_size_mb));
-      cpus[i]->set_magic_cb(magic_cb);
+      cpus[i]->set_magic_cb(magic_cb_s);
       pending_ipis.push_back(queue<uint8_t>());
       running.push_back(true);
       tids.push_back(0);
@@ -581,8 +580,11 @@ std::vector<Qsim::OSDomain::trans_cb_obj_base*>  Qsim::OSDomain::trans_cbs;
 std::vector<Qsim::OSDomain::start_cb_obj_base*>  Qsim::OSDomain::start_cbs;
 std::vector<Qsim::OSDomain::end_cb_obj_base*>    Qsim::OSDomain::end_cbs;
 
+int Qsim::OSDomain::atomic_cb_s(int cpu_id) {
+  osdomains[cpu_id >> 16]->atomic_cb(cpu_id & 0xffff);
+}
+
 int Qsim::OSDomain::atomic_cb(int cpu_id) {
-  cpu_id &= 0xffff;
   std::vector<atomic_cb_obj_base*>::iterator i;
 
   int rval = 0;
@@ -596,16 +598,28 @@ int Qsim::OSDomain::atomic_cb(int cpu_id) {
   return rval;
 }
 
+void Qsim::OSDomain::inst_cb_s(int cpu_id, uint64_t va, uint64_t pa,
+                               uint8_t l, const uint8_t *bytes,
+                               enum inst_type type)
+{
+  osdomains[cpu_id >> 16]->inst_cb(cpu_id & 0xffff, va, pa, l, bytes, type);
+}
+
 void Qsim::OSDomain::inst_cb(int cpu_id, uint64_t va, uint64_t pa, 
                              uint8_t l, const uint8_t *bytes, 
                              enum inst_type type)
 {
-  cpu_id &= 0xffff;
   std::vector<inst_cb_obj_base*>::iterator i;
 
   // Just iterate through the callbacks and call them all.
   for (i = inst_cbs.begin(); i != inst_cbs.end(); ++i)
     (**i)(cpu_id, va, pa, l, bytes, type);
+}
+
+int Qsim::OSDomain::mem_cb_s(int cpu_id, uint64_t va, uint64_t pa,
+                             uint8_t s, int type)
+{
+  return osdomains[cpu_id >> 16]->mem_cb(cpu_id & 0xffff, va, pa, s, type);
 }
 
 int Qsim::OSDomain::mem_cb(int cpu_id, uint64_t va, uint64_t pa,
@@ -621,10 +635,14 @@ int Qsim::OSDomain::mem_cb(int cpu_id, uint64_t va, uint64_t pa,
   return rval;
 }
 
+uint32_t *Qsim::OSDomain::io_cb_s(int cpu_id, uint64_t port, uint8_t s,
+                                  int type, uint32_t data)
+{
+  return osdomains[cpu_id >> 16]->io_cb(cpu_id & 0xffff, port, s, type, data);
+}
+
 uint32_t *Qsim::OSDomain::io_cb(int cpu_id, uint64_t port, uint8_t s, 
 			  int type, uint32_t data) {
-  cpu_id &= 0xffff;
-
   std::vector<io_cb_obj_base*>::iterator i;
 
   uint32_t *rval = NULL;
@@ -637,9 +655,11 @@ uint32_t *Qsim::OSDomain::io_cb(int cpu_id, uint64_t port, uint8_t s,
   return rval;
 }
 
-int Qsim::OSDomain::int_cb(int cpu_id, uint8_t vec) {
-  cpu_id &= 0xffff;
+int Qsim::OSDomain::int_cb_s(int cpu_id, uint8_t vec) {
+  return osdomains[cpu_id >> 16]->int_cb(cpu_id & 0xffff, vec);
+}
 
+int Qsim::OSDomain::int_cb(int cpu_id, uint8_t vec) {
   std::vector<int_cb_obj_base*>::iterator i;
 
   int rval = 0;
@@ -651,12 +671,18 @@ int Qsim::OSDomain::int_cb(int cpu_id, uint8_t vec) {
   return rval;
 }
 
-void Qsim::OSDomain::reg_cb(int cpu_id, int reg, uint8_t size, int type) {
-  cpu_id &= 0xffff;
+void Qsim::OSDomain::reg_cb_s(int cpu_id, int reg, uint8_t size, int type) {
+  osdomains[cpu_id >> 16]->reg_cb(cpu_id & 0xffff, reg, size, type);
+}
 
+void Qsim::OSDomain::reg_cb(int cpu_id, int reg, uint8_t size, int type) {
   std::vector<reg_cb_obj_base*>::iterator i;
   for (i = reg_cbs.begin(); i != reg_cbs.end(); ++i)
     (**i)(cpu_id, reg, size, type);
+}
+
+void Qsim::OSDomain::trans_cb_s(int cpu_id) {
+  osdomains[cpu_id >> 16]->trans_cb(cpu_id & 0xffff);
 }
 
 void Qsim::OSDomain::trans_cb(int cpu_id) {
@@ -667,9 +693,11 @@ void Qsim::OSDomain::trans_cb(int cpu_id) {
     (**i)(cpu_id);
 }
 
-int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
-  cpu_id &= 0xffff;
+int Qsim::OSDomain::magic_cb_s(int cpu_id, uint64_t rax) {
+  osdomains[cpu_id >> 16]->magic_cb(cpu_id & 0xffff, rax);
+}
 
+int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   static int waiting_for_eip = -1;
 
   int rval = 0;

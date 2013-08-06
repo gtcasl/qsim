@@ -3340,7 +3340,7 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
          } while (vm_can_run());
  
          if (qemu_debug_requested()) {
-@@ -4846,7 +4844,79 @@
+@@ -4846,7 +4844,77 @@
      return 0;
  }
  
@@ -3397,8 +3397,6 @@ diff -r -u qemu-0.12.3/vl.c qemu-0.12.3-qsim/vl.c
 +    qsim_id            = cpu_id;
 +    qsim_ram           = ram;
 +    qsim_qemu_is_slave = (ram != NULL);
-+
-+    printf("cpu_id = 0x%08x; qsim_id = 0x%08x; qsim_cur_cpu = 0x%08x\n", cpu_id, qsim_id, qsim_cur_cpu);
 +
 +     // Call main with newly assembled argv.
 +    qsim_qemu_main(argc, argv, (const char**)environ);

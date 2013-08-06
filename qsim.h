@@ -106,7 +106,7 @@ namespace Qsim {
     virtual void set_magic_cb (magic_cb_t cb) { 
       pthread_mutex_lock(&cb_mutex); 
       qemu_set_magic_cb (cb);
-       pthread_mutex_unlock(&cb_mutex);
+      pthread_mutex_unlock(&cb_mutex);
     }
 
     virtual void set_io_cb    (io_cb_t    cb) { 
@@ -418,7 +418,7 @@ namespace Qsim {
       set_atomic_cb(T* p, typename atomic_cb_obj<T>::atomic_cb_t f)
     {
       atomic_cbs.push_back(new atomic_cb_obj<T>(p, f));
-      set_atomic_cb(atomic_cb);
+      set_atomic_cb(atomic_cb_s);
       return atomic_cbs.end() - 1;
     }
 
@@ -434,7 +434,7 @@ namespace Qsim {
       io_cb_handle_t set_io_cb(T* p, typename io_cb_obj<T>::io_cb_t f)
     {
       io_cbs.push_back(new io_cb_obj<T>(p, f));
-      set_io_cb(io_cb);
+      set_io_cb(io_cb_s);
       return io_cbs.end() - 1;
     }
 
@@ -442,7 +442,7 @@ namespace Qsim {
       io_cb_handle_t set_io_cb(T* p, typename io_cb_old_obj<T>::io_cb_t f)
     {
       io_cbs.push_back(new io_cb_old_obj<T>(p, f));
-      set_io_cb(io_cb);
+      set_io_cb(io_cb_s);
       return io_cbs.end() - 1;
     }
 
@@ -450,7 +450,7 @@ namespace Qsim {
       mem_cb_handle_t set_mem_cb(T* p, typename mem_cb_obj<T>::mem_cb_t f)
     {
       mem_cbs.push_back(new mem_cb_obj<T>(p, f));
-      set_mem_cb(mem_cb);
+      set_mem_cb(mem_cb_s);
       return mem_cbs.end() - 1;
     }
 
@@ -458,7 +458,7 @@ namespace Qsim {
       int_cb_handle_t set_int_cb(T* p, typename int_cb_obj<T>::int_cb_t f)
     {
       int_cbs.push_back(new int_cb_obj<T>(p, f));
-      set_int_cb(int_cb);
+      set_int_cb(int_cb_s);
       return int_cbs.end() - 1;
     }
 
@@ -466,7 +466,7 @@ namespace Qsim {
       inst_cb_handle_t set_inst_cb(T* p, typename inst_cb_obj<T>::inst_cb_t f)
     {
       inst_cbs.push_back(new inst_cb_obj<T>(p, f));
-      set_inst_cb(inst_cb);
+      set_inst_cb(inst_cb_s);
       return inst_cbs.end() - 1;
     }
 
@@ -474,7 +474,7 @@ namespace Qsim {
       reg_cb_handle_t set_reg_cb(T* p, typename reg_cb_obj<T>::reg_cb_t f)
     {
       reg_cbs.push_back(new reg_cb_obj<T>(p, f));
-      set_reg_cb(reg_cb);
+      set_reg_cb(reg_cb_s);
       return reg_cbs.end() - 1;
     }
 
@@ -498,7 +498,7 @@ namespace Qsim {
         set_trans_cb(T* p, typename trans_cb_obj<T>::trans_cb_t f)
     {
       trans_cbs.push_back(new trans_cb_obj<T>(p, f));
-      set_trans_cb(trans_cb);
+      set_trans_cb(trans_cb_s);
       return trans_cbs.end() - 1;
     }
 
@@ -591,24 +591,37 @@ namespace Qsim {
 
     //static std::ostream*         console;       // Console output stream.
  
-    static std::vector<std::queue<uint8_t> > pending_ipis;
-    static std::vector<std::ostream *>       consoles;
-    static pthread_mutex_t pending_ipis_mutex;
+    std::vector<std::queue<uint8_t> > pending_ipis;
+    std::vector<std::ostream *>       consoles;
+    pthread_mutex_t pending_ipis_mutex;
    
     qemu_ramdesc_t ramdesc;
     static unsigned ram_size_mb;
     
-    static int  magic_cb(int cpu_id, uint64_t rax);
-    static int  atomic_cb(int cpu_id);
-    static void inst_cb(int cpu_id, uint64_t va, uint64_t pa, 
-			uint8_t l, const uint8_t *bytes, enum inst_type type);
-    static int mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
-	              uint8_t size, int type);
-    static uint32_t *io_cb
-      (int cpu_id, uint64_t port, uint8_t s, int type, uint32_t data);
-    static int  int_cb(int cpu_id, uint8_t vec);
-    static void reg_cb(int cpu_id, int reg, uint8_t size, int type);
-    static void trans_cb(int cpu_id);
+    static int magic_cb_s(int cpu_id, uint64_t rax);
+    int  magic_cb(int cpu_id, uint64_t rax);
+    static int atomic_cb_s(int cpu_id);
+    int  atomic_cb(int cpu_id);
+
+    static void inst_cb_s(int cpu_id, uint64_t va, uint64_t pa, 
+                          uint8_t l, const uint8_t *bytes,
+                          enum inst_type type);
+    void inst_cb(int cpu_id, uint64_t va, uint64_t pa,
+                 uint8_t l, const uint8_t *bytes, enum inst_type type);
+    static int mem_cb_s(int cpu_id, uint64_t va, uint64_t pa, 
+                        uint8_t size, int type);
+    int mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
+               uint8_t size, int type);
+    static uint32_t *io_cb_s(int cpu_id, uint64_t port, uint8_t s, int type,
+                             uint32_t data);
+    uint32_t *io_cb(int cpu_id, uint64_t port, uint8_t s, int type,
+                    uint32_t data);
+    static int int_cb_s(int cpu_id, uint8_t vec);
+    int int_cb(int cpu_id, uint8_t vec);
+    static void reg_cb_s(int cpu_id, int reg, uint8_t size, int type);
+    void reg_cb(int cpu_id, int reg, uint8_t size, int type);
+    static void trans_cb_s(int cpu_id);
+    void trans_cb(int cpu_id);
 
     static std::vector<OSDomain *> osdomains;
     static pthread_mutex_t osdomains_lock;
