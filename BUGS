@@ -18,3 +18,8 @@
 * The server doesn't handle application exit gracefully. It should probably
   also exit, since no further instructions will be needed. Otherwise, it
   continues to run after the client exists, creating a problem.
+
+* No thread can call run() while any thread is constructing OSDomains. There is
+  no lock to protect the running threads from the constructor (but there are
+  locks to protect constructors from one another). The real "bug" here is that
+  this is not currently adequately documented.

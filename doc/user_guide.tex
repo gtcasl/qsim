@@ -737,23 +737,14 @@ other available classes provide various utility functions and the ability to
 interact directly with the QEMU CPU objects that normally comprise an
 \texttt{OSDomain}.
 
-The most important utility class is \texttt{Queue}, described on page
-\pageref{class:Queue}. It provides a way to delay the processing of execution
-events until after they have been emulated. Use of Queues allows all of the
-processing of events to be centralized within a single main loop instead of
-scattered through multiple callbacks. Although this results in a loss of control
-over the instruction-level timing in QSim, it is ideally suited for applications
-in which this is irrelevant or of diminished importance, such as trace
-generation and simple application evaluation.
 \newpage
 
 \section{\texttt{Qsim::OSDomain}} \label{class:OSDomain}
 
 \texttt{OSDomain} is a singleton class that creates and manages a multicore
 processor emulator. The simplest way to use QSim is to instantiate a QSim
-\texttt{OSDomain}, provide it with a set of callbacks or a \texttt{Queue}, and
-start running instructions on it, periodically calling 
-\texttt{OSDomain::timer\_interrupt()}. This is exactly what the sample program
+\texttt{OSDomain}, provide it with a set of callbacks, and start running instructions on it, periodically calling  \texttt{OSDomain::timer\_interrupt()}.
+This is exactly what the sample program
 in Chapter \ref{chap:example} does. \texttt{OSDomain} means ``Operating System
 domain.'' It is so named because all of the CPUs in it share one cache coherent
 and sequentially consistent block of RAM that contains a single OS image.
@@ -1423,120 +1414,6 @@ with the exception that \texttt{Qsim::Client::booted()} cannot be called from
 within a callback function. The final arguments to the callback setters have
 been removed for clarity.
 
-\newpage
-
-\section{\texttt{Qsim::QueueItem}} \label{struct:QueueItem}
-\texttt{QueueItem}s contain instruction, memory, and interrupt data that would
-otherwise have been provided by a callback. They allow the callback arguments
-to be stored in a \texttt{Queue} (see page \pageref{class:Queue}) for later
-processing. The \texttt{QueueItem} class provides three constructors
-corresponding to the three different types of data a \texttt{QueueItem} can
-hold. These constructors should rarely, if ever, need to be called by a QSim
-client program.
-
-\subsection{Member Functions}
-\begin{verbatim}
-    QueueItem(uint64_t       vaddr,
-              uint64_t       paddr,
-              uint8_t        len,
-              const uint8_t *bytes);
-\end{verbatim}
-Creates a \texttt{QueueItem} with \texttt{type = QueueItem::INST} and populates
-\texttt{data} accordingly.
-
-\begin{verbatim}
-    QueueItem(uint64_t vaddr, 
-              uint64_t paddr, 
-              uint8_t  size, 
-              int      type);
-\end{verbatim}
-Creates a \texttt{QueueItem} with \texttt{type = QueueItem::MEM} and populates
-\texttt{data} accordingly.
-
-\begin{verbatim}
-    QueueItem(uint8_t vec);
-\end{verbatim}
-Creates a \texttt{QueueItem} with \texttt{type = QueueItem::INTR} and populates
-\texttt{data} accordingly.
-
-\subsection{Member Variables}
-\begin{verbatim}
-    enum { INST, MEM, INTR } type;
-\end{verbatim}
-Specifies the type of a \texttt{QueueItem}. Using an \texttt{enum} and a 
-\texttt{union} instead of inheritance makes it possible to make \texttt{Queue}
-a queue of \texttt{QueueItem} objects themselves instead of pointers, 
-simplifying the allocation of these objects and improving performance.
-
-\begin{verbatim}
-    union {
-      struct {
-        uint64_t       vaddr;
-        uint64_t       paddr;
-        uint8_t        len;
-        uint8_t        bytes[15];
-      } inst;
-      struct {
-        uint64_t       vaddr;
-        uint64_t       paddr;
-        uint8_t        size;
-        int            type;
-      } mem;
-      struct {
-        uint8_t        vec;
-      } intr;
-    } data;
-\end{verbatim}
-The data carried by a \texttt{QueueItem}. Which of the three structs to read
-is determined by the value of \texttt{type}.
-\newpage
-
-\section{\texttt{Qsim::Queue}} \label{class:Queue}
-\subsection{Inheritance}
-\begin{verbatim}
-  class Queue : public std::queue<QueueItem>;
-\end{verbatim}
-
-\texttt{Queue} inherits from \texttt{std::queue<QueueItem>}. It automatically
-enqueues objects of type \texttt{QueueItem} using callbacks within QSim. User
-software can use the familiar standard library operations to access these 
-objects. Additional information on the use of \texttt{Queue} can be found 
-%in Section \ref{sec:queues} and 
-in the API reference entry on \texttt{QueueItem}, page 
-\pageref{struct:QueueItem}. \texttt{Queue} objects are instantiated on a
-per-guest-CPU basis.
-
-\subsection{Member Functions}
-\label{func:Queue} \begin{verbatim}
-    Queue(OSDomain &cd, int i, bool timer_int_on_hlt = true);
-\end{verbatim}
-The \texttt{Queue} constructor attaches itself to CPU \texttt{i} of 
-\texttt{OSDomain} \texttt{cd}. Since \texttt{Queue} sets a new instruction
-callback, an option is provided to have this callback generate timer interrupts
-whenever a CPU executes the \texttt{HLT} instruction, allowing simpler timing
-models that are based only on instruction counts to be used. For an in-depth
-discussion of the \texttt{HLT} instruction and its implications in QSim, see
-Section \ref{sec:hlt} on page \pageref{sec:hlt}.
-
-\label{func:set_filt} \begin{verbatim}
-    void set_filt(bool user, 
-                  bool krnl, 
-                  bool prot, 
-                  bool real,
-                  int  tid = -1);
-\end{verbatim}
-
-Set a filter on the queue so not all instructions executed cause items to be
-added to the queue. A task ID field value of -1 (the default) represents all
-tasks. The filter actually created will be a logical or of the options chosen. 
-For example:
-
-\begin{verbatim}
-  q.set_filt(true, true, true, false);
-\end{verbatim}
-
-Only enqueues instructions executed in protected mode, at both user and kernel
-privilege levels.
 \newpage
 
 \section{\texttt{enum regs}} \label{enum:regs}

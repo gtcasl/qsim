@@ -21,71 +21,7 @@
 #include "mgzd.h"
 
 namespace Qsim {
-  struct QueueItem {
-    // Constructors for use within Queue; automatically set type field to
-    // appropriate value.
-    QueueItem(uint64_t vadr, uint64_t padr, uint8_t len, const uint8_t *bytes):
-      type(INST)
-    {
-      data.inst.vaddr = vadr ;
-      data.inst.paddr = padr ; 
-      data.inst.len   = len  ;
-      memcpy((void *)data.inst.bytes, (const void *)bytes, len); 
-    }
-
-    QueueItem(uint64_t vaddr, uint64_t paddr, uint8_t size, int      type ):
-      type(MEM)
-    {
-      data.mem.vaddr  = vaddr;  
-      data.mem.paddr  = paddr; 
-      data.mem.size   = size ;
-      data.mem.type   = type ;
-    }
-
-    QueueItem(uint8_t vec): 
-      type(INTR)
-    {
-      data.intr.vec   = vec  ;
-      type            = INTR ;
-    }
-
-    enum {INST, MEM, INTR} type;
-    union {
-      struct {
-	uint64_t vaddr; uint64_t paddr; uint8_t len ; uint8_t  bytes[15];
-      } inst;
-      struct {
-	uint64_t vaddr; uint64_t paddr; uint8_t size; int      type ;
-      } mem;
-      struct {
-	uint8_t    vec;
-      } intr;
-    }                     data;
-  };
-
-  class Cpu {
-  public:
-    // Initialize with named parameter set p.
-    Cpu() {}
-    virtual ~Cpu();
-
-    // Run for n instructions.
-    virtual uint64_t run(unsigned n) = 0;
-
-    // Trigger an interrupt with vector v.
-    virtual int interrupt(uint8_t v) = 0;
-
-    // Set appropriate callbacks.
-    virtual void set_atomic_cb(atomic_cb_t cb) = 0;
-    virtual void set_magic_cb (magic_cb_t  cb) = 0;
-    virtual void set_int_cb   (int_cb_t    cb) = 0;
-    virtual void set_inst_cb  (inst_cb_t   cb) = 0;
-    virtual void set_mem_cb   (mem_cb_t    cb) = 0;
-    virtual void set_reg_cb   (reg_cb_t    cb) = 0;
-    virtual void set_trans_cb (trans_cb_t  cb) = 0;
-  };
-
-  class QemuCpu : public Cpu {
+  class QemuCpu {
   private:
     // Local copy of ID number                                                 
     int cpu_id;
@@ -170,7 +106,7 @@ namespace Qsim {
     virtual void set_magic_cb (magic_cb_t cb) { 
       pthread_mutex_lock(&cb_mutex); 
       qemu_set_magic_cb (cb);
-       pthread_mutex_unlock(&cb_mutex);
+      pthread_mutex_unlock(&cb_mutex);
     }
 
     virtual void set_io_cb    (io_cb_t    cb) { 
@@ -455,16 +391,16 @@ namespace Qsim {
       }
     };
 
-    static std::vector<atomic_cb_obj_base*> atomic_cbs;
-    static std::vector<magic_cb_obj_base*>  magic_cbs;
-    static std::vector<io_cb_obj_base*>     io_cbs;
-    static std::vector<mem_cb_obj_base*>    mem_cbs;
-    static std::vector<int_cb_obj_base*>    int_cbs;
-    static std::vector<inst_cb_obj_base*>   inst_cbs;
-    static std::vector<reg_cb_obj_base*>    reg_cbs;
-    static std::vector<start_cb_obj_base*>  start_cbs;
-    static std::vector<end_cb_obj_base*>    end_cbs;
-    static std::vector<trans_cb_obj_base*>  trans_cbs;
+    std::vector<atomic_cb_obj_base*> atomic_cbs;
+    std::vector<magic_cb_obj_base*>  magic_cbs;
+    std::vector<io_cb_obj_base*>     io_cbs;
+    std::vector<mem_cb_obj_base*>    mem_cbs;
+    std::vector<int_cb_obj_base*>    int_cbs;
+    std::vector<inst_cb_obj_base*>   inst_cbs;
+    std::vector<reg_cb_obj_base*>    reg_cbs;
+    std::vector<start_cb_obj_base*>  start_cbs;
+    std::vector<end_cb_obj_base*>    end_cbs;
+    std::vector<trans_cb_obj_base*>  trans_cbs;
 
     typedef std::vector<atomic_cb_obj_base*>::iterator atomic_cb_handle_t;
     typedef std::vector<magic_cb_obj_base*>::iterator  magic_cb_handle_t;
@@ -482,7 +418,7 @@ namespace Qsim {
       set_atomic_cb(T* p, typename atomic_cb_obj<T>::atomic_cb_t f)
     {
       atomic_cbs.push_back(new atomic_cb_obj<T>(p, f));
-      set_atomic_cb(atomic_cb);
+      set_atomic_cb(atomic_cb_s);
       return atomic_cbs.end() - 1;
     }
 
@@ -498,7 +434,7 @@ namespace Qsim {
       io_cb_handle_t set_io_cb(T* p, typename io_cb_obj<T>::io_cb_t f)
     {
       io_cbs.push_back(new io_cb_obj<T>(p, f));
-      set_io_cb(io_cb);
+      set_io_cb(io_cb_s);
       return io_cbs.end() - 1;
     }
 
@@ -506,7 +442,7 @@ namespace Qsim {
       io_cb_handle_t set_io_cb(T* p, typename io_cb_old_obj<T>::io_cb_t f)
     {
       io_cbs.push_back(new io_cb_old_obj<T>(p, f));
-      set_io_cb(io_cb);
+      set_io_cb(io_cb_s);
       return io_cbs.end() - 1;
     }
 
@@ -514,7 +450,7 @@ namespace Qsim {
       mem_cb_handle_t set_mem_cb(T* p, typename mem_cb_obj<T>::mem_cb_t f)
     {
       mem_cbs.push_back(new mem_cb_obj<T>(p, f));
-      set_mem_cb(mem_cb);
+      set_mem_cb(mem_cb_s);
       return mem_cbs.end() - 1;
     }
 
@@ -522,7 +458,7 @@ namespace Qsim {
       int_cb_handle_t set_int_cb(T* p, typename int_cb_obj<T>::int_cb_t f)
     {
       int_cbs.push_back(new int_cb_obj<T>(p, f));
-      set_int_cb(int_cb);
+      set_int_cb(int_cb_s);
       return int_cbs.end() - 1;
     }
 
@@ -530,7 +466,7 @@ namespace Qsim {
       inst_cb_handle_t set_inst_cb(T* p, typename inst_cb_obj<T>::inst_cb_t f)
     {
       inst_cbs.push_back(new inst_cb_obj<T>(p, f));
-      set_inst_cb(inst_cb);
+      set_inst_cb(inst_cb_s);
       return inst_cbs.end() - 1;
     }
 
@@ -538,7 +474,7 @@ namespace Qsim {
       reg_cb_handle_t set_reg_cb(T* p, typename reg_cb_obj<T>::reg_cb_t f)
     {
       reg_cbs.push_back(new reg_cb_obj<T>(p, f));
-      set_reg_cb(reg_cb);
+      set_reg_cb(reg_cb_s);
       return reg_cbs.end() - 1;
     }
 
@@ -562,7 +498,7 @@ namespace Qsim {
         set_trans_cb(T* p, typename trans_cb_obj<T>::trans_cb_t f)
     {
       trans_cbs.push_back(new trans_cb_obj<T>(p, f));
-      set_trans_cb(trans_cb);
+      set_trans_cb(trans_cb_s);
       return trans_cbs.end() - 1;
     }
 
@@ -641,73 +577,56 @@ namespace Qsim {
     ~OSDomain();
 
   private:
-    static uint16_t              n      ;       // Number of CPUs
-    static std::vector<QemuCpu*> cpus   ;       // Vector of CPU objects
-    static std::vector<bool>     idlevec;       // Whether CPU is in idle loop.
-    static std::vector<uint16_t> tids   ;       // Current tid of each CPU
-    static std::vector<bool>     running;       // Whether CPU is running.
+    int id;
+    void assign_id();
 
-    static int (*app_start_cb)(int);  // Call this when the app starts running
-    static int (*app_end_cb  )(int);  // Call this when the app finishes
+    std::string linebuf;
 
-    //static std::ostream*         console;       // Console output stream.
- 
-    static std::vector<std::queue<uint8_t> > pending_ipis;
-    static std::vector<std::ostream *>       consoles;
-    static pthread_mutex_t pending_ipis_mutex;
+    uint16_t              n      ;       // Number of CPUs
+    std::vector<QemuCpu*> cpus   ;       // Vector of CPU objects
+    std::vector<bool>     idlevec;       // Whether CPU is in idle loop.
+    std::vector<uint16_t> tids   ;       // Current tid of each CPU
+    std::vector<bool>     running;       // Whether CPU is running.
+
+    int (*app_start_cb)(int);  // Call this when the app starts running
+    int (*app_end_cb  )(int);  // Call this when the app finishes
+
+    std::vector<std::queue<uint8_t> > pending_ipis;
+    std::vector<std::ostream *>       consoles;
+    pthread_mutex_t pending_ipis_mutex;
    
     qemu_ramdesc_t ramdesc;
-    static unsigned ram_size_mb;
+    unsigned ram_size_mb;
     
-    static int  magic_cb(int cpu_id, uint64_t rax);
-    static int  atomic_cb(int cpu_id);
-    static void inst_cb(int cpu_id, uint64_t va, uint64_t pa, 
-			uint8_t l, const uint8_t *bytes, enum inst_type type);
-    static int mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
-	              uint8_t size, int type);
-    static uint32_t *io_cb
-      (int cpu_id, uint64_t port, uint8_t s, int type, uint32_t data);
-    static int  int_cb(int cpu_id, uint8_t vec);
-    static void reg_cb(int cpu_id, int reg, uint8_t size, int type);
-    static void trans_cb(int cpu_id);
+    static int magic_cb_s(int cpu_id, uint64_t rax);
+    int waiting_for_eip;
+    int  magic_cb(int cpu_id, uint64_t rax);
+    static int atomic_cb_s(int cpu_id);
+    int  atomic_cb(int cpu_id);
+
+    static void inst_cb_s(int cpu_id, uint64_t va, uint64_t pa, 
+                          uint8_t l, const uint8_t *bytes,
+                          enum inst_type type);
+    void inst_cb(int cpu_id, uint64_t va, uint64_t pa,
+                 uint8_t l, const uint8_t *bytes, enum inst_type type);
+    static int mem_cb_s(int cpu_id, uint64_t va, uint64_t pa, 
+                        uint8_t size, int type);
+    int mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
+               uint8_t size, int type);
+    static uint32_t *io_cb_s(int cpu_id, uint64_t port, uint8_t s, int type,
+                             uint32_t data);
+    uint32_t *io_cb(int cpu_id, uint64_t port, uint8_t s, int type,
+                    uint32_t data);
+    static int int_cb_s(int cpu_id, uint8_t vec);
+    int int_cb(int cpu_id, uint8_t vec);
+    static void reg_cb_s(int cpu_id, int reg, uint8_t size, int type);
+    void reg_cb(int cpu_id, int reg, uint8_t size, int type);
+    static void trans_cb_s(int cpu_id);
+    void trans_cb(int cpu_id);
+
+    static std::vector<OSDomain *> osdomains;
+    static pthread_mutex_t osdomains_lock;
   };
-
-  // These can be attached on a per-CPU basis to store info about the
-  // instruction stream.
-  class Queue : public std::queue<QueueItem> {
-  public:
-    Queue(OSDomain &cd, int cpu, bool make_hlt_timer_interrupt = true);
-    ~Queue();
-    void set_filt(bool user, bool krnl, bool prot, bool real, int tid = -1);
-
-  private:
-    OSDomain *cd     ;
-    int      cpu     ;
-    bool     hlt     ;
-
-    int      flt_tid ;
-    bool     flt_krnl;
-    bool     flt_user;
-    bool     flt_prot;
-    bool     flt_real;
-
-    static std::vector<Queue*> *queues;
-
-    // The callbacks; static. Use queues[cpuid] to find the appropriate queue.
-    static void inst_cb_flt(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
-                            enum inst_type);
-    static void inst_cb_hlt(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
-                            enum inst_type);
-    static void inst_cb    (int, uint64_t, uint64_t, uint8_t, const uint8_t *,
-                            enum inst_type);
-
-    static int  mem_cb     (int, uint64_t, uint64_t, uint8_t, int            );
-    static int  mem_cb_flt (int, uint64_t, uint64_t, uint8_t, int            );
-
-    static int  int_cb     (int, uint8_t                                     );
-    static int  int_cb_flt (int, uint8_t                                     );
-  };
-
 };
 
 #endif
