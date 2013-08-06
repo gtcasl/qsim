@@ -391,16 +391,16 @@ namespace Qsim {
       }
     };
 
-    static std::vector<atomic_cb_obj_base*> atomic_cbs;
-    static std::vector<magic_cb_obj_base*>  magic_cbs;
-    static std::vector<io_cb_obj_base*>     io_cbs;
-    static std::vector<mem_cb_obj_base*>    mem_cbs;
-    static std::vector<int_cb_obj_base*>    int_cbs;
-    static std::vector<inst_cb_obj_base*>   inst_cbs;
-    static std::vector<reg_cb_obj_base*>    reg_cbs;
-    static std::vector<start_cb_obj_base*>  start_cbs;
-    static std::vector<end_cb_obj_base*>    end_cbs;
-    static std::vector<trans_cb_obj_base*>  trans_cbs;
+    std::vector<atomic_cb_obj_base*> atomic_cbs;
+    std::vector<magic_cb_obj_base*>  magic_cbs;
+    std::vector<io_cb_obj_base*>     io_cbs;
+    std::vector<mem_cb_obj_base*>    mem_cbs;
+    std::vector<int_cb_obj_base*>    int_cbs;
+    std::vector<inst_cb_obj_base*>   inst_cbs;
+    std::vector<reg_cb_obj_base*>    reg_cbs;
+    std::vector<start_cb_obj_base*>  start_cbs;
+    std::vector<end_cb_obj_base*>    end_cbs;
+    std::vector<trans_cb_obj_base*>  trans_cbs;
 
     typedef std::vector<atomic_cb_obj_base*>::iterator atomic_cb_handle_t;
     typedef std::vector<magic_cb_obj_base*>::iterator  magic_cb_handle_t;
@@ -580,25 +580,24 @@ namespace Qsim {
     int id;
     void assign_id();
 
-    static uint16_t              n      ;       // Number of CPUs
-    static std::vector<QemuCpu*> cpus   ;       // Vector of CPU objects
-    static std::vector<bool>     idlevec;       // Whether CPU is in idle loop.
-    static std::vector<uint16_t> tids   ;       // Current tid of each CPU
-    static std::vector<bool>     running;       // Whether CPU is running.
+    uint16_t              n      ;       // Number of CPUs
+    std::vector<QemuCpu*> cpus   ;       // Vector of CPU objects
+    std::vector<bool>     idlevec;       // Whether CPU is in idle loop.
+    std::vector<uint16_t> tids   ;       // Current tid of each CPU
+    std::vector<bool>     running;       // Whether CPU is running.
 
-    static int (*app_start_cb)(int);  // Call this when the app starts running
-    static int (*app_end_cb  )(int);  // Call this when the app finishes
+    int (*app_start_cb)(int);  // Call this when the app starts running
+    int (*app_end_cb  )(int);  // Call this when the app finishes
 
-    //static std::ostream*         console;       // Console output stream.
- 
     std::vector<std::queue<uint8_t> > pending_ipis;
     std::vector<std::ostream *>       consoles;
     pthread_mutex_t pending_ipis_mutex;
    
     qemu_ramdesc_t ramdesc;
-    static unsigned ram_size_mb;
+    unsigned ram_size_mb;
     
     static int magic_cb_s(int cpu_id, uint64_t rax);
+    int waiting_for_eip;
     int  magic_cb(int cpu_id, uint64_t rax);
     static int atomic_cb_s(int cpu_id);
     int  atomic_cb(int cpu_id);

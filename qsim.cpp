@@ -303,16 +303,8 @@ Qsim::QemuCpu::~QemuCpu() {
   pthread_mutex_destroy(&irq_mutex);
 }
 
-uint16_t Qsim::OSDomain::n = 0;
-unsigned Qsim::OSDomain::ram_size_mb = 0;
-vector<QemuCpu*> Qsim::OSDomain::cpus;
-vector<bool> Qsim::OSDomain::idlevec;
-vector<uint16_t> Qsim::OSDomain::tids;
-vector<bool> Qsim::OSDomain::running;
 vector<OSDomain*> Qsim::OSDomain::osdomains;
 pthread_mutex_t Qsim::OSDomain::osdomains_lock = PTHREAD_MUTEX_INITIALIZER;
-int (*Qsim::OSDomain::app_start_cb)(int) = NULL;
-int (*Qsim::OSDomain::app_end_cb  )(int) = NULL;
 
 void Qsim::OSDomain::assign_id() {
   pthread_mutex_lock(&osdomains_lock);
@@ -569,17 +561,6 @@ void Qsim::OSDomain::unset_app_end_cb(end_cb_handle_t h) {
   end_cbs.erase(h);
 }
 
-std::vector<Qsim::OSDomain::atomic_cb_obj_base*> Qsim::OSDomain::atomic_cbs;
-std::vector<Qsim::OSDomain::magic_cb_obj_base*>  Qsim::OSDomain::magic_cbs;
-std::vector<Qsim::OSDomain::io_cb_obj_base*>     Qsim::OSDomain::io_cbs;
-std::vector<Qsim::OSDomain::mem_cb_obj_base*>    Qsim::OSDomain::mem_cbs;
-std::vector<Qsim::OSDomain::int_cb_obj_base*>    Qsim::OSDomain::int_cbs;
-std::vector<Qsim::OSDomain::inst_cb_obj_base*>   Qsim::OSDomain::inst_cbs;
-std::vector<Qsim::OSDomain::reg_cb_obj_base*>    Qsim::OSDomain::reg_cbs;
-std::vector<Qsim::OSDomain::trans_cb_obj_base*>  Qsim::OSDomain::trans_cbs;
-std::vector<Qsim::OSDomain::start_cb_obj_base*>  Qsim::OSDomain::start_cbs;
-std::vector<Qsim::OSDomain::end_cb_obj_base*>    Qsim::OSDomain::end_cbs;
-
 int Qsim::OSDomain::atomic_cb_s(int cpu_id) {
   osdomains[cpu_id >> 16]->atomic_cb(cpu_id & 0xffff);
 }
@@ -698,7 +679,7 @@ int Qsim::OSDomain::magic_cb_s(int cpu_id, uint64_t rax) {
 }
 
 int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
-  static int waiting_for_eip = -1;
+  waiting_for_eip = -1;
 
   int rval = 0;
   
