@@ -44,7 +44,7 @@ Building Linux
 --------------
 
 $ cd linux/linux-2.6.34
-$ ARCH=i386 make
+$ make ARCH=i386
 $ cd ../..
 
 Building Distorm
