@@ -109,7 +109,7 @@ program are called.
 Figure~\ref{fig:qsim} is an illustration of the fully-integrated QSim software
 architecture. The QEMU emulator, as seen in Figure~\ref{fig:qemu} is present,
 replicated once per simulated hardware context and sharing guest RAM state. The
-QSim library makes calls into these QEMU CPUs on behalf of the client program,
+QSim library makes calls into these QEMU CPUs on behalf of the clientprogram,
 and the QEMU CPUs make the callbacks into the client programs based on events in
 the instruction stream. A variety of different callbacks are provided,
 including:
@@ -138,15 +138,6 @@ loaded as part of a Linux inital RAM filesystem.
 
 Porting applications to the guest environment and building the Linux kernel
 image is discussed at length in Chapter~\ref{chap:porting}.
-
-\subsection{Remote QSim}
-
-For environments where detailed, distributed high-core-count simulations are
-performed, QSim provides a client/server version that can operate over a
-network. Each server is intended to support hundreds of clients, one for each
-simulated hardware context. Further discussion of remote QSim is in
-Chapter~\ref{chap:remote}.
-
 
 \subsection{QDB, The QSim Debugger}
 
@@ -277,29 +268,6 @@ is not part of QSim proper; it is just a utility library that the bundled
 applications happen to require that was considered uncommon enough to be
 included with the source distribution.
 
-\subsection{Remote QSim}
-\begin{verbatim}
-    remote/
-    remote/README
-    remote/qsim-net.h
-
-    remote/client
-    remote/client/Makefile
-    remote/client/qsim-client.cpp
-    remote/client/qsim-client.h
-    remote/client/client.cpp
-
-    remote/server
-    remote/server/Makefile
-    remote/server/server.cpp
-\end{verbatim}
-
-Remote QSim, covered in detail in Chapter~\ref{chap:remote}, is a simple way to
-share a single instance of the QSim emulator among several remote processes.
-Remote QSim includes a server program (\texttt{server.cpp}), the client library
-(\texttt{qsim-client.h}, \texttt{qsim-client.cpp}), and a sample remote client
-program (\texttt{client.cpp}).
-
 \subsection{Simplesim}
 \begin{verbatim}
     simplesim/
@@ -368,66 +336,6 @@ programs to extend this interface. Table~\ref{table:magic} lists the magic
 instructions defined by QSim itself and used by the Linux kernel and some of the
 guest software.
 
-\chapter{Remote QSim} \label{chap:remote}
-
-\begin{figure}
-\begin{centering}
-\includegraphics[width=6in]{remote_diagram}
-\caption{Remote QSim allows multiple clients to connect to a QSim server.}
-\label{fig:remote}
-\end{centering}
-\end{figure}
-
-QSim, in addition to providing a local library, also provides a remote version
-that can be used over a network. This is to allow the use of QSim in
-distributed architectural simulations where the front end emulation is not
-considered a bottleneck.
-
-Figure~\ref{fig:remote} is a block diagram of the QSim remote architecture. The
-server is an ordinary client program to an instance of the local QSim library.
-Remote clients connect over the network using the QSim Client library, which
-provides an interface very similar to the local \texttt{OSDomain} to the remote
-clients.
-
-\section{Using the Server}
-
-The QSim server is in \texttt{remote/server} and can be built by running
-\texttt{make} in that directory. Once built, running the server with no command
-line options will display its usage. It takes the following command line options
-in the given order:
-
-\begin{itemize}
-  \item{The port to listen for incoming to connections on}
-  \item{Number of QEMU CPUs (simulated hardware contexts)}
-  \item{Path to kernel image file}
-  \item{Optional size of guest RAM in megabytes}
-\end{itemize}
-
-An example is:
-
-\begin{verbatim}
-    $ ./server 1234 2 bzImage
-\end{verbatim}
-
-The QSim server sends console output to the console on which it is started, so
-expect the usual boot messages. To test this server, the sample client can be
-started with:
-
-\begin{verbatim}
-    $ ./client localhost 1234
-\end{verbatim}
-
-This is also the port address used by the simple example program covered in
-Chapter~\ref{chap:example}, the remote version of which is built as 
-\texttt{examples/simple-client}.
-
-\section{Writing a Client}
-
-A remote QSim client differs from an ordinary QSim client program primarily in
-using \texttt{Qsim::Client} instead of the usual \texttt{Qsim::OSDomain}. Many
-of the API calls are similar. The program listed in Chapter~\label{chap:example}
-is a great example of the differences.
-
 \chapter{A Sample Client Program} \label{chap:example}
 The use of QSim fundamentally boils down to a few simple steps that a client
 program must take:
@@ -469,10 +377,6 @@ function at lines 123 through 132. This allows the same \texttt{osd} reference
 to be used for either an \texttt{OSDomain} constructed with a number of CPUs and
 a kernel image or an \texttt{OSDomain} constructed from a state file.
 
-If the \texttt{QSIM\_REMOTE} macro is defined, this will not be done, and
-instead a \texttt{Qsim::Client} will be created, connecting to a predefined
-host and port.
-
 \section{The Callback System}
 
 \texttt{simple.cpp} uses instruction, atomic, memory, interrupt, and I/O
@@ -480,12 +384,6 @@ callbacks and logs the occurrence of each to a trace file. Application start
 and end callbacks are used. \texttt{TraceWriter::app\_start\_cb()} sets the
 callbacks that perform tracing, and \texttt{TraceWriter::app\_end\_cb()}
 sets a flag that causes the main loop to exit.
-
-\texttt{app\_start\_cb()} is not called in remote QSim. Instead, fast-forwarding
-to the application start is done automatically, before any clients are allowed
-to connect. If \texttt{QSIM\_REMOTE} is set, the application start callback is
-called by the \texttt{TraceWriter} constructor instead, and no start or end
-callbacks are set.
 
 \chapter{Porting Guest Software} \label{chap:porting}
 Note: before porting an application or benchmark suite to QSim, make sure it is 
@@ -710,11 +608,6 @@ A hardware context within QEMU. Not to be confused with a CPU in the sense
 of an entire chip, or in the sense of a core within that chip that may 
 support multiple contexts through and SMT arrangement. A four-core chip with
 2-way SMT, for example, would be emulated with 8 QEMU CPUs.
-
-\item[remote QSim]
-The distributed version of the QSim library. Separates functionality into an
-emulation server and a client which exports an API similar to locally-running
-QSim.
 
 \item[translation cache] 
 The data structure into which a dynamic binary translator like QEMU places the
@@ -1372,48 +1265,6 @@ Set the contents of register \texttt{r} to value \texttt{v}.
 \end{verbatim}
 Get the RAM descriptor for this CPU. Details of the \texttt{qemu\_ramdesc\_t}
 structure are on page \ref{struct:qemu_ramdesc_t}.
-\newpage
-
-\section{\texttt{Qsim::Client}} \label{class:Client}
-The client class, located in \texttt{remote/client/qsim-client.h}, provides an
-OSDomain-like interface to a remote QSim server.
-
-\subsection{Member Functions}
-
-\label{func:Client}
-\begin{verbatim}
-  Client(int socket);
-\end{verbatim}
-Construct a client connected to the server on \texttt{socket}. The parameter is
-typically provided by the utility function
-\texttt{client\_socket(const char *host, const char *port)}, from
-\texttt{remote/qsim-net.h}, which is included by
-\texttt{remote/client/qsim-client.h}.
-
-\begin{verbatim}
-  unsigned run(unsigned short cpu, unsigned insts);
-  void timer_interrupt();
-  void interrupt(int cpu, uint8_t vec);
-  bool booted(unsigned i);
-  bool idle(unsigned cpu);
-  unsigned get_n();
-  unsigned get_tid(unsigned cpu);
-  Qsim::OSDomain::cpu_mode get_mode(unsigned cpu);
-  Qsim::OSDomain::cpu_prot get_prot(unsigned cpu);
-  template <typename T> void set_atomic_cb(T* p, ...);
-  template <typename T> void set_inst_cb(T*, ...);
-  template <typename T> void set_int_cb(T*, ...);
-  template <typename T> void set_mem_cb(T*, ...);
-  template <typename T> void set_magic_cb(T*, ...);
-  template <typename T> void set_io_cb(T*, ...);
-  template <typename T> void set_reg_cb(T*, ...);
-
-\end{verbatim}
-These functions are equivalent to their \texttt{Qsim::OSDomain} counterparts,
-with the exception that \texttt{Qsim::Client::booted()} cannot be called from
-within a callback function. The final arguments to the callback setters have
-been removed for clarity.
-
 \newpage
 
 \section{\texttt{enum regs}} \label{enum:regs}

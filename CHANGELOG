@@ -195,3 +195,7 @@
 
 * Multiple OSDomains per process. It is finally possible to run multiple
   separate QSim emulators in the same address space.
+
+0.3
+
+* Removed remote QSim support.

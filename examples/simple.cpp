@@ -14,27 +14,16 @@
 
 #include <qsim.h>
 
-#ifdef QSIM_REMOTE
-#include "../remote/client/qsim-client.h"
-using Qsim::Client;
-#define QSIM_OBJECT Client
-#else
 using Qsim::OSDomain;
-#define QSIM_OBJECT OSDomain
-#endif
 
 using std::ostream;
 
 class TraceWriter {
 public:
-  TraceWriter(QSIM_OBJECT &osd, ostream &tracefile) : 
+  TraceWriter(OSDomain &osd, ostream &tracefile) : 
     osd(osd), tracefile(tracefile), finished(false) 
   { 
-#ifdef QSIM_REMOTE
-    app_start_cb(0);
-#else
     osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
-#endif
   }
 
   bool hasFinished() { return finished; }
@@ -49,9 +38,8 @@ public:
       osd.set_int_cb(this, &TraceWriter::int_cb);
       osd.set_io_cb(this, &TraceWriter::io_cb);
       osd.set_reg_cb(this, &TraceWriter::reg_cb);
-#ifndef QSIM_REMOTE
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
-#endif
+
       return 1;
     }
   }
@@ -114,7 +102,7 @@ public:
   }
 
 private:
-  QSIM_OBJECT &osd;
+  OSDomain &osd;
   ostream &tracefile;
   bool finished;
 
@@ -144,23 +132,17 @@ int main(int argc, char** argv) {
 
   unsigned n_cpus = 1;
 
-#ifndef QSIM_REMOTE
   // Read number of CPUs as a parameter. 
   if (argc >= 2) {
     istringstream s(argv[1]);
     s >> n_cpus;
   }
-#endif
 
   // Read trace file as a parameter.
   if (argc >= 3) {
     outfile = new ofstream(argv[2]);
   }
 
-#ifdef QSIM_REMOTE
-  Client osd(client_socket("localhost", "1234"));
-  n_cpus = osd.get_n();
-#else
   OSDomain *osd_p(NULL);
   OSDomain &osd(*osd_p);
 
@@ -171,7 +153,6 @@ int main(int argc, char** argv) {
   } else {
     osd_p = new OSDomain(n_cpus, "linux/bzImage");
   }
-#endif
 
   // Attach a TraceWriter if a trace file is given.
   TraceWriter tw(osd, outfile?*outfile:std::cout);
@@ -180,9 +161,7 @@ int main(int argc, char** argv) {
   // received prior to the state being saved.
   if (argc >= 4) tw.app_start_cb(0);
 
-#ifndef QSIM_REMOTE
   osd.connect_console(std::cout);
-#endif
 
   // The main loop: run until 'finished' is true.
   while (!tw.hasFinished()) {
@@ -196,9 +175,8 @@ int main(int argc, char** argv) {
   
   if (outfile) { outfile->close(); }
   delete outfile;
-#ifndef QSIM_REMOTE
+
   delete osd_p;
-#endif
 
   return 0;
 }

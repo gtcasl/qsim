@@ -87,31 +87,6 @@ $ ./mkstate.sh
 This script can be modified to produce state files for more or fewer CPUs, or
 with different RAM sizes. 3072 megs is necessary to run all of Parsec.
 
-Building QSim Server
---------------------
-
-This makefile also uses the QSIM_PREFIX variable, if it is set, otherwise QSIM
-is assumed to reside in /usr/local. Remember to set LD_LIBRARY_PATH before
-running the server, if the installation libary path is not in the library
-search path.
-
-$ cd remote/server
-$ make
-$ cd ../..
-
-There is currently no "install" target for the QSim server, so it must be run
-in place or manually copied as desired.
-
-Building/Installing QSim Client Library
----------------------------------------
-
-This also respects QSIM_PREFIX, and will install libqsim-client.so and
-qsim-client.h in $QSIM_PREFIX/lib and $QSIM_PREFIX/include respectively.
-
-$ cd remote/client
-$ sudo make install
-$ cd ../..
-
 Building Examples
 -----------------
 
