@@ -13,7 +13,7 @@ sbin/% : %.c
 	gcc -m32 -o $@ -pthread -static $<
 
 dev proc sys data:
-	mkdir dev proc sys data
+	mkdir -p dev proc sys data
 
 
 clean: 

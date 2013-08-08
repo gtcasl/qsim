@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Busybox version: 1.21.1
-# Fri Aug  2 20:07:29 2013
+# Thu Aug  8 16:01:42 2013
 #
 CONFIG_HAVE_DOT_CONFIG=y
 
@@ -292,10 +292,10 @@ CONFIG_TEE=y
 # CONFIG_USLEEP is not set
 # CONFIG_UUDECODE is not set
 # CONFIG_UUENCODE is not set
-# CONFIG_WC is not set
-# CONFIG_FEATURE_WC_LARGE is not set
+CONFIG_WC=y
+CONFIG_FEATURE_WC_LARGE=y
 # CONFIG_WHOAMI is not set
-# CONFIG_YES is not set
+CONFIG_YES=y
 
 #
 # Common options for cp and mv
@@ -904,7 +904,7 @@ CONFIG_FEATURE_MIME_CHARSET=""
 # CONFIG_FEATURE_TOPMEM is not set
 # CONFIG_UPTIME is not set
 # CONFIG_FEATURE_UPTIME_UTMP_SUPPORT is not set
-# CONFIG_FREE is not set
+CONFIG_FREE=y
 # CONFIG_FUSER is not set
 CONFIG_KILL=y
 # CONFIG_KILLALL is not set

@@ -31,7 +31,7 @@ if [ -ne runme.sh ]; then
 fi
 
 /sbin/chmod +x ./runme.sh
-./runme.sh 2>&1 | /sbin/qsim_out
+/sbin/ash ./runme.sh 2>&1 | /sbin/qsim_out
 
 # Spin forever.
 while true; do

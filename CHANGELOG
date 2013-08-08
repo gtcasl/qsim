@@ -192,3 +192,6 @@
   infrastructure or a trace generator for further simulation tools.
 
 * Added callback type for translation.
+
+* Multiple OSDomains per process. It is finally possible to run multiple
+  separate QSim emulators in the same address space.

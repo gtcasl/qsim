@@ -8,6 +8,7 @@ doc/*.toc
 libqsim.so
 qcache/*.o
 qcache/qcache
+qcache/QSIM_PROF
 qemu-0.12.3.tar.gz
 qemu-0.12.3/
 qsim-fastforwarder
@@ -18,3 +19,5 @@ linux/linux-2.6.34
 examples/io-test
 examples/qtm
 examples/simple
+examples/TRACE
+mkstate.log
