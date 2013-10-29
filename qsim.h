@@ -326,8 +326,8 @@ namespace Qsim {
       typedef int (T::*mem_cb_t)(int, uint64_t, uint64_t, uint8_t, int);
       T* p; mem_cb_t f;
       mem_cb_obj(T* p, mem_cb_t f) : p(p), f(f) {}
-      int operator()(int cpu_id, uint64_t pa, uint64_t va, uint8_t s, int t) {
-	return ((p)->*(f))(cpu_id, pa, va, s, t);
+      int operator()(int cpu_id, uint64_t va, uint64_t pa, uint8_t s, int t) {
+	return ((p)->*(f))(cpu_id, va, pa, s, t);
       }
     };
 
