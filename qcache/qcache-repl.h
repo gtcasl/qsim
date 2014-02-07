@@ -129,7 +129,7 @@ namespace Qcache {
     Shct(): reref(WAYS<<L2LINESZ), rerefSig(WAYS<<L2LINESZ), 
             wasFetch(WAYS<<L2LINESZ), c(1<<L2SHCTSZ) {}
 
-    bool check(addr_t pc) { return c[hash(pc)] != 0; }
+    bool check(addr_t pc) { return c[hash(pc)] == 0; }
 
     void evict(size_t idx) {
       if (wasFetch[idx]) {
@@ -152,6 +152,8 @@ namespace Qcache {
 
     void hit(size_t idx) {
       reref[idx] = true;
+      unsigned shctIdx(rerefSig[idx]);
+      if (c[shctIdx] != ((1<<SHCT_BITS)-1)) ++c[shctIdx];
     }
 
   private:
