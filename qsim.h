@@ -175,7 +175,7 @@ namespace Qsim {
     enum cpu_prot { PROT_KERN, PROT_USER };
 
     // Create a OSDomain with n CPUs, booting the kernel at the given path
-    OSDomain(uint16_t n, std::string kernel_path, unsigned ram_mb = 2048);
+    OSDomain(uint16_t n, std::string kernel_path, unsigned ram_mb = 1024);
 
     // Create a new OSDomain from a state file.
     OSDomain(const char *filename);
