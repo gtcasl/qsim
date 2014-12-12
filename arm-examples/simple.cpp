@@ -104,15 +104,15 @@ int main(int argc, char** argv) {
   }
 
   OSDomain *osd_p(NULL);
-  OSDomain &osd(*osd_p);
 
   if (argc >= 4) {
     // Create new OSDomain from saved state.
     osd_p = new OSDomain(argv[3]);
-    n_cpus = osd.get_n();
+    n_cpus = osd_p->get_n();
   } else {
-    osd_p = new OSDomain(n_cpus, "../linux/bzImage");
+    osd_p = new OSDomain(n_cpus, "/home/pranith/devops/code/arm_images/after-copy/vmlinuz-3.2.0-4-vexpress");
   }
+  OSDomain &osd(*osd_p);
 
   // Attach a TraceWriter if a trace file is given.
   TraceWriter tw(osd, outfile?*outfile:std::cout);
