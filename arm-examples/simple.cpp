@@ -21,7 +21,7 @@ public:
   TraceWriter(OSDomain &osd, ostream &tracefile) : 
     osd(osd), tracefile(tracefile), finished(false) 
   { 
-    osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
+    //osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
   }
 
   bool hasFinished() { return finished; }
@@ -44,6 +44,9 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
                enum inst_type t)
   {
+	  std::cout << "Inst callback" << std::endl;
+    tracefile << std::dec << c << ": " << std::hex << v << std::endl;
+    return;
   }
 
   int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
@@ -119,16 +122,20 @@ int main(int argc, char** argv) {
 
   // If this OSDomain was created from a saved state, the app start callback was
   // received prior to the state being saved.
-  if (argc >= 4) tw.app_start_cb(0);
+  //if (argc >= 4) tw.app_start_cb(0);
 
   osd.connect_console(std::cout);
 
   // The main loop: run until 'finished' is true.
   while (!tw.hasFinished()) {
     for (unsigned i = 0; i < 100; i++) {
-      for (unsigned j = 0; j < n_cpus; j++) {
-           osd.run(j, 10000);
+      for (unsigned long j = 0; j < n_cpus; j++) {
+           osd.run(j, 3000000000);
       }
+      std::cout << "ran " << std::dec << i << " iter" << std::endl;
+      fflush(NULL);
+      if (i == 4)
+	tw.app_start_cb(0);
     }
     osd.timer_interrupt();
   }
