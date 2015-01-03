@@ -44,8 +44,8 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
                enum inst_type t)
   {
-	  std::cout << "Inst callback" << std::endl;
     tracefile << std::dec << c << ": " << std::hex << v << std::endl;
+    fflush(NULL);
     return;
   }
 
@@ -104,7 +104,8 @@ int main(int argc, char** argv) {
   // Read trace file as a parameter.
   if (argc >= 3) {
     outfile = new ofstream(argv[2]);
-  }
+  } else 
+    outfile = new ofstream("trace.log");
 
   OSDomain *osd_p(NULL);
 
@@ -126,16 +127,16 @@ int main(int argc, char** argv) {
 
   osd.connect_console(std::cout);
 
+  tw.app_start_cb(0);
   // The main loop: run until 'finished' is true.
   while (!tw.hasFinished()) {
     for (unsigned i = 0; i < 100; i++) {
       for (unsigned long j = 0; j < n_cpus; j++) {
            osd.run(j, 3000000000);
+           std::cout << "ran " << std::dec << j << "inner iter" << std::endl;
       }
       std::cout << "ran " << std::dec << i << " iter" << std::endl;
       fflush(NULL);
-      if (i == 4)
-	tw.app_start_cb(0);
     }
     osd.timer_interrupt();
   }
