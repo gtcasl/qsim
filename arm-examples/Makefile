@@ -10,7 +10,7 @@ QSIM_PREFIX ?= /usr/local
 CXXFLAGS ?= -O2 -g -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
 LDLIBS ?= -lqsim -pthread -ldl
 
-EXAMPLES = simple
+EXAMPLES = simple cachesim
 
 all: $(EXAMPLES)
 
@@ -18,6 +18,9 @@ vistrace: vistrace.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS) -lImlib2
 
 simple: simple.cpp $(QSIM_PREFIX)/lib/libqsim.so
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
+
+cachesim: cachesim.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
 
 io-test: io-test.cpp $(QSIM_PREFIX)/lib/libqsim.so
