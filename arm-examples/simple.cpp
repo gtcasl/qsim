@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <string>
 
 #include <qsim.h>
 
@@ -95,6 +96,8 @@ int main(int argc, char** argv) {
 
   unsigned n_cpus = 1;
 
+  std::string qsim_prefix(getenv("QSIM_PREFIX"));
+
   // Read number of CPUs as a parameter. 
   if (argc >= 2) {
     istringstream s(argv[1]);
@@ -114,7 +117,7 @@ int main(int argc, char** argv) {
     osd_p = new OSDomain(argv[3]);
     n_cpus = osd_p->get_n();
   } else {
-    osd_p = new OSDomain(n_cpus, "/home/pranith/devops/code/arm_images/after-copy/vmlinuz-3.2.0-4-vexpress");
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm_images/vmlinuz-3.2.0-4-vexpress");
   }
   OSDomain &osd(*osd_p);
 
