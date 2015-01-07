@@ -178,6 +178,11 @@ int main(int argc, char** argv) {
     using std::istringstream;
     using std::ofstream;
 
+    if (!getenv("QSIM_PREFIX")) {
+        fprintf(stderr, "QSIM_PREFIX env variable not set! Exiting...\n");
+        exit(1);
+    }
+
     std::string qsim_prefix(getenv("QSIM_PREFIX"));
     ofstream *outfile(NULL);
 
