@@ -215,14 +215,15 @@ int main(int argc, char** argv) {
 
     osd.connect_console(std::cout);
 
+	unsigned long inst_per_iter = 1000000;
     tw.app_start_cb(0);
     // The main loop: run until 'finished' is true.
     while (!tw.hasFinished()) {
         for (unsigned i = 0; i < 100; i++) {
             for (unsigned long j = 0; j < n_cpus; j++) {
-                osd.run(j, 3000000000);
+                osd.run(j, 1000000);
             }
-            std::cerr << (i+1) * 3 << " Billion instructions, hit ratio " <<
+            std::cerr << ((i+1) + (j+1) * 100) * inst_per_iter / 1e6 << " million instructions, hit ratio " <<
                 tw.get_hit_ratio() << std::endl;
             fflush(NULL);
         }
