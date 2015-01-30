@@ -4,10 +4,20 @@
 \newcommand{\url}[1]{\texttt{#1}}
 
 \title{QSim Version \version User Guide}
-\author{Chad D. Kersey\\ Georgia Institute of Technology\\ Atlanta, GA 30332}
+\author{Pranith Kumar\\ Georgia Institute of Technology}
 
 \usepackage{verbatim}
 \usepackage{graphicx}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks,
+    citecolor=black,
+    filecolor=black,
+    linkcolor=blue,
+    urlcolor=black
+}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily}
 \usepackage[right=1.5in, top=1in, bottom=1in, left=1.0in]{geometry}
 %\oddsidemargin=0.5in
 
@@ -20,8 +30,8 @@
 \chapter*{Introduction}
 QSim is a thread safe multicore emulation library based on the QEMU emulator.
 QSim provides instruction-level control of the emulated environment and 
-detailed information about the executing instruction stream. X86 Linux guests
-are supported with hundreds of emulated hardware contexts, each of which can run
+detailed information about the executing instruction stream. ARM Linux guests
+are supported with multiple emulated hardware contexts, each of which can run
 in an independent host thread. Applications of QSim include trace-gathering,
 multithreaded software development, and its primary target: microarchitecture
 simulation.
@@ -39,10 +49,10 @@ been discussed at length elsewhere.
 The following are needed to run QSim on your machine. Before you attempt to build and run QSim, make sure these are available:
 
 \begin{itemize}
-  \item{64-bit CPU and operating system}
+  \item{x86 CPU and a Linux OS}
   \item{2GB of RAM and at least 4GB of swap}
-  \item{Libraries and compiler to build 32-bit binaries}
-  \item{The \texttt{patch} command (not insalled by default on recent Ubuntu)}
+  \item{Libraries and compiler to build 64-bit binaries}
+  \item{The \texttt{git} version control tool (not installed by default on recent Ubuntu)}
 \end{itemize}
 
 \chapter{QSim Software Architecture} \label{chap:arch}
@@ -50,7 +60,7 @@ QSim is an effort in combining several large and complex open source software
 packages into a single entity. The QSim code is very small compared to the
 QEMU and Linux codebases it leverages. These other projects are not included
 with QSim, but are downloaded and patched by the provided scripts
-\texttt{getqemu.sh} and \texttt{getkernel.sh}.
+\texttt{qsim-setup.sh}.
 
 \section{QSim Design}
 
@@ -58,7 +68,7 @@ with QSim, but are downloaded and patched by the provided scripts
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=3in]{qemu_diagram}
+\includegraphics[width=3in]{qsim_architecture}
 \caption{Block diagram of QEMU.}
 \label{fig:qemu}
 \end{center}
@@ -68,9 +78,9 @@ A block diagram of QEMU is shown in Figure~\ref{fig:qemu}. QEMU is an open
 source PC emulator that uses dynamic binary translation to translate guest
 instructions to a host instructions in the translation cache. Multiple
 guest architectures are supported, both as guests and hosts, including x86,
-SPARC, and PowerPC. The environment provided by QSim allows an operating system
+ARM, and PowerPC. The environment provided by QSim allows an operating system
 and applications to be run in an emulated environment, instruction by
-instruction, on multiple emulated cores. Currently only 32-bit x86 guests are
+instruction, on multiple emulated cores. Currently only 32-bit ARM guests are
 supported, but other architectures are expected to become available.
 
 \begin{figure}
@@ -106,13 +116,11 @@ program are called.
 \end{center}
 \end{figure}
 
-Figure~\ref{fig:qsim} is an illustration of the fully-integrated QSim software
-architecture. The QEMU emulator, as seen in Figure~\ref{fig:qemu} is present,
-replicated once per simulated hardware context and sharing guest RAM state. The
-QSim library makes calls into these QEMU CPUs on behalf of the clientprogram,
-and the QEMU CPUs make the callbacks into the client programs based on events in
-the instruction stream. A variety of different callbacks are provided,
-including:
+Figure~\ref{fig:qemu} is an illustration of the fully-integrated
+QSim software architecture. The QSim library makes calls into the QEMU CPUs on
+behalf of the client program, and the QEMU CPUs make the callbacks into the
+client programs based on events in the instruction stream. A variety of
+different callbacks are provided, including:
 
 \begin{itemize}
   \item{Every instruction}
@@ -124,21 +132,24 @@ including:
   \item{Instruction read for translation}
 \end{itemize}
 
+Support has been implemented for instruction and memory reads and writes. We
+plan to add support to other types of callbacks in the near future.
+
+\begin{comment}
 The atomic memory operation and read/write callbacks are given in addition to
 the instruction callbacks for their corresponding instructions. Magic
 instructions are used to provide out-of-band communication between the guest and
 QSim, and are explained in detail in Section~\ref{sec:magic}.
+\end{comment}
 
 \subsection{Guest Environment}
 
-The QSim guest environment includes the Linux kernel, the Busybox all-in-one
-userland, an init script, and a statically-linked application binary. Since QSim
-currently provides no emulation of disk or network devices, guest programs are
-loaded as part of a Linux inital RAM filesystem.
+The QSim guest environment includes the Linux kernel, a debian 32-bit ARM
+userland, an init script, and an application binary. QSim provides emulation of
+disk and network devices. So you can read from mounted disks like sd cards and
+access interent from the guest system.
 
-Porting applications to the guest environment and building the Linux kernel
-image is discussed at length in Chapter~\ref{chap:porting}.
-
+\begin{comment}
 \subsection{QDB, The QSim Debugger}
 
 QDB provides a commandline interface to QSim that can be used to debug guest
@@ -161,25 +172,39 @@ files that represent the state of RAM after the machine has booted, but before
 the application has began running. This is so that the potentially very
 long time spent waiting for Linux to boot can be amortized over all simulations
 using a given \texttt{bzImage} and number of QEMU CPUs.
+\end{comment}
+
+\section{Installation and Setup}
+
+\subsection{qsim-setup}
+
+To ease the setup of the QSim project we have automated it in a
+single setup file hosted in a github repository. The setup file in this
+repository downloads qsim, qemu and the ARM 32-bit filesystem images. It sets up
+the required environment variables and builds
+qsim and qemu. It then runs a cache simulation example built using the qsim
+framework.
+
+This repository is hosted on github at
+\url{https://github.com/pranith/qsim-setup}. Clone this repository using git as
+follows: \\
+\begin{lstlisting}[frame=none]
+ git clone https://github.com/pranith/qsim-setup
+\end{lstlisting}
+
+Ensure that you have atleast 12 GB free disk space before you run the setup file
+in the cloned repository. Change directory to the downloaded directory and run
+setup.sh. This will setup the qsim project in the current directory and run the
+cache simulator example.
 
 \section{QSim Directory Hierarchy}
 What follows is a tour of the directory structure of the QSim codebase. This is
 provided as both a reference and an introduction.
-
-\subsection{Documentation}
-
 \begin{verbatim}
-    INSTALL
+    LICENSE
     README
-    doc/
-    doc/web
+    setup.sh
 \end{verbatim}
-\texttt{doc/} contains this document, of which \texttt{README} is an abridged
-version. \texttt{INSTALL} is a simple runlog containing all of the commands
-needed to create a useable QSim installation.
-
-\texttt{doc/web} is the QSim website, included here so that it may be modified
-under version control as needed.
 
 \subsection{QSim Core}
 
@@ -210,15 +235,17 @@ of QSim and \texttt{qsim.cpp} is the only source in what becomes
 building QSim. For more information on building QSim, see \texttt{INSTALL} in
 the QSim root directory. 
 
+\begin{comment}
 \subsection{Fast Forwarder}
 \begin{verbatim}
     fastforwarder.cpp
     statesaver.cpp
     statesaver.h
 \end{verbatim}
-These files ocmpile to a program called \texttt{qsim-fastforwarder}, which is 
+These files compile to a program called \texttt{qsim-fastforwarder}, which is 
 used as described in Section \ref{sec:fastforwarder} to eliminate the start-up
 portion of long simulations, especially ones with high core counts.
+\end{comment}
 
 \subsection{QEMU}
 \begin{verbatim}
