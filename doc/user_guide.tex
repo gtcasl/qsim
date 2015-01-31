@@ -50,8 +50,8 @@ The following are needed to run QSim on your machine. Before you attempt to buil
 
 \begin{itemize}
   \item{x86 CPU and a Linux OS}
-  \item{2GB of RAM and at least 4GB of swap}
-  \item{Libraries and compiler to build 64-bit binaries}
+  \item{2GB of RAM, at least 4GB of swap and 10GB of disk space}
+  \item{Cross compiler tool chain to build ARM binaries}
   \item{The \texttt{git} version control tool (not installed by default on recent Ubuntu)}
 \end{itemize}
 
@@ -181,9 +181,8 @@ using a given \texttt{bzImage} and number of QEMU CPUs.
 To ease the setup of the QSim project we have automated it in a
 single setup file hosted in a github repository. The setup file in this
 repository downloads qsim, qemu and the ARM 32-bit filesystem images. It sets up
-the required environment variables and builds
-qsim and qemu. It then runs a cache simulation example built using the qsim
-framework.
+the required environment variables and builds qsim and qemu as libraries. It
+then runs a cache simulation example built using the qsim framework.
 
 This repository is hosted on github at
 \url{https://github.com/pranith/qsim-setup}. Clone this repository using git as
@@ -206,7 +205,7 @@ provided as both a reference and an introduction.
     setup.sh
 \end{verbatim}
 
-\subsection{QSim Core}
+\subsection{QSim Core - qsim}
 
 \begin{verbatim}
     qsim.h
@@ -257,6 +256,7 @@ This directory appears after \texttt{getqemu.sh} has been run and contains the
 modified QEMU. The result of a successful compile of QEMU for QSim is a shared
 object file which will be used by the QSim library.
 
+\begin{comment}
 \subsection{Initial Ram Filesystem}
 \begin{verbatim}
     initrd/
@@ -301,19 +301,19 @@ included with the source distribution.
 \end{verbatim}
 SimpleSim is an example multicore out-of-order CPU simulator.
 %TODO: Expand this section!
+\end{comment}
 
 \subsection{Examples}
 \begin{verbatim}
-    examples/
-    examples/qtm.cpp
-    examples/simple.cpp
-    examples/io-test.cpp
-    examples/vistrace.cpp
+    arm-examples/
+    arm-examples/simple.cpp
+    arm-examples/cachesim.cpp
 \end{verbatim}
-The ``examples'' are example client program using the QSim library. One of
+The ``arm-examples'' are example client program using the QSim library. One of
 these, \texttt{simple.cpp}, is examined in detail in Chapter~\ref{chap:example} 
 as an example client program using QSim.
 
+\begin{comment}
 \subsection{QDB: The QSim Debugger}
 \begin{verbatim}
     qdb/
@@ -362,6 +362,7 @@ emulated hardware. Magic instruction callbacks can also be set by client
 programs to extend this interface. Table~\ref{table:magic} lists the magic
 instructions defined by QSim itself and used by the Linux kernel and some of the
 guest software.
+\end{comment}
 
 \chapter{A Sample Client Program} \label{chap:example}
 The use of QSim fundamentally boils down to a few simple steps that a client
@@ -377,7 +378,7 @@ program must take:
 The last step is purely optional, but there would not be much reason to use
 QSim without the instrumentation.
 
-For the purposes of this Chapter, we will examine \texttt{examples/simple.cpp},
+For the purposes of this Chapter, we will examine \texttt{arm-examples/simple.cpp},
 the simple example; a multicore trace gathering utility.
 
 \section{Operation}
@@ -418,19 +419,6 @@ not already present in the QSim benchmarks collection. This collection,
 available through the QSim website, contains a growing set of common benchmarks,
 including all of Splash 2 and Parsec.
 
-Currently, there are two available methods for loading guest software into QSim.
-It can be compiled into the kernel image, or it can be transferred to the guest
-environment through the \texttt{initrd/qsim\_io.c} program. With the former 
-method, the mechanism through which they are loaded is the Linux initial RAM f
-ilesystem (\texttt{initramfs}). This allows a root filesystem to be included
-along with the kernel image and mounted at start-up, even without support for
-disks.
-
-The latter method involves using the \texttt{initramfs} and the
-\texttt{qsim\_io} program to transfer a program. The default \texttt{init}
-script does this. An example of a client program that transfers a file in this
-manner is in \texttt{examples/test-io.cpp}.
-
 Porting an application to QSim consists of the following steps:
 
 \begin{itemize}
@@ -439,29 +427,16 @@ Porting an application to QSim consists of the following steps:
   \item{Add an application end callback to the application where the ``region of
         interest'' ends.}
   \item{
-    Compile the application for 32-bit Linux, statically linked.
+    Cross compile the application for ARM 32-bit Linux, preferably statically linked.
     \begin{itemize}
       \item{Create an executable script, called \texttt{runme.sh} that runs the
             application with appropriate command line arguments.}
       \item{Place the application, \texttt{runme.sh}, and any required data
-            files or libraries into a \texttt{.tar} archive.}
-    \end{itemize}
-    or
-    \begin{itemize}
-      \item{Copy the application and all needed files into
-            \texttt{initrd/sbin}.}
-      \item{Modify the \texttt{initrd/init} script appropriately.}
-      \item{Run \texttt{make} in \texttt{initrd} to build \texttt{initrd.cpio}.}
-      \item{Run \texttt{ARCH=i386 make} in the Linux kernel root to create 
-            \texttt{bzImage}, the kernel image which will be loaded into the
-            QSim address space.}
+            files or libraries into a \texttt{.tar} archive and copy it to the
+            running ARM qemu instance.}
     \end{itemize}
     }
 \end{itemize}
-
-For all new ports to QSim, the first method is recommended. Running benchmarks
-from \texttt{.tar} archives is faster and more convenient than running them from
-kernel images.
 
 \section{Application Start and End Markers}
 QSim provides callbacks for the start and end of applications. These are used by
@@ -476,6 +451,7 @@ before and after the program under test, respectively:
         /sbin/mark_app end
 \end{verbatim}
 
+\begin{comment}
 If more fine-grained demarcation of the ROI is needed, the following lines of
 GCC-compatible C code can be used, at the start and end of the ROI,
 respectively:
@@ -574,6 +550,7 @@ the programs in \texttt{examples/}. QDB takes the path of the kernel image as a
 commandline option. Within client programs, the path to the kernel is an
 argument to the \texttt{OSDomain} constructor (see \texttt{OSDomain}, page 
 \pageref{class:OSDomain} for details).
+\end{comment}
 
 \chapter*{Glossary}
 
