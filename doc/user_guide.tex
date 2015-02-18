@@ -59,8 +59,8 @@ The following are needed to run QSim on your machine. Before you attempt to buil
 QSim is an effort in combining several large and complex open source software
 packages into a single entity. The QSim code is very small compared to the
 QEMU and Linux codebases it leverages. These other projects are not included
-with QSim, but are downloaded and patched by the provided scripts
-\texttt{qsim-setup.sh}.
+with QSim, but are downloaded and patched by the provided script
+\texttt{setup.sh} in the qsim-setup repository.
 
 \section{QSim Design}
 
@@ -70,7 +70,7 @@ with QSim, but are downloaded and patched by the provided scripts
 \begin{center}
 \includegraphics[width=3in]{qsim_architecture}
 \caption{Block diagram of QEMU.}
-\label{fig:qemu}
+\label{fig:qsim}
 \end{center}
 \end{figure}
 
@@ -107,6 +107,7 @@ program are called.
 
 \subsection{The QSim Library}
 
+\begin{comment}
 \begin{figure}
 \begin{center}
 \includegraphics[width=4in]{qsim_diagram}
@@ -115,8 +116,9 @@ program are called.
 \label{fig:qsim}
 \end{center}
 \end{figure}
+\end{comment}
 
-Figure~\ref{fig:qemu} is an illustration of the fully-integrated
+Figure~\ref{fig:qsim} is an illustration of the fully-integrated
 QSim software architecture. The QSim library makes calls into the QEMU CPUs on
 behalf of the client program, and the QEMU CPUs make the callbacks into the
 client programs based on events in the instruction stream. A variety of
@@ -209,7 +211,6 @@ provided as both a reference and an introduction.
 
 \begin{verbatim}
     qsim.h
-    qsim-regs.h
     qsim-vm.h
     qsim-context.h
     mgzd.h
@@ -217,12 +218,13 @@ provided as both a reference and an introduction.
     qsim.cpp
     Makefile
 \end{verbatim}
-These files form the core of QSim. \texttt{qsim-regs.h} defines 
+These files form the core of QSim. 
+\begin{comment}
+\texttt{qsim-regs.h} defines 
 \texttt{enum regs}, an important enumeration of guest register names shared
-between the modifications to QEMU and QSim. \texttt{qsim-vm.h} defines the
-types of the basic callback functions that are called from within QEMU, as well
-as \texttt{qemu\_ramdesc\_t}, a structure used to describe guest RAM areas
-within QEMU to allow sharing of memory between multiple instances of QEMU.
+between the modifications to QEMU and QSim. \end{comment}
+\texttt{qsim-vm.h} defines the
+types of the basic callback functions that are called from within QEMU.
 \texttt{mgzd.h} and \texttt{qsim-context.h} provide the services necessary to
 maintain multiple separate instances of QEMU as though they were components of
 the same program. \texttt{qsim.h} and \texttt{qsim.cpp} are the actual nuts
@@ -248,13 +250,11 @@ portion of long simulations, especially ones with high core counts.
 
 \subsection{QEMU}
 \begin{verbatim}
-    getqemu.sh
-    qemu-0.12.3.qsim.patch
-    qemu-0.12.3/
+    qemu/
 \end{verbatim}
-This directory appears after \texttt{getqemu.sh} has been run and contains the
-modified QEMU. The result of a successful compile of QEMU for QSim is a shared
-object file which will be used by the QSim library.
+This directory is the clone of the qemu repository which contains the callbacks
+branch containing the modified QEMU. The result of a successful compile of QEMU
+for QSim is a shared object file which will be used by the QSim library.
 
 \begin{comment}
 \subsection{Initial Ram Filesystem}
@@ -1264,13 +1264,16 @@ Retreive the contents of register \texttt{r}.
 \end{verbatim}
 Set the contents of register \texttt{r} to value \texttt{v}.
 
+\begin{comment}
 \begin{verbatim}
     qemu_ramdesc_t get_ramdesc() const;
 \end{verbatim}
 Get the RAM descriptor for this CPU. Details of the \texttt{qemu\_ramdesc\_t}
 structure are on page \ref{struct:qemu_ramdesc_t}.
 \newpage
+\end{comment}
 
+\begin{comment}
 \section{\texttt{enum regs}} \label{enum:regs}
 The register enumeration contains at least the following entries:
 
@@ -1294,6 +1297,7 @@ and \texttt{QSIM\_CSL} refer to the ``base'' and ``length'' properties of
 segments in 32-bit protected mode. Note that also, no matter which mode the 
 guest CPU is in, the register names reflect their names in 64-bit long mode.
 \newpage
+\end{comment}
 
 \section{\texttt{enum flags}} \label{enum:flags}
 The flags enumeration contains at least the following entries, set up to be
@@ -1311,6 +1315,7 @@ This is defined in \texttt{qsim-regs.h} and used to generate the value for the
 \texttt{reg} parameter to the register access callback in the case that
 \texttt{size} is zero, indicating a flag bit access.
 
+\begin{comment}
 \section{\texttt{qemu\_ramdesc\_t}} \label{struct:qemu_ramdesc_t}
 This structure represents the memory map of a QSim CPU or OS domain. It
 contains pointers to blocks allocated for each of three memory regions and
@@ -1329,5 +1334,6 @@ vice-versa. \texttt{mem\_ptr} is a pointer to the base of physical memory and
 \texttt{sz} is the size of this region in bytes.
 
 \newpage
+\end{comment}
 
 \end{document}
