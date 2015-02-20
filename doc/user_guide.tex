@@ -28,7 +28,8 @@
 \tableofcontents
 
 \chapter*{Introduction}
-QSim is a thread safe multicore emulation library based on the QEMU emulator.
+QSim is a thread safe multicore emulation library based on the QEMU emulator
+(version 2.2.0).
 QSim provides instruction-level control of the emulated environment and 
 detailed information about the executing instruction stream. ARM Linux guests
 are supported with multiple emulated hardware contexts, each of which can run
@@ -49,7 +50,7 @@ been discussed at length elsewhere.
 The following are needed to run QSim on your machine. Before you attempt to build and run QSim, make sure these are available:
 
 \begin{itemize}
-  \item{x86 CPU and a Linux OS}
+  \item{x86 CPU and a Linux OS (tested on Ubuntu 14.04)}
   \item{2GB of RAM, at least 4GB of swap and 10GB of disk space}
   \item{Cross compiler tool chain to build ARM binaries}
   \item{The \texttt{git} version control tool (not installed by default on recent Ubuntu)}
@@ -74,8 +75,8 @@ with QSim, but are downloaded and patched by the provided script
 \end{center}
 \end{figure}
 
-A block diagram of QEMU is shown in Figure~\ref{fig:qemu}. QEMU is an open
-source PC emulator that uses dynamic binary translation to translate guest
+A block diagram of QEMU is shown in Figure~\ref{fig:qsim}. QEMU is an open
+source emulator that uses dynamic binary translation to translate guest
 instructions to a host instructions in the translation cache. Multiple
 guest architectures are supported, both as guests and hosts, including x86,
 ARM, and PowerPC. The environment provided by QSim allows an operating system
@@ -135,7 +136,7 @@ different callbacks are provided, including:
 \end{itemize}
 
 Support has been implemented for instruction and memory reads and writes. We
-plan to add support to other types of callbacks in the near future.
+plan to add support for the other types of callbacks in the near future.
 
 \begin{comment}
 The atomic memory operation and read/write callbacks are given in addition to
