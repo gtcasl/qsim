@@ -44,7 +44,7 @@ struct Magic_cb_s {
       std::cerr << ' ' << regs_str[r] << '(' << osd.get_reg(i, regs(r)) << ')';
     } else if (!w) {
       std::cerr << " f" << std::setw(2) << std::setfill('0') << r
-                << '(' << std::setw(2) << osd.get_reg(i, QSIM_RFLAGS) << ')';
+                << '(' << std::setw(2) << osd.get_reg(i, QSIM_CPSR) << ')';
     }
   }
 

@@ -10,8 +10,7 @@ enum regs {
   QSIM_N_REGS
 };
 
-/*
-static const char *regs_str[] = {
+static const char *regs_str[] __attribute__((unused)) = {
   "r0", "r1", "r2", "r3",
   "r4", "r5", "r6", "r7",
   "r8", "r9", "r10", "r11",
@@ -19,9 +18,8 @@ static const char *regs_str[] = {
   "cpsr",
   NULL
 };
-*/
 
-uint64_t get_reg(CPUARMState *env, enum regs r);
-void     set_reg(CPUARMState *env, enum regs r, uint64_t val );
+uint64_t get_reg(enum regs r);
+void     set_reg(enum regs r, uint64_t val );
 
 #endif

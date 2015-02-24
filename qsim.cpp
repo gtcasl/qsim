@@ -145,11 +145,13 @@ void Qsim::QemuCpu::load_linux(const char* bzImage) {
                   syssize_16*16);
 
   // Set CPU registers to boot linux kernel.
+  /*
   set_reg(QSIM_RIP, 0x0000 );
   set_reg(QSIM_CS,  0x1000 );
   set_reg(QSIM_DS,  0x1000 - 0x20);
   set_reg(QSIM_RSP, 0x1000 );
   set_reg(QSIM_SS,  0x200  );
+  */
 
   // Close bzImage
   fclose(f);
@@ -205,11 +207,13 @@ Qsim::QemuCpu::QemuCpu(int id,
   load_linux(kernel);
 
   // Set initial values for registers.
+  /*
   set_reg(QSIM_RIP, 0x0000       );
   set_reg(QSIM_CS,  0x1000       );
   set_reg(QSIM_DS,  0x1000 - 0x20);
   set_reg(QSIM_RSP, 0x1000       );
   set_reg(QSIM_SS,  0x200        );
+  */
 
   // Initialize mutexes.
   pthread_mutex_init(&irq_mutex, NULL);
@@ -227,9 +231,11 @@ Qsim::QemuCpu::QemuCpu(int id,
   ramdesc = master_cpu->ramdesc;
 
   // Set initial values for registers.
+  /*
   set_reg(QSIM_CS,  0x0000);
   set_reg(QSIM_DS,  0x0000);
   set_reg(QSIM_RIP, 0x0000);
+  */
 
   // Initialize mutexes.
   pthread_mutex_init(&irq_mutex, NULL);
@@ -420,15 +426,17 @@ int Qsim::OSDomain::get_tid(uint16_t i) {
 }
 
 Qsim::OSDomain::cpu_mode Qsim::OSDomain::get_mode(uint16_t i) {
-  bool prot = (cpus[i]->get_reg(QSIM_CR0))&1;
+  //bool prot = (cpus[i]->get_reg(QSIM_CR0))&1;
 
-  return prot?MODE_PROT:MODE_REAL;
+  //return prot?MODE_PROT:MODE_REAL;
+  return MODE_REAL;
 }
 
 Qsim::OSDomain::cpu_prot Qsim::OSDomain::get_prot(uint16_t i) {
-  bool user = (cpus[i]->get_reg(QSIM_CS))&1;
+  //bool user = (cpus[i]->get_reg(QSIM_CS))&1;
 
-  return user?PROT_USER:PROT_KERN;
+  //return user?PROT_USER:PROT_KERN;
+  return PROT_KERN;
 }
 
 unsigned Qsim::OSDomain::run(uint16_t i, unsigned n) {
@@ -665,12 +673,14 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   for (i = magic_cbs.begin(); i != magic_cbs.end(); ++i)
     if ((**i)(cpu_id, rax)) rval = 1;
 
+  /*
   if (waiting_for_eip != 0) {
     cpus[waiting_for_eip]->set_reg(QSIM_CS, rax>>4);
     running[waiting_for_eip] = true;
     waiting_for_eip = 0;
     return rval;
   }
+  */
 
   // If this is a "CD Ignore" magic instruction, ignore it.
   if ((rax&0xffff0000) == 0xcd160000) return rval;
@@ -715,10 +725,10 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     }
   } else if ( (rax & 0xffffffff) == 0xc7c7c7c7 ) {
     // CPU count request
-    cpus[cpu_id]->set_reg(QSIM_RAX, n);
+    //cpus[cpu_id]->set_reg(QSIM_RAX, n);
   } else if ( (rax & 0xffffffff) == 0x512e512e ) {
     // RAM size request
-    cpus[cpu_id]->set_reg(QSIM_RAX, ram_size_mb);
+    //cpus[cpu_id]->set_reg(QSIM_RAX, ram_size_mb);
   } else if ( (rax & 0xffffffff) == 0xaaaaaaaa ) {
     // Application start marker.
     std::vector<start_cb_obj_base*>::iterator i;

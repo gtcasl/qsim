@@ -59,6 +59,7 @@ private:
   }
 
   int magic_cb(int c, uint64_t rax) {
+    /*
     if (rax == 0xc5b1fffd) {
       // Giving an address to deposit 1024 bytes in %rbx. Wants number of bytes
       // actually deposited in %rcx.                                           
@@ -83,6 +84,7 @@ private:
     } else if (rax&0xffffff00 == 0xc5b100) {
       std::cout << "binary write: " << (rax&0xff) << '\n';
     }
+    */
 
     return 0;
   }

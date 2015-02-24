@@ -19,6 +19,7 @@
 
 #include "qsim-vm.h"
 #include "mgzd.h"
+#include "qsim-arm-regs.h"
 
 namespace Qsim {
   class QemuCpu {
