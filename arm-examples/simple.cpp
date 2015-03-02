@@ -34,6 +34,7 @@ public:
       osd.set_inst_cb(this, &TraceWriter::inst_cb);
       osd.set_mem_cb(this, &TraceWriter::mem_cb);
       osd.set_reg_cb(this, &TraceWriter::reg_cb);
+      osd.set_int_cb(this, &TraceWriter::int_cb);
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
 
       return 1;
@@ -63,6 +64,12 @@ public:
 
     if (s != 0) tracefile << ' ' << r << ": " << (unsigned)(s*8) << " bits.\n";
     else tracefile << ": mask=0x" << std::hex << r << '\n';
+  }
+
+  int int_cb(int c, uint8_t v) {
+    tracefile << std::dec << c << ": Interrupt 0x" << std::hex << std::setw(2)
+              << std::setfill('0') << (unsigned)v << '\n';
+    return 0;
   }
 
 private:
@@ -135,8 +142,8 @@ int main(int argc, char** argv) {
   while (!tw.hasFinished()) {
     for (unsigned i = 0; i < 100; i++) {
       for (unsigned long j = 0; j < n_cpus; j++) {
-           osd.run(j, 3000000000);
-           std::cout << "ran " << std::dec << j << "inner iter" << std::endl;
+           osd.run(j, 10000000);
+           std::cout << "ran " << std::dec << j << " inner iter" << std::endl;
       }
       std::cout << "ran " << std::dec << i << " iter" << std::endl;
       fflush(NULL);
