@@ -25,3 +25,4 @@ qemu
 lib
 arm-examples/simple
 arm-examples/trace.log
+include/
