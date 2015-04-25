@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
     osd_p = new OSDomain(argv[3]);
     n_cpus = osd_p->get_n();
   } else {
-    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm_images/vmlinuz-3.2.0-4-vexpress");
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz");
   }
   OSDomain &osd(*osd_p);
 

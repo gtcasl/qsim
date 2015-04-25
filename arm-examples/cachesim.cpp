@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
         osd_p = new OSDomain(argv[3]);
         n_cpus = osd_p->get_n();
     } else {
-        osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm_images/vmlinuz-3.2.0-4-vexpress");
+        osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz");
     }
     OSDomain &osd(*osd_p);
 
@@ -220,14 +220,15 @@ int main(int argc, char** argv) {
 
     osd.connect_console(std::cout);
 
-	unsigned long inst_per_iter = 1000000;
+	unsigned long inst_per_iter = 1000000000;
     tw.app_start_cb(0);
     // The main loop: run until 'finished' is true.
     unsigned k = 0; // outer loop counter
+    std::cout << "Starting execution..." << std::endl;
     while (!tw.hasFinished()) {
         for (unsigned i = 0; i < 100; i++) {
             for (unsigned long j = 0; j < n_cpus; j++) {
-                osd.run(j, 1000000);
+                osd.run(j, inst_per_iter);
             }
             std::cerr << ((i+1) + k * 100) * inst_per_iter / 1e6 << " million instructions, hit ratio " <<
                 tw.get_hit_ratio() << std::endl;

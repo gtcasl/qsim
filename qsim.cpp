@@ -204,7 +204,7 @@ Qsim::QemuCpu::QemuCpu(int id,
   ramdesc = *ramdesc_p;
 
   // Load the Linux kernel
-  load_linux(kernel);
+  //load_linux(kernel);
 
   // Set initial values for registers.
   /*
