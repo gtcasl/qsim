@@ -181,6 +181,7 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   Mgzd::sym(qemu_set_io_cb,       qemu_lib, "set_io_cb"           );
   Mgzd::sym(qemu_set_reg_cb,      qemu_lib, "set_reg_cb"          );
   Mgzd::sym(qemu_set_trans_cb,    qemu_lib, "set_trans_cb"        );
+  Mgzd::sym(qemu_set_gen_cbs,     qemu_lib, "set_gen_cbs"         );
   Mgzd::sym(ramdesc_p,            qemu_lib, "qsim_ram"            );
   Mgzd::sym(qemu_get_reg,         qemu_lib, "get_reg"             );
   Mgzd::sym(qemu_set_reg,         qemu_lib, "set_reg"             );
@@ -494,6 +495,10 @@ void Qsim::OSDomain::set_reg_cb(reg_cb_t cb) {
 
 void Qsim::OSDomain::set_trans_cb(trans_cb_t cb) {
   for (unsigned i = 0; i < n; ++i) cpus[i]->set_trans_cb(cb);
+}
+
+void Qsim::OSDomain::set_gen_cbs(bool state) {
+  for (unsigned i = 0; i < n; ++i) cpus[i]->set_gen_cbs(state);
 }
 
 Qsim::OSDomain::~OSDomain() {

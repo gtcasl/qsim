@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "qsim-vm.h"
 
 // Functions that QEMU must export
@@ -30,6 +31,7 @@ void set_magic_cb (magic_cb_t );
 void set_io_cb    (io_cb_t    );
 void set_reg_cb   (reg_cb_t   );
 void set_trans_cb (trans_cb_t );
+void set_gen_cbs  (bool state );
 
 #ifdef __cplusplus
 };

@@ -49,6 +49,7 @@ namespace Qsim {
     void (*qemu_set_io_cb)    (io_cb_t    );
     void (*qemu_set_reg_cb)   (reg_cb_t   );
     void (*qemu_set_trans_cb) (trans_cb_t );
+    void (*qemu_set_gen_cbs)  (bool state);
 
     uint64_t (*qemu_get_reg) (enum regs r               );
     void     (*qemu_set_reg) (enum regs r, uint64_t val );
@@ -125,6 +126,12 @@ namespace Qsim {
     virtual void set_trans_cb(trans_cb_t cb) {
       pthread_mutex_lock(&cb_mutex);
       qemu_set_trans_cb(cb);
+      pthread_mutex_unlock(&cb_mutex);
+    }
+
+    virtual void set_gen_cbs(bool state) {
+      pthread_mutex_lock(&cb_mutex);
+      qemu_set_gen_cbs(state);
       pthread_mutex_unlock(&cb_mutex);
     }
 
@@ -230,6 +237,8 @@ namespace Qsim {
     void set_reg_cb   (reg_cb_t    cb);
     void set_trans_cb (uint16_t i, trans_cb_t cb) {cpus[i]->set_trans_cb (cb);}
     void set_trans_cb (trans_cb_t  cb);
+    void set_gen_cbs  (uint16_t i,  bool state) {cpus[i]->set_gen_cbs (state);}
+    void set_gen_cbs  (bool  state);
 
     // Better callback support. Variadic templates would make this prettier.
     struct atomic_cb_obj_base { 
