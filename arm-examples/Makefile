@@ -7,10 +7,10 @@
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
 QSIM_PREFIX ?= /usr/local
-CXXFLAGS ?= -O0 -g -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
+CXXFLAGS ?= -O0 -g -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib -std=c++11
 LDLIBS ?= -lqsim -pthread -ldl
 
-EXAMPLES = simple cachesim
+EXAMPLES = simple cachesim macsim_tracegen
 
 all: $(EXAMPLES)
 

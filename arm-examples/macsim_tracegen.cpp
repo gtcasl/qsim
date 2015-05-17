@@ -13,6 +13,7 @@
 #include <thread>
 
 #include <qsim.h>
+#include <stdio.h>
 
 using Qsim::OSDomain;
 

@@ -140,6 +140,8 @@ class TraceWriter {
 
                 return 1;
             }
+
+            return 0;
         }
 
         int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
