@@ -34,10 +34,6 @@ public:
     if (!ran) {
       ran = true;
       osd.set_inst_cb(this, &TraceWriter::inst_cb);
-      osd.set_mem_cb(this, &TraceWriter::mem_cb);
-      osd.set_reg_cb(this, &TraceWriter::reg_cb);
-      osd.set_int_cb(this, &TraceWriter::int_cb);
-      osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
 
       return 1;
     }
@@ -53,27 +49,6 @@ public:
     tracefile << std::dec << c << ": " << std::hex << v << std::endl;
     fflush(NULL);
     return;
-  }
-
-  int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
-    tracefile << std::dec << c << ":  " << (w?"WR":"RD") << "(0x" << std::hex
-              << v << "/0x" << p << "): " << std::dec << (unsigned)(s*8) 
-              << " bits.\n";
-    return 0;
-  }
-
-  void reg_cb(int c, int r, uint8_t s, int type) {
-    tracefile << std::dec << c << (s == 0?": Flag ":": Reg ") 
-              << (type?"WR":"RD") << std::dec;
-
-    if (s != 0) tracefile << ' ' << r << ": " << (unsigned)(s*8) << " bits.\n";
-    else tracefile << ": mask=0x" << std::hex << r << '\n';
-  }
-
-  int int_cb(int c, uint8_t v) {
-    tracefile << std::dec << c << ": Interrupt 0x" << std::hex << std::setw(2)
-              << std::setfill('0') << (unsigned)v << '\n';
-    return 0;
   }
 
 private:
