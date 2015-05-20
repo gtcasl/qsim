@@ -30,15 +30,19 @@ namespace Mgzd {
   static lib_t open(const char *libfile) {
     lib_t lib;
 
+    static char template_str[1024];
     // Use $QSIM_TMP, if it's set.
     const char* tmpdir = getenv("QSIM_TMP");
     if (tmpdir) TMP_DIR = tmpdir;
+    strcpy(template_str, TMP_DIR);
+    strcat(template_str, TMP_PFX);
+    strcat(template_str, "XXXXXX");
 
     // Make temporary copy of libfile, so opening multiple copies of the same
     // file results in independent copies of global variables.
-    const char* tmp_filename_ptr = tempnam(TMP_DIR, TMP_PFX);
+    char tmp_filename_ptr[1024];
+    int tmp_fd = mkstemp(tmp_filename_ptr);
     lib.file = tmp_filename_ptr;
-    free((void *)tmp_filename_ptr);
 
     std::ostringstream cp_command;
 
