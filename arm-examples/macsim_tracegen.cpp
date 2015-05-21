@@ -15,6 +15,8 @@
 #include <qsim.h>
 #include <stdio.h>
 
+#include "gzstream.h"
+
 using Qsim::OSDomain;
 
 using std::ostream;
@@ -46,7 +48,12 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
                enum inst_type t)
   {
-    tracefile << std::dec << c << ": " << std::hex << v << std::endl;
+    tracefile << std::dec << c << ": " << std::hex << v << " "
+                                       //<< std::hex << p << " "
+                                       //<< std::hex << l << " "
+                                       //<< std::hex << b << " "
+                                       << t
+                                       << std::endl;
     fflush(NULL);
     return;
   }
@@ -78,7 +85,7 @@ int main(int argc, char** argv) {
   using std::istringstream;
   using std::ofstream;
 
-  ofstream *outfile(NULL);
+  ogzstream *outfile(NULL);
 
   unsigned n_cpus = 1;
 
@@ -92,9 +99,9 @@ int main(int argc, char** argv) {
 
   // Read trace file as a parameter.
   if (argc >= 3) {
-    outfile = new ofstream(argv[2]);
+    outfile = new ogzstream(argv[2]);
   } else 
-    outfile = new ofstream("trace.log");
+    outfile = new ogzstream("trace.log.gz");
 
   OSDomain *osd_p(NULL);
 
