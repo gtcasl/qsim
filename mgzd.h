@@ -60,7 +60,7 @@ namespace Mgzd {
   }
 
   static void close(const lib_t &lib) {
-    dlclose(lib.handle);
+    //dlclose(lib.handle);
     unlink(lib.file.c_str());
   }
 

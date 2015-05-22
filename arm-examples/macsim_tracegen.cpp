@@ -26,7 +26,7 @@ public:
   TraceWriter(OSDomain &osd, ostream &tracefile) : 
     osd(osd), tracefile(tracefile), finished(false) 
   { 
-    //osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
+    osd.set_app_start_cb(this, &TraceWriter::app_start_cb);
   }
 
   bool hasFinished() { return finished; }
@@ -36,6 +36,7 @@ public:
     if (!ran) {
       ran = true;
       osd.set_inst_cb(this, &TraceWriter::inst_cb);
+      osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
 
       return 1;
     }
@@ -128,7 +129,7 @@ int main(int argc, char** argv) {
   while (!tw.hasFinished()) {
     for (unsigned i = 0; i < 100; i++) {
       for (unsigned long j = 0; j < n_cpus; j++) {
-           osd.run(j, 10000000);
+           osd.run(j, 1000000000);
            std::cout << "ran " << std::dec << j << " inner iter" << std::endl;
       }
       std::cout << "ran " << std::dec << i << " iter" << std::endl;
