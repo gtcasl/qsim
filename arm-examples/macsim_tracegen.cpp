@@ -14,8 +14,10 @@
 
 #include <qsim.h>
 #include <stdio.h>
+#include <capstone.h>
 
 #include "gzstream.h"
+#include "cs_disas.h"
 
 using Qsim::OSDomain;
 
@@ -24,7 +26,7 @@ using std::ostream;
 class TraceWriter {
 public:
   TraceWriter(OSDomain &osd) :
-    osd(osd), finished(false)
+    osd(osd), finished(false), dis(CS_ARCH_ARM64, CS_MODE_ARM)
   { 
     osd.set_app_start_cb(this, &TraceWriter::app_start_cb);
     trace_file_count = 0;
@@ -53,6 +55,7 @@ public:
       finished = true;
 
       if (tracefile) {
+              fflush(NULL);
           tracefile->close();
           delete tracefile;
           tracefile = NULL;
@@ -64,20 +67,24 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
                enum inst_type t)
   {
-      if (tracefile)
-          *tracefile << std::dec << c << ": " << std::hex << v << " "
-                                       << std::hex << p << " "
-                                       << std::hex << l << " "
-                                       << std::hex << b << " "
-                                       << t
-                                       << std::endl;
-      else
+      cs_insn *insn;
+      int count = dis.decode((unsigned char *)b, l, insn);
+      if (tracefile) {
+          for (int j = 0; j < count; j++) {
+              *tracefile << std::dec << "count: "  << count << 
+                  ": " << std::hex << insn[j].address <<
+                  ": " << insn[j].mnemonic <<
+                  ": " << insn[j].op_str <<
+                  std::endl;
+          }
+      } else {
           std::cout << "Writing to a null tracefile" << std::endl;
-    fflush(NULL);
+      }
     return;
   }
 
 private:
+  cs_disas dis;
   OSDomain &osd;
   ogzstream* tracefile;
   bool finished;

@@ -26,3 +26,4 @@ lib
 arm-examples/simple
 arm-examples/trace*
 include/
+capstone/
