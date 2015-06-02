@@ -72,15 +72,18 @@ public:
       if (tracefile) {
           for (int j = 0; j < count; j++) {
               *tracefile << std::dec << "count: "  << count << 
+                  ": " << std::hex << v <<
                   ": " << std::hex << insn[j].address <<
                   ": " << insn[j].mnemonic <<
                   ": " << insn[j].op_str <<
+                  ": " << get_inst_string(t) <<
                   std::endl;
           }
       } else {
           std::cout << "Writing to a null tracefile" << std::endl;
       }
-    return;
+      dis.free_insn(insn, count);
+      return;
   }
 
 private:
