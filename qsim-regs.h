@@ -1,5 +1,5 @@
-#ifndef __REGS_H
-#define __REGS_H
+#ifndef __QSIM_REGS_H
+#define __QSIM_REGS_H
 /*****************************************************************************\
 * Qemu Simulation Framework (qsim)                                            *
 * Qsim is a modified version of the Qemu emulator (www.qemu.org), coupled     *
@@ -72,7 +72,7 @@ enum inst_type {
   QSIM_INST_SSE
 };
 
-const char *inst_type_strings[] = {
+static const char *inst_type_strings[] = {
   "QSIM_INST_INV",                      //!< invalid opcode
   "QSIM_INST_SPEC",                     //!< something weird (rpcc)
 
@@ -116,7 +116,7 @@ const char *inst_type_strings[] = {
   "QSIM_INST_SSE"
 };
 
-const char *get_inst_string(enum inst_type t)
+__attribute__((unused)) static const char *get_inst_string(enum inst_type t)
 {
     return inst_type_strings[t];
 }

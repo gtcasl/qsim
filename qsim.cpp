@@ -351,7 +351,7 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, unsigned ram_mb):
   }
 
   // Keep a copy of the QEMU RAM descriptor.
-  ramdesc = cpus[0]->get_ramdesc();
+  //ramdesc = cpus[0]->get_ramdesc();
 }
 
 // Create an OSDomain from a saved state file.
