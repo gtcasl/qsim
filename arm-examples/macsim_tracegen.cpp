@@ -330,7 +330,8 @@ public:
   int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
       if (tracefile) {
-          *tracefile << "v: 0x" << std::hex << v 
+          *tracefile << (w ? "Write: " : "Read: ")
+                     << "v: 0x" << std::hex << v
                      << " p: 0x" << std::hex << p 
                      << " s: " << std::dec << (int)s
                      << " val: " << *(uint32_t *)p
