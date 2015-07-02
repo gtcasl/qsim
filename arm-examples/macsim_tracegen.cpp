@@ -20,6 +20,8 @@
 #include "cs_disas.h"
 #include "macsim_tracegen.h"
 
+#define DEBUG 0
+
 using Qsim::OSDomain;
 
 using std::ostream;
@@ -142,16 +144,19 @@ bool InstHandler::populateInstInfo(cs_insn *insn)
     if (prev_op) {
         if (op->m_instruction_addr == prev_op->m_branch_target)
             prev_op->m_actually_taken = 1;
+#ifdef DEBUG
         if (prev_op->m_cf_type)
             *outfile << " Taken " << prev_op->m_actually_taken << std::endl;
         else
             *outfile << std::endl;
+#endif /* DEBUG */
     }
 
+#ifdef DEBUG
     *outfile << "IsBranch: " << (int)op->m_cf_type
              << " Offset:   " << std::setw(16) << std::hex << offset 
              << " Target:  " <<  std::setw(16) << std::hex << op->m_branch_target << " ";
-
+#endif /* DEBUG */
     inst_idx = !inst_idx;
 }
 
@@ -172,7 +177,7 @@ public:
     if (!ran) {
       ran = true;
       osd.set_inst_cb(this, &TraceWriter::inst_cb);
-      //osd.set_mem_cb(this, &TraceWriter::mem_cb);
+      osd.set_mem_cb(this, &TraceWriter::mem_cb);
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
     }
     tracefile = new ogzstream(("trace_" + std::to_string(trace_file_count) + ".log.gz").c_str());
