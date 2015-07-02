@@ -228,12 +228,12 @@ public:
   int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
       if (tracefile) {
-          *tracefile << (w ? "Write: " : "Read: ")
+          *tracefile << std::endl
+                     << (w ? "Write: " : "Read: ")
                      << "v: 0x" << std::hex << v
                      << " p: 0x" << std::hex << p 
                      << " s: " << std::dec << (int)s
-                     << " val: " << *(uint32_t *)p
-                     << std::endl;
+                     << " val: " << std::hex << *(uint32_t *)p;
       }
   }
 
