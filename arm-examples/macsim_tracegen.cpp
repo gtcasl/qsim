@@ -32,7 +32,7 @@ public:
     InstHandler(ogzstream *outfile);
     void setOutFile(ogzstream *outfile);
     bool populateInstInfo(cs_insn *insn);
-    bool populateMemInfo();
+    void populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w);
 private:
 
     void init_uop_tables(void);
@@ -55,6 +55,22 @@ InstHandler::InstHandler()
 void InstHandler::setOutFile(ogzstream *out)
 {
     outfile = out;
+}
+
+void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
+{
+    trace_info_a64_s *op = &inst[!inst_idx];
+    if (w) {
+        op->m_has_st            = 1;
+        op->m_mem_write_size    = s;
+        op->m_st_vaddr          = p;
+    } else {
+        op->m_mem_read_size     = s;
+        op->m_ld_vadd1          = p;
+        op->m_num_ld            = 1;
+    }
+
+    return;
 }
 
 bool InstHandler::populateInstInfo(cs_insn *insn)
@@ -210,6 +226,7 @@ public:
       int count = dis.decode((unsigned char *)b, l, insn);
       insn[0].address = v;
       inst_handle.populateInstInfo(insn);
+#if DEBUG
       if (tracefile) {
           for (int j = 0; j < count; j++) {
               *tracefile << std::hex << v <<
@@ -221,12 +238,14 @@ public:
       } else {
           std::cout << "Writing to a null tracefile" << std::endl;
       }
+#endif /* DEBUG */
       dis.free_insn(insn, count);
       return;
   }
 
   int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
+#if DEBUG
       if (tracefile) {
           *tracefile << std::endl
                      << (w ? "Write: " : "Read: ")
@@ -235,6 +254,8 @@ public:
                      << " s: " << std::dec << (int)s
                      << " val: " << std::hex << *(uint32_t *)p;
       }
+#endif /* DEBUG */
+      inst_handle.populateMemInfo(v, p, s, w);
   }
 
 private:
