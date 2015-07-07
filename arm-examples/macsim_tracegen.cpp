@@ -160,6 +160,15 @@ bool InstHandler::populateInstInfo(cs_insn *insn)
     op->m_rep_dir = 0;
     op->m_actually_taken = 0;
 
+    // auxiliary information for prefetch and barrier instructions
+    if (arm64->op_count) {
+      if (arm64->operands[0].type == ARM64_OP_PREFETCH)
+        op->prefetch = arm64->operands[0].prefetch;
+
+      if (arm64->operands[0].type == ARM64_OP_BARRIER)
+        op->barrier = arm64->operands[0].barrier;
+    }
+
     // populate prev inst dynamic information
     if (prev_op) {
         if (op->m_instruction_addr == prev_op->m_branch_target)

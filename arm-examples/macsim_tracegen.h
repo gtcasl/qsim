@@ -29,4 +29,8 @@ typedef struct trace_info_a64_s {
   uint8_t  m_mem_write_size;    /**< memory write size */
   bool     m_rep_dir;           /**< repetition direction */
   bool     m_actually_taken;    /**< branch actually taken */
+  union {
+    arm64_barrier_op m_barrier;
+    arm64_prefetch_op m_prefetch;
+  };
 } trace_info_a64_s;
