@@ -182,6 +182,8 @@ bool InstHandler::populateInstInfo(cs_insn *insn)
              << " Target:  " <<  std::setw(16) << std::hex << op->m_branch_target << " ";
 #endif /* DEBUG */
     inst_idx = !inst_idx;
+
+    return true;
 }
 
 class TraceWriter {
@@ -262,15 +264,17 @@ public:
       }
 #endif /* DEBUG */
       inst_handle.populateMemInfo(v, p, s, w);
+
+      return 0;
   }
 
 private:
-  cs_disas dis;
   OSDomain &osd;
   gzFile tracefile;
   bool finished;
   int  trace_file_count;
   InstHandler inst_handle;
+  cs_disas dis;
 
   static const char * itype_str[];
 };
