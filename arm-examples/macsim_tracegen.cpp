@@ -29,17 +29,16 @@ using std::ostream;
 class InstHandler {
 public:
     InstHandler();
-    InstHandler(ogzstream *outfile);
-    void setOutFile(ogzstream *outfile);
+    InstHandler(gzFile& outfile);
+    void setOutFile(gzFile* outfile);
     bool populateInstInfo(cs_insn *insn);
     void populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w);
+    void dumpInstInfo(bool inst_idx);
 private:
-
-    void init_uop_tables(void);
 
     trace_info_a64_s inst[2]; 
     bool inst_idx;
-    ogzstream *outfile;
+    gzFile* outfile;
     int m_fp_uop_table[ARM64_INS_ENDING];
     int m_int_uop_table[ARM64_INS_ENDING];
 
@@ -50,11 +49,16 @@ InstHandler::InstHandler()
 {
     inst_idx = 0;
     started = false;
+    outfile = NULL;
 }
 
-void InstHandler::setOutFile(ogzstream *out)
+void InstHandler::dumpInstInfo(bool inst_idx)
 {
-    outfile = out;
+}
+
+void InstHandler::setOutFile(gzFile* file)
+{
+    outfile = file;
 }
 
 void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
@@ -66,7 +70,7 @@ void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
         op->m_st_vaddr          = p;
     } else {
         op->m_mem_read_size     = s;
-        op->m_ld_vadd1          = p;
+        op->m_ld_vaddr1          = p;
         op->m_num_ld            = 1;
     }
 
@@ -160,16 +164,20 @@ bool InstHandler::populateInstInfo(cs_insn *insn)
     if (prev_op) {
         if (op->m_instruction_addr == prev_op->m_branch_target)
             prev_op->m_actually_taken = 1;
-#ifdef DEBUG
+
+        // dump trace for previous op
+        gzwrite(*outfile, prev_op, sizeof(trace_info_a64_s));
+#if 0
         if (prev_op->m_cf_type)
-            *outfile << " Taken " << prev_op->m_actually_taken << std::endl;
+            *debug_file << " Taken " << prev_op->m_actually_taken << std::endl;
         else
-            *outfile << std::endl;
+            *debug_file << std::endl;
 #endif /* DEBUG */
+        memset(prev_op, 0, sizeof(trace_info_a64_s));
     }
 
-#ifdef DEBUG
-    *outfile << "IsBranch: " << (int)op->m_cf_type
+#if 0
+    *debug_file << "IsBranch: " << (int)op->m_cf_type
              << " Offset:   " << std::setw(16) << std::hex << offset 
              << " Target:  " <<  std::setw(16) << std::hex << op->m_branch_target << " ";
 #endif /* DEBUG */
@@ -196,8 +204,8 @@ public:
       osd.set_mem_cb(this, &TraceWriter::mem_cb);
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
     }
-    tracefile = new ogzstream(("trace_" + std::to_string(trace_file_count) + ".log.gz").c_str());
-    inst_handle.setOutFile(tracefile);
+    tracefile  = gzopen(("trace_" + std::to_string(trace_file_count) + ".log.gz").c_str(), "w");
+    inst_handle.setOutFile(&tracefile);
     trace_file_count++;
     finished = false;
 
@@ -210,10 +218,8 @@ public:
       finished = true;
 
       if (tracefile) {
-          tracefile->close();
-          delete tracefile;
-          tracefile = NULL;
-          inst_handle.setOutFile(tracefile);
+          gzclose(tracefile);
+          inst_handle.setOutFile(NULL);
       }
 
       return 0;
@@ -229,7 +235,7 @@ public:
 #if DEBUG
       if (tracefile) {
           for (int j = 0; j < count; j++) {
-              *tracefile << std::hex << v <<
+              *debug_file << std::hex << v <<
                   ": " << std::hex << insn[j].address <<
                   ": " << insn[j].mnemonic <<
                   ": " << insn[j].op_str;
@@ -246,8 +252,8 @@ public:
   int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
 #if DEBUG
-      if (tracefile) {
-          *tracefile << std::endl
+      if (debug_file) {
+          *debug_file << std::endl
                      << (w ? "Write: " : "Read: ")
                      << "v: 0x" << std::hex << v
                      << " p: 0x" << std::hex << p 
@@ -261,7 +267,7 @@ public:
 private:
   cs_disas dis;
   OSDomain &osd;
-  ogzstream* tracefile;
+  gzFile tracefile;
   bool finished;
   int  trace_file_count;
   InstHandler inst_handle;
