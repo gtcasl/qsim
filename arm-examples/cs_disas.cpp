@@ -31,3 +31,14 @@ void cs_disas::free_insn(cs_insn *insn, int count)
 {
     cs_free(insn, count);
 }
+
+bool cs_disas::get_regs_access(cs_insn *insn, uint8_t *regs_read_count, uint8_t *regs_write_count)
+{
+    bool ret;
+    cs_regs regs_read, regs_write;
+
+    ret = cs_regs_access(handle, insn, regs_read, regs_read_count,
+                                       regs_write, regs_write_count);
+
+    return ret;
+}

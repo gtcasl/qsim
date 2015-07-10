@@ -31,7 +31,7 @@ public:
     InstHandler();
     InstHandler(gzFile& outfile);
     void setOutFile(gzFile* outfile);
-    bool populateInstInfo(cs_insn *insn);
+    bool populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8_t regs_write_count);
     void populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w);
     void dumpInstInfo(bool inst_idx);
 private:
@@ -77,7 +77,7 @@ void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
     return;
 }
 
-bool InstHandler::populateInstInfo(cs_insn *insn)
+bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8_t regs_write_count)
 {
     cs_arm64* arm64;
     trace_info_a64_s *op = &inst[inst_idx];
@@ -93,8 +93,8 @@ bool InstHandler::populateInstInfo(cs_insn *insn)
 
     arm64 = &(insn->detail->arm64);
 
-    op->m_num_read_regs = insn->detail->regs_read_count;
-    op->m_num_dest_regs = insn->detail->regs_write_count;
+    op->m_num_read_regs = regs_read_count;
+    op->m_num_dest_regs = regs_write_count;
 
     for (int i = 0; i < op->m_num_read_regs; i++)
         op->m_src[i] = insn->detail->regs_read[i];
@@ -163,10 +163,10 @@ bool InstHandler::populateInstInfo(cs_insn *insn)
     // auxiliary information for prefetch and barrier instructions
     if (arm64->op_count) {
       if (arm64->operands[0].type == ARM64_OP_PREFETCH)
-        op->prefetch = arm64->operands[0].prefetch;
+        op->m_prefetch = arm64->operands[0].prefetch;
 
       if (arm64->operands[0].type == ARM64_OP_BARRIER)
-        op->barrier = arm64->operands[0].barrier;
+        op->m_barrier = arm64->operands[0].barrier;
     }
 
     // populate prev inst dynamic information
@@ -239,10 +239,13 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
                enum inst_type t)
   {
-      cs_insn *insn;
+      cs_insn *insn = NULL;
+      uint8_t regs_read_count, regs_write_count;
+
       int count = dis.decode((unsigned char *)b, l, insn);
       insn[0].address = v;
-      inst_handle.populateInstInfo(insn);
+      dis.get_regs_access(insn, &regs_read_count, &regs_write_count);
+      inst_handle.populateInstInfo(insn, regs_read_count, regs_write_count);
 #if DEBUG
       if (tracefile) {
           for (int j = 0; j < count; j++) {
