@@ -20,7 +20,7 @@
 #include "cs_disas.h"
 #include "macsim_tracegen.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 using Qsim::OSDomain;
 
@@ -29,11 +29,14 @@ using std::ostream;
 class InstHandler {
 public:
     InstHandler();
+    ~InstHandler();
     InstHandler(gzFile& outfile);
     void setOutFile(gzFile* outfile);
     bool populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8_t regs_write_count);
     void populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w);
     void dumpInstInfo(bool inst_idx);
+    void openDebugFile();
+    void closeDebugFile();
 private:
 
     trace_info_a64_s inst[2]; 
@@ -42,6 +45,9 @@ private:
     int m_fp_uop_table[ARM64_INS_ENDING];
     int m_int_uop_table[ARM64_INS_ENDING];
 
+#if DEBUG
+    ogzstream* debug_file;
+#endif
     bool started;
 };
 
@@ -50,6 +56,26 @@ InstHandler::InstHandler()
     inst_idx = 0;
     started = false;
     outfile = NULL;
+}
+
+void InstHandler::openDebugFile()
+{
+#if DEBUG
+    debug_file = new ogzstream("debug.log.gz");
+#endif
+}
+
+void InstHandler::closeDebugFile()
+{
+#if DEBUG
+          debug_file->close();
+          delete debug_file;
+          debug_file = NULL;
+#endif
+}
+
+InstHandler::~InstHandler()
+{
 }
 
 void InstHandler::dumpInstInfo(bool inst_idx)
@@ -70,9 +96,19 @@ void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
         op->m_st_vaddr          = p;
     } else {
         op->m_mem_read_size     = s;
-        op->m_ld_vaddr1          = p;
+        op->m_ld_vaddr1         = p;
         op->m_num_ld            = 1;
     }
+#if DEBUG
+      if (debug_file) {
+          *debug_file << std::endl
+                     << (w ? "Write: " : "Read: ")
+                     << "v: 0x" << std::hex << v
+                     << " p: 0x" << std::hex << p 
+                     << " s: " << std::dec << (int)s
+                     << " val: " << std::hex << *(uint32_t *)p;
+      }
+#endif /* DEBUG */
 
     return;
 }
@@ -176,7 +212,7 @@ bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8
 
         // dump trace for previous op
         gzwrite(*outfile, prev_op, sizeof(trace_info_a64_s));
-#if 0
+#if DEBUG
         if (prev_op->m_cf_type)
             *debug_file << " Taken " << prev_op->m_actually_taken << std::endl;
         else
@@ -185,10 +221,17 @@ bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8
         memset(prev_op, 0, sizeof(trace_info_a64_s));
     }
 
-#if 0
-    *debug_file << "IsBranch: " << (int)op->m_cf_type
-             << " Offset:   " << std::setw(16) << std::hex << offset 
-             << " Target:  " <<  std::setw(16) << std::hex << op->m_branch_target << " ";
+#if DEBUG
+    if (debug_file) {
+      *debug_file << "IsBranch: " << (int)op->m_cf_type
+        << " Offset:   " << std::setw(16) << std::hex << offset 
+        << " Target:  " <<  std::setw(16) << std::hex << op->m_branch_target << " ";
+      *debug_file << std::hex << insn->address <<
+             ": " << insn->mnemonic <<
+             ": " << insn->op_str;
+    } else {
+      std::cout << "Writing to a null tracefile" << std::endl;
+    }
 #endif /* DEBUG */
     inst_idx = !inst_idx;
 
@@ -217,6 +260,7 @@ public:
     }
     tracefile  = gzopen(("trace_" + std::to_string(trace_file_count) + ".log.gz").c_str(), "w");
     inst_handle.setOutFile(&tracefile);
+    inst_handle.openDebugFile();
     trace_file_count++;
     finished = false;
 
@@ -232,6 +276,7 @@ public:
           gzclose(tracefile);
           inst_handle.setOutFile(NULL);
       }
+      inst_handle.closeDebugFile();
 
       return 0;
   }
@@ -246,35 +291,12 @@ public:
       insn[0].address = v;
       dis.get_regs_access(insn, &regs_read_count, &regs_write_count);
       inst_handle.populateInstInfo(insn, regs_read_count, regs_write_count);
-#if DEBUG
-      if (tracefile) {
-          for (int j = 0; j < count; j++) {
-              *debug_file << std::hex << v <<
-                  ": " << std::hex << insn[j].address <<
-                  ": " << insn[j].mnemonic <<
-                  ": " << insn[j].op_str;
-                  //<< ": " << get_inst_string(t);
-          }
-      } else {
-          std::cout << "Writing to a null tracefile" << std::endl;
-      }
-#endif /* DEBUG */
       dis.free_insn(insn, count);
       return;
   }
 
   int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
-#if DEBUG
-      if (debug_file) {
-          *debug_file << std::endl
-                     << (w ? "Write: " : "Read: ")
-                     << "v: 0x" << std::hex << v
-                     << " p: 0x" << std::hex << p 
-                     << " s: " << std::dec << (int)s
-                     << " val: " << std::hex << *(uint32_t *)p;
-      }
-#endif /* DEBUG */
       inst_handle.populateMemInfo(v, p, s, w);
 
       return 0;
