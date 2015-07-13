@@ -96,8 +96,11 @@ void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
         op->m_st_vaddr          = p;
     } else {
         op->m_mem_read_size     = s;
-        op->m_ld_vaddr1         = p;
-        op->m_num_ld            = 1;
+        if (!op->m_num_ld) /* first load */
+          op->m_ld_vaddr1       = p;
+        else               /* second load */
+          op->m_ld_vaddr2       = p;
+        op->m_num_ld++;
     }
 #if DEBUG
       if (debug_file) {
@@ -226,7 +229,8 @@ bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8
       *debug_file << "IsBranch: " << (int)op->m_cf_type
         << " Offset:   " << std::setw(16) << std::hex << offset 
         << " Target:  " <<  std::setw(16) << std::hex << op->m_branch_target << " ";
-      *debug_file << std::hex << insn->address <<
+      *debug_file << a64_opcode_names[insn->id] << 
+             ": " << std::hex << insn->address <<
              ": " << insn->mnemonic <<
              ": " << insn->op_str;
     } else {
