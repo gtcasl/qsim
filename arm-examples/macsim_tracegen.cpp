@@ -68,9 +68,11 @@ void InstHandler::openDebugFile()
 void InstHandler::closeDebugFile()
 {
 #if DEBUG
-          debug_file->close();
-          delete debug_file;
-          debug_file = NULL;
+    if (!debug_file)
+      return;
+    debug_file->close();
+    delete debug_file;
+    debug_file = NULL;
 #endif
 }
 
