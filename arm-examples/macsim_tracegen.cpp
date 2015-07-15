@@ -93,16 +93,24 @@ void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
 {
     trace_info_a64_s *op = &inst[!inst_idx];
     if (w) {
-        op->m_has_st            = 1;
-        op->m_mem_write_size    = s;
-        op->m_st_vaddr          = p;
+        if (!op->m_has_st) { /* first write */
+          op->m_has_st            = 1;
+          op->m_mem_write_size    = s;
+          op->m_st_vaddr          = p;
+        } else {
+          op->m_mem_write_size   += s;
+        }
     } else {
-        op->m_mem_read_size     = s;
-        if (!op->m_num_ld) /* first load */
-          op->m_ld_vaddr1       = p;
-        else               /* second load */
-          op->m_ld_vaddr2       = p;
-        op->m_num_ld++;
+        if (!op->m_num_ld) { /* first load */
+          op->m_num_ld++;
+          op->m_ld_vaddr1         = p;
+          op->m_mem_read_size     = s;
+        } else if (op->m_ld_vaddr1 + op->m_mem_read_size == p) { /* second load */
+          op->m_mem_read_size    += s;
+        } else {
+          op->m_num_ld++;
+          op->m_ld_vaddr2         = p;
+        }
     }
 #if DEBUG
       if (debug_file) {
@@ -161,9 +169,6 @@ bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8
 
     op->m_opcode = insn->id;
     op->m_has_st = 0;
-    if (ARM64_INS_ST1 <= insn->id && insn->id <= ARM64_INS_STXR)
-        op->m_has_st = 1;
-
     op->m_is_fp = 0;
     for (int op_idx = 0; op_idx < arm64->op_count; op_idx++) {
         if (arm64->operands[op_idx].type == ARM64_OP_FP) {
