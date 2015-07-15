@@ -209,10 +209,10 @@ bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8
     // auxiliary information for prefetch and barrier instructions
     if (arm64->op_count) {
       if (arm64->operands[0].type == ARM64_OP_PREFETCH)
-        op->m_prefetch = arm64->operands[0].prefetch;
+        op->m_st_vaddr = arm64->operands[0].prefetch;
 
       if (arm64->operands[0].type == ARM64_OP_BARRIER)
-        op->m_barrier = arm64->operands[0].barrier;
+        op->m_st_vaddr = arm64->operands[0].barrier;
     }
 
     // populate prev inst dynamic information
