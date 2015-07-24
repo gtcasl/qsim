@@ -15,12 +15,13 @@
 #include <qsim.h>
 #include <stdio.h>
 #include <capstone.h>
+#include <zlib.h>
 
 #include "gzstream.h"
 #include "cs_disas.h"
 #include "macsim_tracegen.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 using Qsim::OSDomain;
 
@@ -31,7 +32,8 @@ public:
     InstHandler();
     ~InstHandler();
     InstHandler(gzFile& outfile);
-    void setOutFile(gzFile* outfile);
+    void setOutFile(gzFile outfile);
+    void closeOutFile(void);
     bool populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8_t regs_write_count);
     void populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w);
     void dumpInstInfo(bool inst_idx);
@@ -41,7 +43,7 @@ private:
 
     trace_info_a64_s inst[2]; 
     bool inst_idx;
-    gzFile* outfile;
+    gzFile outfile;
     int m_fp_uop_table[ARM64_INS_ENDING];
     int m_int_uop_table[ARM64_INS_ENDING];
 
@@ -55,7 +57,6 @@ InstHandler::InstHandler()
 {
     inst_idx = 0;
     started = false;
-    outfile = NULL;
 }
 
 void InstHandler::openDebugFile()
@@ -84,9 +85,14 @@ void InstHandler::dumpInstInfo(bool inst_idx)
 {
 }
 
-void InstHandler::setOutFile(gzFile* file)
+void InstHandler::setOutFile(gzFile file)
 {
     outfile = file;
+}
+
+void InstHandler::closeOutFile(void)
+{
+    gzclose(outfile);
 }
 
 void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
@@ -217,18 +223,20 @@ bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8
 
     // populate prev inst dynamic information
     if (prev_op) {
-        if (op->m_instruction_addr == prev_op->m_branch_target)
-            prev_op->m_actually_taken = 1;
+      if (op->m_instruction_addr == prev_op->m_branch_target)
+        prev_op->m_actually_taken = 1;
 
         // dump trace for previous op
-        gzwrite(*outfile, prev_op, sizeof(trace_info_a64_s));
+      gzwrite(outfile, prev_op, sizeof(trace_info_a64_s));
 #if DEBUG
+      if (debug_file) {
         if (prev_op->m_cf_type)
-            *debug_file << " Taken " << prev_op->m_actually_taken << std::endl;
+          *debug_file << " Taken " << prev_op->m_actually_taken << std::endl;
         else
-            *debug_file << std::endl;
+          *debug_file << std::endl;
+      }
 #endif /* DEBUG */
-        memset(prev_op, 0, sizeof(trace_info_a64_s));
+      memset(prev_op, 0, sizeof(trace_info_a64_s));
     }
 
 #if DEBUG
@@ -254,6 +262,7 @@ public:
   TraceWriter(OSDomain &osd) :
     osd(osd), finished(false), dis(CS_ARCH_ARM64, CS_MODE_ARM)
   { 
+    inst_handle = new InstHandler[osd.get_n()];
     osd.set_app_start_cb(this, &TraceWriter::app_start_cb);
     trace_file_count = 0;
     finished = false;
@@ -263,15 +272,18 @@ public:
 
   int app_start_cb(int c) {
     static bool ran = false;
+    int n_cpus = osd.get_n();
     if (!ran) {
       ran = true;
       osd.set_inst_cb(this, &TraceWriter::inst_cb);
       osd.set_mem_cb(this, &TraceWriter::mem_cb);
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
     }
-    tracefile  = gzopen(("trace_" + std::to_string(trace_file_count) + ".log.gz").c_str(), "w");
-    inst_handle.setOutFile(&tracefile);
-    inst_handle.openDebugFile();
+    for (int i = 0; i < n_cpus; i++) {
+      gzFile tracefile  = gzopen(("trace_" + std::to_string(trace_file_count) + "-" + std::to_string(i) + ".log.gz").c_str(), "w");
+      inst_handle[i].setOutFile(tracefile);
+    }
+    inst_handle[0].openDebugFile();
     trace_file_count++;
     finished = false;
 
@@ -283,11 +295,10 @@ public:
       std::cout << "App end cb called" << std::endl;
       finished = true;
 
-      if (tracefile) {
-          gzclose(tracefile);
-          inst_handle.setOutFile(NULL);
-      }
-      inst_handle.closeDebugFile();
+      for (int i = 0; i < osd.get_n(); i++)
+          inst_handle[i].closeOutFile();
+
+      inst_handle[0].closeDebugFile();
 
       return 0;
   }
@@ -301,24 +312,23 @@ public:
       int count = dis.decode((unsigned char *)b, l, insn);
       insn[0].address = v;
       dis.get_regs_access(insn, &regs_read_count, &regs_write_count);
-      inst_handle.populateInstInfo(insn, regs_read_count, regs_write_count);
+      inst_handle[c].populateInstInfo(insn, regs_read_count, regs_write_count);
       dis.free_insn(insn, count);
       return;
   }
 
   int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
-      inst_handle.populateMemInfo(v, p, s, w);
+      inst_handle[c].populateMemInfo(v, p, s, w);
 
       return 0;
   }
 
 private:
   OSDomain &osd;
-  gzFile tracefile;
   bool finished;
   int  trace_file_count;
-  InstHandler inst_handle;
+  InstHandler *inst_handle;
   cs_disas dis;
 
   static const char * itype_str[];
@@ -378,9 +388,7 @@ int main(int argc, char** argv) {
   uint64_t inst_per_iter = 1000000000;
   int inst_run = inst_per_iter;
   while (!(inst_per_iter - inst_run)) {
-    for (unsigned long j = 0; j < n_cpus; j++) {
-        inst_run = osd.run(j, inst_per_iter);
-    }
+    inst_run = osd.run(0, inst_per_iter);
     osd.timer_interrupt();
   }
 

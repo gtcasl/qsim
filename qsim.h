@@ -37,7 +37,7 @@ namespace Qsim {
     // Function pointers into the qemu library                                 
     void     (*qemu_init)(qemu_ramdesc_t *ram,
 			  const char* ram_size, 
-			  int cpu_id);
+              int cpu_id, int n_cpus);
     uint64_t (*qemu_run)(uint64_t n);
     int      (*qemu_interrupt)(uint8_t vec);
 
@@ -50,6 +50,7 @@ namespace Qsim {
     void (*qemu_set_reg_cb)   (reg_cb_t   );
     void (*qemu_set_trans_cb) (trans_cb_t );
     void (*qemu_set_gen_cbs)  (bool state);
+    void (*qemu_set_sys_cbs)  (bool state);
 
     uint64_t (*qemu_get_reg) (enum regs r               );
     void     (*qemu_set_reg) (enum regs r, uint64_t val );
@@ -70,11 +71,11 @@ namespace Qsim {
     void load_linux(const char* bzImage);
 
   public:
-    QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024);
-    QemuCpu(int id, QemuCpu *master_cpu, unsigned ram_mb = 1024);
-    QemuCpu(int id, std::istream &file, unsigned ram_mb);
+    QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1);
+    QemuCpu(int id, QemuCpu *master_cpu, unsigned ram_mb = 1024, int n_cpus = 1);
+    QemuCpu(int id, std::istream &file, unsigned ram_mb, int n_cpus);
     QemuCpu(int id, std::istream &file, Qsim::QemuCpu* master_cpu,
-            unsigned ram_mb);
+            unsigned ram_mb, int n_cpus);
     virtual ~QemuCpu();
  
     uint64_t run(unsigned n) { return qemu_run(n); }
@@ -132,6 +133,12 @@ namespace Qsim {
     virtual void set_gen_cbs(bool state) {
       pthread_mutex_lock(&cb_mutex);
       qemu_set_gen_cbs(state);
+      pthread_mutex_unlock(&cb_mutex);
+    }
+
+    virtual void set_sys_cbs(bool state) {
+      pthread_mutex_lock(&cb_mutex);
+      qemu_set_sys_cbs(state);
       pthread_mutex_unlock(&cb_mutex);
     }
 
@@ -239,6 +246,8 @@ namespace Qsim {
     void set_trans_cb (trans_cb_t  cb);
     void set_gen_cbs  (uint16_t i,  bool state) {cpus[i]->set_gen_cbs (state);}
     void set_gen_cbs  (bool  state);
+    void set_sys_cbs  (uint16_t i,  bool state) {cpus[i]->set_sys_cbs (state);}
+    void set_sys_cbs  (bool  state);
 
     // Better callback support. Variadic templates would make this prettier.
     struct atomic_cb_obj_base { 
@@ -561,7 +570,7 @@ namespace Qsim {
       d = 0;
       while (sz--) {
 	d <<= 8;
-	d |= cpus[cpu]->mem_rd_virt(vaddr--);
+	d |= cpus[0]->mem_rd_virt(vaddr--);
       }
     }
 
@@ -569,7 +578,7 @@ namespace Qsim {
     {
       size_t sz = sizeof(T);
       while (sz--) {
-	cpus[cpu]->mem_wr_virt(vaddr++, d&0xff);
+	cpus[0]->mem_wr_virt(vaddr++, d&0xff);
 	d >>= 8;
       }
     }

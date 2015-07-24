@@ -17,7 +17,7 @@ extern "C" {
 #include "qsim-vm.h"
 
 // Functions that QEMU must export
-void qemu_init(qemu_ramdesc_t *ram, const char* ram_size, int cpu_id);
+void qemu_init(qemu_ramdesc_t *ram, const char* ram_size, int cpu_id, int n_cpus);
 
 uint64_t run(uint64_t n);
 
@@ -32,6 +32,7 @@ void set_io_cb    (io_cb_t    );
 void set_reg_cb   (reg_cb_t   );
 void set_trans_cb (trans_cb_t );
 void set_gen_cbs  (bool state );
+void set_sys_cbs  (bool state );
 
 #ifdef __cplusplus
 };

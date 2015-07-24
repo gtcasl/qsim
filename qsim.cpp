@@ -182,6 +182,7 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   Mgzd::sym(qemu_set_reg_cb,      qemu_lib, "set_reg_cb"          );
   Mgzd::sym(qemu_set_trans_cb,    qemu_lib, "set_trans_cb"        );
   Mgzd::sym(qemu_set_gen_cbs,     qemu_lib, "set_gen_cbs"         );
+  Mgzd::sym(qemu_set_sys_cbs,     qemu_lib, "set_sys_cbs"         );
   Mgzd::sym(ramdesc_p,            qemu_lib, "qsim_ram"            );
   Mgzd::sym(qemu_get_reg,         qemu_lib, "get_reg"             );
   Mgzd::sym(qemu_set_reg,         qemu_lib, "set_reg"             );
@@ -193,7 +194,7 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
 
 Qsim::QemuCpu::QemuCpu(int id, 
 		       const char* kernel, 
-		       unsigned ram_mb) : cpu_id(id&0xffff), ram_size_mb(ram_mb)
+		       unsigned ram_mb, int n_cpus) : cpu_id(id&0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
@@ -201,7 +202,7 @@ Qsim::QemuCpu::QemuCpu(int id,
   load_and_grab_pointers(get_qemu_lib().c_str());
 
   // Initialize Qemu library
-  qemu_init(NULL, ram_size_ss.str().c_str(), id);
+  qemu_init(NULL, ram_size_ss.str().c_str(), id, n_cpus);
   ramdesc = *ramdesc_p;
 
   // Load the Linux kernel
@@ -223,12 +224,12 @@ Qsim::QemuCpu::QemuCpu(int id,
 
 Qsim::QemuCpu::QemuCpu(int id, 
 		       Qsim::QemuCpu* master_cpu, 
-		       unsigned ram_mb) : cpu_id(id&0xffff), ram_size_mb(ram_mb)
+		       unsigned ram_mb, int n_cpus) : cpu_id(id&0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
   load_and_grab_pointers(get_qemu_lib().c_str());
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id);
+  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id, n_cpus);
   ramdesc = master_cpu->ramdesc;
 
   // Set initial values for registers.
@@ -244,7 +245,7 @@ Qsim::QemuCpu::QemuCpu(int id,
 }
 
 Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu, 
-                       unsigned ram_mb)
+                       unsigned ram_mb, int n_cpus)
   : cpu_id(id&0xffff), ram_size_mb(master_cpu->ram_size_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
@@ -253,7 +254,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
   load_and_grab_pointers(get_qemu_lib().c_str());
 
   // Initialize Qemu library
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id);
+  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id, n_cpus);
   ramdesc = master_cpu->ramdesc;
 
   // TODO: The following should be moved to a utility function
@@ -268,14 +269,14 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
   pthread_mutex_init(&cb_mutex, NULL);
 }
 
-Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb) :
+Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb, int n_cpus) :
   cpu_id(id&0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
 
   load_and_grab_pointers(get_qemu_lib().c_str());
 
-  qemu_init(NULL, ram_size_ss.str().c_str(), id);
+  qemu_init(NULL, ram_size_ss.str().c_str(), id, n_cpus);
   ramdesc = *ramdesc_p;
 
   // Read RAM state.
@@ -320,8 +321,8 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, unsigned ram_mb):
 
   if (n > 0) {
     // Create a master CPU using the given kernel
-    cpus.push_back(new QemuCpu(id << 16, kernel_path.c_str(), ram_mb));
-    cpus[0]->set_magic_cb(magic_cb_s);
+	cpus.push_back(new QemuCpu(id << 16, kernel_path.c_str(), ram_mb, n));
+	cpus[0]->set_magic_cb(magic_cb_s);
 
     // Set master CPU state to "running"
     running.push_back(true);
@@ -332,26 +333,10 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, unsigned ram_mb):
 
     // Create an empty pending-ipi queue.
     pending_ipis.push_back(queue<uint8_t>());
-
-    // Create n-1 slave CPUs
-    for (unsigned i = 1; i < n; i++) {
-      cpus.push_back(new QemuCpu(i | (id << 16), cpus[0], ram_mb));
-      cpus[i]->set_magic_cb(magic_cb_s);
-  
-      // Set slave CPU state to "not running"
-      running.push_back(false);
-
-      // Initialize Linux task ID to zero and idle to true
-      tids.push_back(0);
-      idlevec.push_back(true);
-
-      // Create an empty pending-ipi queue.
-      pending_ipis.push_back(queue<uint8_t>());
-    }
   }
 
   // Keep a copy of the QEMU RAM descriptor.
-  //ramdesc = cpus[0]->get_ramdesc();
+  // ramdesc = cpus[0]->get_ramdesc();
 }
 
 // Create an OSDomain from a saved state file.
@@ -376,25 +361,16 @@ Qsim::OSDomain::OSDomain(const char* filename):
 
   // Read CPU states (including RAM state)
   if (n > 0) {
-    cpus.push_back(new QemuCpu(id << 16, file, ram_size_mb));
+    cpus.push_back(new QemuCpu(id << 16, file, ram_size_mb, n));
     cpus[0]->set_magic_cb(magic_cb_s);
     pending_ipis.push_back(queue<uint8_t>());
     tids.push_back(0);
     idlevec.push_back(true);
     running.push_back(true);
-    for (unsigned i = 1; i < n; i++) {
-      cpus.push_back(new QemuCpu(i | (id << 16), file, cpus[0], ram_size_mb));
-      cpus[i]->set_magic_cb(magic_cb_s);
-      pending_ipis.push_back(queue<uint8_t>());
-      running.push_back(true);
-      tids.push_back(0);
-      idlevec.push_back(true);
-      running.push_back(true);
-    }
   }
 
   // Get a copy of the RAM descriptor.
-  ramdesc = cpus[0]->get_ramdesc();
+  // ramdesc = cpus[0]->get_ramdesc();
 
   file.close();
 }
@@ -412,7 +388,7 @@ void Qsim::OSDomain::save_state(std::ostream &o) {
 
   zrun_compress_write(o,(const void*)ramdesc.mem_ptr,ramdesc.sz);
 
-  for (unsigned i = 0; i < n_cores; i++) cpus[i]->save_state(o);
+  cpus[0]->save_state(o);
 }
 
 void Qsim::OSDomain::save_state(const char* filename) {
@@ -441,6 +417,7 @@ Qsim::OSDomain::cpu_prot Qsim::OSDomain::get_prot(uint16_t i) {
 }
 
 unsigned Qsim::OSDomain::run(uint16_t i, unsigned n) {
+  if(i != 0)            { return n;               }
   // First, if there are any pending IPIs try to clear them.
   pthread_mutex_lock(&pending_ipis_mutex);
   if (!pending_ipis[i].empty()) {
@@ -452,7 +429,6 @@ unsigned Qsim::OSDomain::run(uint16_t i, unsigned n) {
   pthread_mutex_unlock(&pending_ipis_mutex);
 
   if (running[i]) { return cpus[i]->run(n); } 
-  else            { return 0;               }
 }
 
 void Qsim::OSDomain::connect_console(std::ostream& s) {
@@ -470,35 +446,39 @@ void Qsim::OSDomain::timer_interrupt() {
 }
 
 void Qsim::OSDomain::set_inst_cb  (inst_cb_t   cb) {
-  for (unsigned i = 0; i < n; i++) cpus[i]->set_inst_cb  (cb);
+  cpus[0]->set_inst_cb  (cb);
 }
 
 void Qsim::OSDomain::set_mem_cb   (mem_cb_t    cb) {
-  for (unsigned i = 0; i < n; i++) cpus[i]->set_mem_cb   (cb);
+  cpus[0]->set_mem_cb   (cb);
 }
 
 void Qsim::OSDomain::set_int_cb   (int_cb_t    cb) {
-  for (unsigned i = 0; i < n; i++) cpus[i]->set_int_cb   (cb);
+  cpus[0]->set_int_cb   (cb);
 }
 
 void Qsim::OSDomain::set_io_cb    (io_cb_t     cb) {
-  for (unsigned i = 0; i < n; i++) cpus[i]->set_io_cb    (cb);
+  cpus[0]->set_io_cb    (cb);
 }
 
 void Qsim::OSDomain::set_atomic_cb(atomic_cb_t cb) {
-  for (unsigned i = 0; i < n; i++) cpus[i]->set_atomic_cb(cb);
+  cpus[0]->set_atomic_cb(cb);
 }
 
 void Qsim::OSDomain::set_reg_cb(reg_cb_t cb) {
-  for (unsigned i = 0; i < n; i++) cpus[i]->set_reg_cb(cb);
+  cpus[0]->set_reg_cb(cb);
 }
 
 void Qsim::OSDomain::set_trans_cb(trans_cb_t cb) {
-  for (unsigned i = 0; i < n; ++i) cpus[i]->set_trans_cb(cb);
+  cpus[0]->set_trans_cb(cb);
 }
 
 void Qsim::OSDomain::set_gen_cbs(bool state) {
-  for (unsigned i = 0; i < n; ++i) cpus[i]->set_gen_cbs(state);
+  cpus[0]->set_gen_cbs(state);
+}
+
+void Qsim::OSDomain::set_sys_cbs(bool state) {
+  cpus[0]->set_sys_cbs(state);
 }
 
 Qsim::OSDomain::~OSDomain() {
@@ -513,7 +493,8 @@ Qsim::OSDomain::~OSDomain() {
   for (unsigned i = 0; i < magic_cbs.size(); ++i) delete magic_cbs[i];
 
   // Destroy the CPUs.
-  for (unsigned i = 0; i < n; i++) delete cpus[i];
+  delete cpus[0];
+  //for (unsigned i = 0; i < n; i++) delete cpus[i];
 }
 
 void Qsim::OSDomain::unset_atomic_cb(atomic_cb_handle_t h) {
