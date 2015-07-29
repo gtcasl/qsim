@@ -21,11 +21,12 @@
 #include "cs_disas.h"
 #include "macsim_tracegen.h"
 
-#define DEBUG 0
+#define DEBUG 1
 
 using Qsim::OSDomain;
 
 using std::ostream;
+ogzstream* debug_file;
 
 class InstHandler {
 public:
@@ -48,7 +49,6 @@ private:
     int m_int_uop_table[ARM64_INS_ENDING];
 
 #if DEBUG
-    ogzstream* debug_file;
 #endif
     bool started;
 };
@@ -313,6 +313,9 @@ public:
       insn[0].address = v;
       dis.get_regs_access(insn, &regs_read_count, &regs_write_count);
       inst_handle[c].populateInstInfo(insn, regs_read_count, regs_write_count);
+	  #if DEBUG
+	  *debug_file << " Core: " << std::dec << c;
+	  #endif
       dis.free_insn(insn, count);
       return;
   }
