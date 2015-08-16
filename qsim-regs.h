@@ -9,7 +9,7 @@
 * COPYING file in the top-level directory.                                    *
 \*****************************************************************************/
 
-#define FOR_MACSIM 1
+#define FOR_MACSIM 0
 
 /* Possible values for "type" field of instruction callbacks. */
 #if !FOR_MACSIM
