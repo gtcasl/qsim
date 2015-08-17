@@ -21,7 +21,7 @@
 #include "cs_disas.h"
 #include "macsim_tracegen.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 using Qsim::OSDomain;
 
@@ -35,7 +35,8 @@ public:
     InstHandler(gzFile& outfile);
     void setOutFile(gzFile outfile);
     void closeOutFile(void);
-    bool populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8_t regs_write_count);
+    bool populateInstInfo(cs_insn *insn, cs_regs regs_read, cs_regs regs_write,
+                          uint8_t regs_read_count, uint8_t regs_write_count);
     void populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w);
     void dumpInstInfo(bool inst_idx);
     void openDebugFile();
@@ -132,7 +133,8 @@ void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
     return;
 }
 
-bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8_t regs_write_count)
+bool InstHandler::populateInstInfo(cs_insn *insn, cs_regs regs_read, cs_regs regs_write, 
+                                   uint8_t regs_read_count, uint8_t regs_write_count)
 {
     cs_arm64* arm64;
     trace_info_a64_s *op = &inst[inst_idx];
@@ -151,10 +153,10 @@ bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8
     op->m_num_read_regs = regs_read_count;
     op->m_num_dest_regs = regs_write_count;
 
-    for (int i = 0; i < op->m_num_read_regs; i++)
-        op->m_src[i] = insn->detail->regs_read[i];
-    for (int i = 0; i < op->m_num_dest_regs; i++)
-        op->m_dst[i] = insn->detail->regs_write[i];
+    for (int i = 0; i < regs_read_count; i++)
+        op->m_src[i] = regs_read[i];
+    for (int i = 0; i < regs_write_count; i++)
+        op->m_dst[i] = regs_write[i];
 
     op->m_cf_type = 0;
     for (int grp_idx = 0; grp_idx < insn->detail->groups_count; grp_idx++) {
@@ -241,13 +243,23 @@ bool InstHandler::populateInstInfo(cs_insn *insn, uint8_t regs_read_count, uint8
 
 #if DEBUG
     if (debug_file) {
+      *debug_file << std::endl << std::endl;
       *debug_file << "IsBranch: " << (int)op->m_cf_type
-        << " Offset:   " << std::setw(16) << std::hex << offset 
-        << " Target:  " <<  std::setw(16) << std::hex << op->m_branch_target << " ";
+        << " Offset:   " << std::setw(8) << std::hex << offset 
+        << " Target:  "  << std::setw(8) << std::hex << op->m_branch_target << " ";
+      *debug_file << std::endl;
       *debug_file << a64_opcode_names[insn->id] << 
              ": " << std::hex << insn->address <<
              ": " << insn->mnemonic <<
              ": " << insn->op_str;
+      *debug_file << std::endl;
+      *debug_file << "Src: ";
+      for (int i = 0; i < op->m_num_read_regs; i++)
+          *debug_file << std::dec << (int) op->m_src[i] << " ";
+      *debug_file << std::endl << "Dst: ";
+      for (int i = 0; i < op->m_num_dest_regs; i++)
+          *debug_file << std::dec << (int) op->m_dst[i] << " ";
+      *debug_file << std::endl;
     } else {
       std::cout << "Writing to a null tracefile" << std::endl;
     }
@@ -308,14 +320,15 @@ public:
   {
       cs_insn *insn = NULL;
       uint8_t regs_read_count, regs_write_count;
+      cs_regs regs_read, regs_write;
 
       int count = dis.decode((unsigned char *)b, l, insn);
       insn[0].address = v;
-      dis.get_regs_access(insn, &regs_read_count, &regs_write_count);
-      inst_handle[c].populateInstInfo(insn, regs_read_count, regs_write_count);
-	  #if DEBUG
-	  *debug_file << " Core: " << std::dec << c;
-	  #endif
+      dis.get_regs_access(insn, regs_read, regs_write, &regs_read_count, &regs_write_count);
+      inst_handle[c].populateInstInfo(insn, regs_read, regs_write, regs_read_count, regs_write_count);
+#if DEBUG
+      *debug_file << " Core: " << std::dec << c;
+#endif
       dis.free_insn(insn, count);
       return;
   }
