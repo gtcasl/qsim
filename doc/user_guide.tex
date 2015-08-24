@@ -29,15 +29,13 @@
 
 \chapter*{Introduction}
 QSim is a thread safe multicore emulation library based on the QEMU emulator
-(version 2.2.0).
-QSim provides instruction-level control of the emulated environment and 
-detailed information about the executing instruction stream. ARM Linux guests
-are supported with multiple emulated hardware contexts, each of which can run
-in an independent host thread. Applications of QSim include trace-gathering,
-multithreaded software development, and its primary target: microarchitecture
-simulation.
+(version 2.2.0).  QSim provides instruction-level control of the emulated
+environment and detailed information about the executing instruction
+stream. ARM64 Linux guests are supported with multiple emulated hardware
+contexts. Applications of QSim include trace-gathering, multi-threaded software
+development, and its primary target: micro-architecture simulation.
 
-In the domain of microarchtiecture simulators, the advantage of using a library
+In the domain of micro-archtiecture simulators, the advantage of using a library
 like QSim is that the instruction set is emulated with high fidelity by QEMU, so
 the simulator only needs to implement those aspects of the instruction set
 relevant to its results. This has both advantages and disadvantages that have
@@ -52,14 +50,14 @@ The following are needed to run QSim on your machine. Before you attempt to buil
 \begin{itemize}
   \item{x86 CPU and a Linux OS (tested on Ubuntu 14.04)}
   \item{2GB of RAM, at least 4GB of swap and 10GB of disk space}
-  \item{Cross compiler tool chain to build ARM binaries}
+  \item{Optional: Cross compiler tool chain to build ARM64 binaries}
   \item{The \texttt{git} version control tool (not installed by default on recent Ubuntu)}
 \end{itemize}
 
 \chapter{QSim Software Architecture} \label{chap:arch}
 QSim is an effort in combining several large and complex open source software
 packages into a single entity. The QSim code is very small compared to the
-QEMU and Linux codebases it leverages. These other projects are not included
+QEMU and Linux code bases it leverages. These other projects are not included
 with QSim, but are downloaded and patched by the provided script
 \texttt{setup.sh} in the qsim-setup repository.
 
@@ -183,7 +181,7 @@ using a given \texttt{bzImage} and number of QEMU CPUs.
 
 To ease the setup of the QSim project we have automated it in a
 single setup file hosted in a github repository. The setup file in this
-repository downloads qsim, qemu and the ARM 32-bit filesystem images. It sets up
+repository downloads qsim, qemu and the ARM 64-bit filesystem images. It sets up
 the required environment variables and builds qsim and qemu as libraries. It
 then runs a cache simulation example built using the qsim framework.
 
@@ -196,7 +194,7 @@ follows: \\
 
 Ensure that you have atleast 12 GB free disk space before you run the setup file
 in the cloned repository. Change directory to the downloaded directory and run
-setup.sh. This will setup the qsim project in the current directory and run the
+$setup.sh$. This will setup the qsim project in the current directory and run the
 cache simulator example.
 
 \section{QSim Directory Hierarchy}
@@ -420,6 +418,12 @@ not already present in the QSim benchmarks collection. This collection,
 available through the QSim website, contains a growing set of common benchmarks,
 including all of Splash 2 and Parsec.
 
+You can login to the qemu VM using ssh:
+
+\begin{lstlisting}[frame=none]
+    $ ssh -p 2222 qsim@localhost
+\end{lstlisting}
+
 Porting an application to QSim consists of the following steps:
 
 \begin{itemize}
@@ -428,7 +432,8 @@ Porting an application to QSim consists of the following steps:
   \item{Add an application end callback to the application where the ``region of
         interest'' ends.}
   \item{
-    Cross compile the application for ARM 32-bit Linux, preferably statically linked.
+    Compile the application for ARM 64-bit Linux, preferably statically linked
+    in the qemu VM.
     \begin{itemize}
       \item{Create an executable script, called \texttt{runme.sh} that runs the
             application with appropriate command line arguments.}
