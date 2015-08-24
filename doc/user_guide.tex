@@ -129,7 +129,7 @@ different callbacks are provided, including:
   \item{Memory reads/writes}
   \item{Register reads/writes}
   \item{Interrupts}
-  \item{``Magic'' CPUID instructions}
+  \item{``Magic'' instructions}
   \item{Instruction read for translation}
 \end{itemize}
 
@@ -413,15 +413,21 @@ callbacks that perform tracing, and \texttt{TraceWriter::app\_end\_cb()}
 sets a flag that causes the main loop to exit.
 
 \chapter{Porting Guest Software} \label{chap:porting}
+
+You can analyze or collect characteristics of applications from within the
+qemu environment. If source for the application is available, all you need to
+do is annotate it and recompile. If no source is available, you will need to
+analyze the entire application by using the app start and end markers.
+
 Note: before porting an application or benchmark suite to QSim, make sure it is 
 not already present in the QSim benchmarks collection. This collection,
 available through the QSim website, contains a growing set of common benchmarks,
 including all of Splash 2 and Parsec.
 
-You can login to the qemu VM using ssh:
+You can login to the qemu VM using the following ssh command:
 
 \begin{lstlisting}[frame=none]
-    $ ssh -p 2222 qsim@localhost
+    ssh -p 2222 qsim@localhost
 
     username: qsim
     password: qsim12
@@ -436,14 +442,9 @@ Porting an application to QSim consists of the following steps:
         interest'' ends.}
   \item{
     Compile the application for ARM 64-bit Linux, preferably statically linked
-    in the qemu VM.
-    \begin{itemize}
-      \item{Create an executable script, called \texttt{runme.sh} that runs the
-            application with appropriate command line arguments.}
-      \item{Place the application, \texttt{runme.sh}, and any required data
-            files or libraries into a \texttt{.tar} archive and copy it to the
-            running ARM qemu instance.}
-    \end{itemize}
+    in the qemu VM.}
+  \item{
+    Run the application.
     }
 \end{itemize}
 
@@ -451,26 +452,26 @@ Porting an application to QSim consists of the following steps:
 QSim provides callbacks for the start and end of applications. These are used by
 QSim client programs to fast-forward through irrelevant code to the simulation
 \textit{region of interest} (ROI). These can be inserted before and after a
-program by adding, to the init or \texttt{runme.sh} script, the following lines
-before and after the program under test, respectively:
+program by adding, 
 
 \begin{verbatim}
-        /sbin/mark_app
+        ~/qsim_tests/qsim_enable
 
-        /sbin/mark_app end
+        ~/qsim_tests/qsim_disable
+\end{verbatim}
+
+If more fine-grained demarcation of the ROI is needed, the following lines of
+C code can be used, at the start and end of the ROI, respectively:
+
+\begin{verbatim}
+        #include <qsim_magic.h>
+
+        qsim_magic_enable();
+        <ROI>
+        qsim_magic_disable();
 \end{verbatim}
 
 \begin{comment}
-If more fine-grained demarcation of the ROI is needed, the following lines of
-GCC-compatible C code can be used, at the start and end of the ROI,
-respectively:
-
-\begin{verbatim}
-        __asm__ __volatile__("cpuid;"::"a"(0xaaaaaaaa));
-
-        __asm__ __volatile__("cpuid;"::"a"(0xfa11dead));
-\end{verbatim}
-
 \section{Compiling for QSim}
 On a 64-bit host, creating 32-bit statically-linked binaries is a matter of 
 passing the \texttt{-m32} option to the GCC compiler and the \texttt{-static}
