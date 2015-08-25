@@ -21,8 +21,6 @@ void qemu_init(qemu_ramdesc_t *ram, const char* ram_size, int cpu_id, int n_cpus
 
 uint64_t run(uint64_t n);
 
-int  interrupt(uint8_t vector);
-
 void set_atomic_cb(atomic_cb_t);
 void set_inst_cb  (inst_cb_t  );
 void set_int_cb   (int_cb_t   );
