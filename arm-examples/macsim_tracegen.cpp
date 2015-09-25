@@ -28,6 +28,8 @@ using Qsim::OSDomain;
 using std::ostream;
 ogzstream* debug_file;
 
+#define STREAM_SIZE 10000
+
 class InstHandler {
 public:
     InstHandler();
@@ -38,26 +40,22 @@ public:
     bool populateInstInfo(cs_insn *insn, cs_regs regs_read, cs_regs regs_write,
                           uint8_t regs_read_count, uint8_t regs_write_count);
     void populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w);
-    void dumpInstInfo(bool inst_idx);
+    void dumpInstInfo();
     void openDebugFile();
     void closeDebugFile();
 private:
 
-    trace_info_a64_s inst[2]; 
-    bool inst_idx;
+    trace_info_a64_s *stream;
+    int stream_idx;
     gzFile outfile;
     int m_fp_uop_table[ARM64_INS_ENDING];
     int m_int_uop_table[ARM64_INS_ENDING];
-
-#if DEBUG
-#endif
-    bool started;
 };
 
 InstHandler::InstHandler()
 {
-    inst_idx = 0;
-    started = false;
+    stream = new trace_info_a64_s[STREAM_SIZE];
+    stream_idx = 0;
 }
 
 void InstHandler::openDebugFile()
@@ -80,10 +78,13 @@ void InstHandler::closeDebugFile()
 
 InstHandler::~InstHandler()
 {
+  delete[] stream;
 }
 
-void InstHandler::dumpInstInfo(bool inst_idx)
+void InstHandler::dumpInstInfo(void)
 {
+    gzwrite(outfile, stream, stream_idx*sizeof(trace_info_a64_s));
+    stream_idx = 0;
 }
 
 void InstHandler::setOutFile(gzFile file)
@@ -93,12 +94,13 @@ void InstHandler::setOutFile(gzFile file)
 
 void InstHandler::closeOutFile(void)
 {
+    dumpInstInfo();
     gzclose(outfile);
 }
 
 void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
 {
-    trace_info_a64_s *op = &inst[!inst_idx];
+    trace_info_a64_s *op = &stream[stream_idx];
     if (w) {
         if (!op->m_has_st) { /* first write */
           op->m_has_st            = 1;
@@ -137,13 +139,11 @@ bool InstHandler::populateInstInfo(cs_insn *insn, cs_regs regs_read, cs_regs reg
                                    uint8_t regs_read_count, uint8_t regs_write_count)
 {
     cs_arm64* arm64;
-    trace_info_a64_s *op = &inst[inst_idx];
+    trace_info_a64_s *op = &stream[stream_idx];
     trace_info_a64_s *prev_op = NULL;
 
-    if (started)
-        prev_op = &inst[!inst_idx];
-    else
-        started = true;
+    if (stream_idx)
+        prev_op = &stream[stream_idx-1];
 
     if (insn->detail == NULL)
         return false;
@@ -228,8 +228,14 @@ bool InstHandler::populateInstInfo(cs_insn *insn, cs_regs regs_read, cs_regs reg
       if (op->m_instruction_addr == prev_op->m_branch_target)
         prev_op->m_actually_taken = 1;
 
-        // dump trace for previous op
-      gzwrite(outfile, prev_op, sizeof(trace_info_a64_s));
+      if (stream_idx+1 == STREAM_SIZE) {
+        // dump trace for previous ops
+        gzwrite(outfile, stream, stream_idx*sizeof(trace_info_a64_s));
+
+        // copy the current op to the head of the stream
+        memcpy(stream, op, sizeof(trace_info_a64_s));
+        stream_idx = 0;
+      }
 #if DEBUG
       if (debug_file) {
         if (prev_op->m_cf_type)
@@ -238,8 +244,8 @@ bool InstHandler::populateInstInfo(cs_insn *insn, cs_regs regs_read, cs_regs reg
           *debug_file << std::endl;
       }
 #endif /* DEBUG */
-      memset(prev_op, 0, sizeof(trace_info_a64_s));
     }
+    stream_idx++;
 
 #if DEBUG
     if (debug_file) {
@@ -264,7 +270,6 @@ bool InstHandler::populateInstInfo(cs_insn *insn, cs_regs regs_read, cs_regs reg
       std::cout << "Writing to a null tracefile" << std::endl;
     }
 #endif /* DEBUG */
-    inst_idx = !inst_idx;
 
     return true;
 }
