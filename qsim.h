@@ -18,14 +18,15 @@
 #include <pthread.h>
 
 #include "qsim-vm.h"
+#include "qsim-regs.h"
 #include "mgzd.h"
-#include "qsim-arm-regs.h"
 
 namespace Qsim {
   class QemuCpu {
   private:
     // Local copy of ID number                                                 
     int cpu_id;
+	std::string cpu_type;
 
     // The qemu library object                                                 
     Mgzd::lib_t qemu_lib;
@@ -52,8 +53,8 @@ namespace Qsim {
     void (*qemu_set_gen_cbs)  (bool state);
     void (*qemu_set_sys_cbs)  (bool state);
 
-    uint64_t (*qemu_get_reg) (enum regs r               );
-    void     (*qemu_set_reg) (enum regs r, uint64_t val );
+    uint64_t (*qemu_get_reg) (union regs r               );
+    void     (*qemu_set_reg) (union regs r, uint64_t val );
 
     uint8_t  (*qemu_mem_rd)  (uint64_t paddr);
     void     (*qemu_mem_wr)  (uint64_t paddr, uint8_t data);
@@ -71,11 +72,10 @@ namespace Qsim {
     void load_linux(const char* bzImage);
 
   public:
-    QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1);
-    QemuCpu(int id, QemuCpu *master_cpu, unsigned ram_mb = 1024, int n_cpus = 1);
-    QemuCpu(int id, std::istream &file, unsigned ram_mb, int n_cpus);
-    QemuCpu(int id, std::istream &file, Qsim::QemuCpu* master_cpu,
-            unsigned ram_mb, int n_cpus);
+    QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86");
+    QemuCpu(int id, QemuCpu *master_cpu, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86");
+    QemuCpu(int id, std::istream &file, unsigned ram_mb, int n_cpus, std::string cpu_type = "x86");
+    QemuCpu(int id, std::istream &file, Qsim::QemuCpu* master_cpu, unsigned ram_mb, int n_cpus, std::string cpu_type = "x86");
     virtual ~QemuCpu();
  
     uint64_t run(unsigned n) { return qemu_run(n); }
@@ -162,13 +162,13 @@ namespace Qsim {
       return r;
     }
 
-    virtual uint64_t get_reg (enum regs r)      { 
+    virtual uint64_t get_reg (union regs r)      {
       uint64_t v; 
       v = qemu_get_reg(r);
       return v;
     }
 
-    virtual void     set_reg (enum regs r, uint64_t v) {
+    virtual void     set_reg (union regs r, uint64_t v) {
       qemu_set_reg(r, v);
     }
 
@@ -190,7 +190,7 @@ namespace Qsim {
     enum cpu_prot { PROT_KERN, PROT_USER };
 
     // Create a OSDomain with n CPUs, booting the kernel at the given path
-    OSDomain(uint16_t n, std::string kernel_path, unsigned ram_mb = 1024);
+	OSDomain(uint16_t n, std::string kernel_path, std::string cpu_type, unsigned ram_mb = 1024);
 
     // Create a new OSDomain from a state file.
     OSDomain(const char *filename);
@@ -538,8 +538,8 @@ namespace Qsim {
     qemu_ramdesc_t get_ramdesc() const { return ramdesc; }
 
     // Retreive/set register contents.
-    uint64_t get_reg(unsigned i, enum regs r) { return cpus[i]->get_reg(r); } 
-    void     set_reg(unsigned i, enum regs r, uint64_t v) {
+    uint64_t get_reg(unsigned i, union regs r) { return cpus[i]->get_reg(r); }
+    void     set_reg(unsigned i, union regs r, uint64_t v) {
       cpus[i]->set_reg(r, v);
     }
 

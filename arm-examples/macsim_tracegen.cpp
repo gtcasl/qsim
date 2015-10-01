@@ -28,7 +28,7 @@ using Qsim::OSDomain;
 using std::ostream;
 ogzstream* debug_file;
 
-#define STREAM_SIZE 10000
+#define STREAM_SIZE 1000000
 
 class InstHandler {
 public:
@@ -293,7 +293,7 @@ public:
     if (!ran) {
       ran = true;
       osd.set_inst_cb(this, &TraceWriter::inst_cb);
-      osd.set_mem_cb(this, &TraceWriter::mem_cb);
+      //osd.set_mem_cb(this, &TraceWriter::mem_cb);
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
     }
     for (int i = 0; i < n_cpus; i++) {
@@ -391,7 +391,7 @@ int main(int argc, char** argv) {
     osd_p = new OSDomain(argv[3]);
     n_cpus = osd_p->get_n();
   } else {
-    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz");
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64");
   }
   OSDomain &osd(*osd_p);
 

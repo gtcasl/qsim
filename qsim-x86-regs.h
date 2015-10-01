@@ -3,7 +3,7 @@
 
 /* The ordering here is important: it is the order in which registers are saved
    and restored when we save or restore a machine state. */
-enum regs {
+enum _x86_regs {
   QSIM_RAX = 0, QSIM_RCX, QSIM_RDX, QSIM_RBX,
   QSIM_RSP, QSIM_RBP,
   QSIM_RSI, QSIM_RDI,
@@ -20,11 +20,11 @@ enum regs {
   QSIM_RIP, QSIM_RFLAGS,
   QSIM_HFLAGS, QSIM_HFLAGS2,
   QSIM_SE_CS, QSIM_SE_SP, QSIM_SE_IP,
-  QSIM_N_REGS
+  QSIM_X86_N_REGS
 };
 
 /* This has to be manually kept consistent with the above. Ugly, I know. */
-static const char *regs_str[] = {
+static const char *x86_regs_str[] __attribute__((unused)) = {
   "rax", "rcx", "rdx", "rbx",
   "rsp", "rbp",
   "rsi", "rdi",

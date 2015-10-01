@@ -23,6 +23,7 @@
 #include "qsim.h"
 #include "mgzd.h"
 #include "qsim-vm.h"
+#include "qsim-x86-regs.h"
 
 using namespace Qsim;
 
@@ -41,7 +42,9 @@ template <typename T> static inline void read_header_field(FILE*    f,
                                                            T&       field) 
 {
   fseek(f, offset, SEEK_SET);
-  fread(&field, sizeof(T), 1, f);
+  size_t ret = fread(&field, sizeof(T), 1, f);
+  if (ret == 0)
+	  fprintf(stderr, "Read failed\n");
 }
 
 static inline void read_data_chunk(FILE*    f, 
@@ -50,19 +53,25 @@ static inline void read_data_chunk(FILE*    f,
                                    size_t   size) 
 { 
   fseek(f, offset, SEEK_SET);
-  fread(ptr, size, 1, f);
+  size_t ret = fread(ptr, size, 1, f);
+  if (ret == 0)
+	  fprintf(stderr, "Read failed\n");
 }
 
 // Find the libqemu-qsim.so library.
-string get_qemu_lib() {
+string get_qemu_lib(string cpu_type = "x86") {
   string outstr;
 
-  const char *suffix = "/lib/libqemu-qsim.so";
+  string suffix;
+  if (cpu_type == "a64")
+	  suffix = "/lib/libqemu-qsim-a64.so";
+  else
+	  suffix = "/lib/libqemu-qsim-x86.so";
   const char *qsim_prefix = getenv("QSIM_PREFIX");
 
   if (!qsim_prefix) qsim_prefix = "/usr/local";
 
-  return string(qsim_prefix) + string(suffix);
+  return string(qsim_prefix) + (suffix);
 }
 
 // Simple zero-run compression for state files. We could use libz, but avoiding
@@ -144,14 +153,14 @@ void Qsim::QemuCpu::load_linux(const char* bzImage) {
                   ramdesc->mem_ptr + 0x100000, 
                   syssize_16*16);
 
-  // Set CPU registers to boot linux kernel.
-  /*
-  set_reg(QSIM_RIP, 0x0000 );
-  set_reg(QSIM_CS,  0x1000 );
-  set_reg(QSIM_DS,  0x1000 - 0x20);
-  set_reg(QSIM_RSP, 0x1000 );
-  set_reg(QSIM_SS,  0x200  );
-  */
+  if (cpu_type == "x86") {
+	// Set CPU registers to boot linux kernel.
+	set_reg(QSIM_RIP, 0x0000 );
+	set_reg(QSIM_CS,  0x1000 );
+	set_reg(QSIM_DS,  0x1000 - 0x20);
+	set_reg(QSIM_RSP, 0x1000 );
+	set_reg(QSIM_SS,  0x200  );
+  }
 
   // Close bzImage
   fclose(f);
@@ -159,7 +168,15 @@ void Qsim::QemuCpu::load_linux(const char* bzImage) {
 
 void Qsim::QemuCpu::save_state(ostream &o) {
   // Save all of the registers.
-  for (int i = 0; i < QSIM_N_REGS; i++) {
+  int max_regs;
+  if (cpu_type == "x86")
+	  max_regs = QSIM_X86_N_REGS;
+  else if (cpu_type == "a64")
+	  max_regs = QSIM_A64_N_REGS;
+  else if (cpu_type == "arm")
+	  max_regs = QSIM_ARM_N_REGS;
+
+  for (int i = 0; i < max_regs; i++) {
     uint64_t contents = get_reg(regs(i));
     o.write((char*)&contents, sizeof(contents));
   }
@@ -194,28 +211,30 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
 
 Qsim::QemuCpu::QemuCpu(int id, 
 		       const char* kernel, 
-		       unsigned ram_mb, int n_cpus) : cpu_id(id&0xffff), ram_size_mb(ram_mb)
+		       unsigned ram_mb, int n_cpus, std::string type) :
+	cpu_id(id&0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
+  cpu_type = type;
 
   // Load the library file and get pointers
-  load_and_grab_pointers(get_qemu_lib().c_str());
+  load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
   // Initialize Qemu library
   qemu_init(NULL, ram_size_ss.str().c_str(), id, n_cpus);
   ramdesc = *ramdesc_p;
 
-  // Load the Linux kernel
-  //load_linux(kernel);
 
-  // Set initial values for registers.
-  /*
-  set_reg(QSIM_RIP, 0x0000       );
-  set_reg(QSIM_CS,  0x1000       );
-  set_reg(QSIM_DS,  0x1000 - 0x20);
-  set_reg(QSIM_RSP, 0x1000       );
-  set_reg(QSIM_SS,  0x200        );
-  */
+  if (cpu_type == "x86") {
+	  // Load the Linux kernel
+	  load_linux(kernel);
+	  // Set initial values for registers.
+	  set_reg(QSIM_RIP, 0x0000       );
+	  set_reg(QSIM_CS,  0x1000       );
+	  set_reg(QSIM_DS,  0x1000 - 0x20);
+	  set_reg(QSIM_RSP, 0x1000       );
+	  set_reg(QSIM_SS,  0x200        );
+  }
 
   // Initialize mutexes.
   pthread_mutex_init(&irq_mutex, NULL);
@@ -224,20 +243,23 @@ Qsim::QemuCpu::QemuCpu(int id,
 
 Qsim::QemuCpu::QemuCpu(int id, 
 		       Qsim::QemuCpu* master_cpu, 
-		       unsigned ram_mb, int n_cpus) : cpu_id(id&0xffff), ram_size_mb(ram_mb)
+		       unsigned ram_mb, int n_cpus,
+			   std::string type)
+: cpu_id(id&0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
+  cpu_type = type;
 
-  load_and_grab_pointers(get_qemu_lib().c_str());
+  load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
   qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id, n_cpus);
   ramdesc = master_cpu->ramdesc;
 
-  // Set initial values for registers.
-  /*
-  set_reg(QSIM_CS,  0x0000);
-  set_reg(QSIM_DS,  0x0000);
-  set_reg(QSIM_RIP, 0x0000);
-  */
+  if (cpu_type == "x86") {
+	// Set initial values for registers.
+	set_reg(QSIM_CS,  0x0000);
+	set_reg(QSIM_DS,  0x0000);
+	set_reg(QSIM_RIP, 0x0000);
+  }
 
   // Initialize mutexes.
   pthread_mutex_init(&irq_mutex, NULL);
@@ -245,20 +267,29 @@ Qsim::QemuCpu::QemuCpu(int id,
 }
 
 Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu, 
-                       unsigned ram_mb, int n_cpus)
+                       unsigned ram_mb, int n_cpus, string type)
   : cpu_id(id&0xffff), ram_size_mb(master_cpu->ram_size_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
+  cpu_type = type;
 
   // Load the library file and get pointers.
-  load_and_grab_pointers(get_qemu_lib().c_str());
+  load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
   // Initialize Qemu library
   qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id, n_cpus);
   ramdesc = master_cpu->ramdesc;
 
+  int max_regs;
+  if (cpu_type == "x86")
+	  max_regs = QSIM_X86_N_REGS;
+  else if (cpu_type == "a64")
+	  max_regs = QSIM_A64_N_REGS;
+  else if (cpu_type == "arm")
+	  max_regs = QSIM_ARM_N_REGS;
+
   // TODO: The following should be moved to a utility function
-  for (int i = 0; i < QSIM_N_REGS; i++) {
+  for (int i = 0; i < max_regs; i++) {
     uint64_t contents;
     file.read((char*)&contents, sizeof(contents));
     set_reg(regs(i), contents);
@@ -269,12 +300,14 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
   pthread_mutex_init(&cb_mutex, NULL);
 }
 
-Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb, int n_cpus) :
+Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb, int n_cpus,
+		               std::string type) :
   cpu_id(id&0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
+  cpu_type = type;
 
-  load_and_grab_pointers(get_qemu_lib().c_str());
+  load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
   qemu_init(NULL, ram_size_ss.str().c_str(), id, n_cpus);
   ramdesc = *ramdesc_p;
@@ -282,8 +315,16 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb, int n_cpus) :
   // Read RAM state.
   zrun_compress_read(file, (void*)ramdesc->mem_ptr, ramdesc->sz);
 
+  int max_regs;
+  if (cpu_type == "x86")
+	  max_regs = QSIM_X86_N_REGS;
+  else if (cpu_type == "a64")
+	  max_regs = QSIM_A64_N_REGS;
+  else if (cpu_type == "arm")
+	  max_regs = QSIM_ARM_N_REGS;
+
   // TODO: The following should be moved to a utility function
-  for (int i = 0; i < QSIM_N_REGS; i++) {
+  for (int i = 0; i < max_regs; i++) {
     uint64_t contents;
     file.read((char*)&contents, sizeof(contents));
     set_reg(regs(i), contents);
@@ -311,7 +352,7 @@ void Qsim::OSDomain::assign_id() {
   pthread_mutex_unlock(&osdomains_lock);
 }
 
-Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, unsigned ram_mb):
+Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, unsigned ram_mb):
   n(n), waiting_for_eip(0)
 {
   pthread_mutex_init(&pending_ipis_mutex, NULL);
@@ -321,7 +362,7 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, unsigned ram_mb):
 
   if (n > 0) {
     // Create a master CPU using the given kernel
-	cpus.push_back(new QemuCpu(id << 16, kernel_path.c_str(), ram_mb, n));
+	cpus.push_back(new QemuCpu(id << 16, kernel_path.c_str(), ram_mb, n, cpu_type));
 	cpus[0]->set_magic_cb(magic_cb_s);
 
     // Set master CPU state to "running"
@@ -684,7 +725,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     if (c == '\n') {
       std::vector<std::ostream *>::iterator i;
       for (i = consoles.begin(); i != consoles.end(); i++) {
-	**i << linebuf << '\n';
+		**i << linebuf << '\n';
       }
       linebuf = "";
     }

@@ -41,7 +41,7 @@ struct Magic_cb_s {
 
   void reg_cb_f(int i, int r, uint8_t s, int w) {
     if (!w && s) {
-      std::cerr << ' ' << regs_str[r] << '(' << osd.get_reg(i, regs(r)) << ')';
+      std::cerr << ' ' << x86_regs_str[r] << '(' << osd.get_reg(i, regs(r)) << ')';
     } else if (!w) {
       std::cerr << " f" << std::setw(2) << std::setfill('0') << r
                 << '(' << std::setw(2) << osd.get_reg(i, QSIM_CPSR) << ')';
@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
 #ifdef LOAD
   Qsim::OSDomain osd("state.debug");
 #else
-  Qsim::OSDomain osd(cpus, argv[1], ram_mb);
+  Qsim::OSDomain osd(cpus, argv[1], "x86", ram_mb);
 #endif
   Magic_cb_s magic_cb_s(osd);
 
