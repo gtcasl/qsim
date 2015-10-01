@@ -9,10 +9,11 @@
 * COPYING file in the top-level directory.                                    *
 \*****************************************************************************/
 
-#define FOR_MACSIM 0
+#include "qsim-x86-regs.h"
+#include "qsim-arm64-regs.h"
+#include "qsim-arm-regs.h"
 
 /* Possible values for "type" field of instruction callbacks. */
-#if !FOR_MACSIM
 enum inst_type {
   QSIM_INST_NULL,     /* NOP or load/store only. */
   QSIM_INST_INTBASIC, /* Simple ALU operation. */
@@ -27,100 +28,6 @@ enum inst_type {
   QSIM_INST_FPMUL,
   QSIM_INST_FPDIV
 };
-#else
-enum inst_type {
-  QSIM_INST_INV,                      //!< invalid opcode
-  QSIM_INST_SPEC,                     //!< something weird (rpcc)
-
-  QSIM_INST_NOP,                      //!< is a decoded nop
-
-  // these instructions use all integer regs
-  QSIM_INST_CF,                       //!< change of flow
-  QSIM_INST_CMOV,                     //!< conditional move
-  QSIM_INST_LDA,                      //!< load address
-  QSIM_INST_IMEM,                     //!< int memory instruction
-  QSIM_INST_IADD,                     //!< integer add
-  QSIM_INST_IMUL,                     //!< integer multiply
-  QSIM_INST_ICMP,                     //!< integer compare
-  QSIM_INST_LOGIC,                    //!< logical
-  QSIM_INST_SHIFT,                    //!< shift
-  QSIM_INST_BYTE,                     //!< byte manipulation
-  QSIM_INST_MM,                       //!< multimedia instructions
-
-  // fence instruction
-  QSIM_INST_FENCE,
-  QSIM_INST_ACQ_FENCE,
-  QSIM_INST_REL_FENCE,
-
-  // fmem reads one int reg and writes a fp reg
-  QSIM_INST_FMEM,                     //!< fp memory instruction
-
-  // everything below here is floating point regs only
-  QSIM_INST_FCF,
-  QSIM_INST_FCVT,                     //!< floating point convert
-  QSIM_INST_FADD,                     //!< floating point add
-  QSIM_INST_FMUL,                     //!< floating point multiply
-  QSIM_INST_FDIV,                     //!< floating point divide
-  QSIM_INST_FCMP,                     //!< floating point compare
-  QSIM_INST_FBIT,                     //!< floating point bit
-  QSIM_INST_FCMOV,                    //!< floating point cond move
-
-  QSIM_INST_LD,                       //!< load memory instruction
-  QSIM_INST_ST,                       //!< store memory instruction
-
-  // MMX instructions
-  QSIM_INST_SSE
-};
-
-static const char *inst_type_strings[] = {
-  "QSIM_INST_INV",                      //!< invalid opcode
-  "QSIM_INST_SPEC",                     //!< something weird (rpcc)
-
-  "QSIM_INST_NOP",                      //!< is a decoded nop
-
-  // these instructions use all integer regs
-  "QSIM_INST_CF",                       //!< change of flow
-  "QSIM_INST_CMOV",                     //!< conditional move
-  "QSIM_INST_LDA",                      //!< load address
-  "QSIM_INST_IMEM",                     //!< int memory instruction
-  "QSIM_INST_IADD",                     //!< integer add
-  "QSIM_INST_IMUL",                     //!< integer multiply
-  "QSIM_INST_ICMP",                     //!< integer compare
-  "QSIM_INST_LOGIC",                    //!< logical
-  "QSIM_INST_SHIFT",                    //!< shift
-  "QSIM_INST_BYTE",                     //!< byte manipulation
-  "QSIM_INST_MM",                       //!< multimedia instructions
-
-  // fence instruction
-  "QSIM_INST_FENCE",
-  "QSIM_INST_ACQ_FENCE",
-  "QSIM_INST_REL_FENCE",
-
-  // fmem reads one int reg and writes a fp reg
-  "QSIM_INST_FMEM",                     //!< fp memory instruction
-
-  // everything below here is floating point regs only
-  "QSIM_INST_FCF",
-  "QSIM_INST_FCVT",                     //!< floating point convert
-  "QSIM_INST_FADD",                     //!< floating point add
-  "QSIM_INST_FMUL",                     //!< floating point multiply
-  "QSIM_INST_FDIV",                     //!< floating point divide
-  "QSIM_INST_FCMP",                     //!< floating point compare
-  "QSIM_INST_FBIT",                     //!< floating point bit
-  "QSIM_INST_FCMOV",                    //!< floating point cond move
-
-  "QSIM_INST_LD",                       //!< load memory instruction
-  "QSIM_INST_ST",                       //!< store memory instruction
-
-  // MMX instructions
-  "QSIM_INST_SSE"
-};
-
-__attribute__((unused)) static const char *get_inst_string(enum inst_type t)
-{
-    return inst_type_strings[t];
-}
-#endif
 
 /* The flags enum is used with the register access callback (size=0) to signal
    condition code access. */
@@ -148,5 +55,16 @@ enum flags {
 
 /* Flags written by rotate instructions: */
 #define QSIM_FLAG_ROT (QSIM_FLAG_OF|QSIM_FLAG_CF)
+
+union regs {
+  enum _x86_regs x86_regs;
+  enum _a64_regs a64_regs;
+  enum _arm_regs arm_regs;
+
+  regs& operator=(const _x86_regs& rhs);
+  regs& operator=(const _a64_regs& rhs);
+  regs& operator=(const _arm_regs& rhs);
+  regs(int i) { memset(this, i, sizeof(*this));}
+};
 
 #endif
