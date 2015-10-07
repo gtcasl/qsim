@@ -5,17 +5,9 @@
 #include <stdlib.h>
 
 #define qsim_magic_enable()				\
-do {							\
-	asm volatile (  "1:mrs %0, DCZID_EL0\n\t"	\
-			"mrs %0, DCZID_EL0\n\t"		\
-			"mrs %0, DCZID_EL0\n\t"		\
-			"mrs %0, DCZID_EL0\n\t"		\
-			"mrs %0, DCZID_EL0\n\t"		\
-			"cbz %0, 1b\n\t"		\
-			:: "r" (0));			\
-} while(0);
-
-#define qsim_magic_disable() qsim_magic_enable()
+	asm volatile("msr pmcr_el0, %0" :: "r" (0xaaaaaaaa));
+#define qsim_magic_disable() 				\
+	asm volatile("msr pmcr_el0, %0" :: "r" (0xfa11dead));
 
 static void qsim_sig_handler(int signo)
 {
