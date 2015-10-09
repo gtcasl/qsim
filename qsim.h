@@ -267,7 +267,7 @@ namespace Qsim {
 
     struct mem_cb_obj_base {
       virtual ~mem_cb_obj_base() {}
-      virtual int operator()(int, uint64_t, uint64_t, uint8_t, int)=0;
+      virtual void operator()(int, uint64_t, uint64_t, uint8_t, int)=0;
     };
  
     struct int_cb_obj_base {
@@ -342,11 +342,11 @@ namespace Qsim {
     };
 
     template <typename T> struct mem_cb_obj : public mem_cb_obj_base {
-      typedef int (T::*mem_cb_t)(int, uint64_t, uint64_t, uint8_t, int);
+      typedef void (T::*mem_cb_t)(int, uint64_t, uint64_t, uint8_t, int);
       T* p; mem_cb_t f;
       mem_cb_obj(T* p, mem_cb_t f) : p(p), f(f) {}
-      int operator()(int cpu_id, uint64_t va, uint64_t pa, uint8_t s, int t) {
-	return ((p)->*(f))(cpu_id, va, pa, s, t);
+      void operator()(int cpu_id, uint64_t va, uint64_t pa, uint8_t s, int t) {
+	((p)->*(f))(cpu_id, va, pa, s, t);
       }
     };
 
@@ -621,9 +621,9 @@ namespace Qsim {
                           enum inst_type type);
     void inst_cb(int cpu_id, uint64_t va, uint64_t pa,
                  uint8_t l, const uint8_t *bytes, enum inst_type type);
-    static int mem_cb_s(int cpu_id, uint64_t va, uint64_t pa, 
+    static void mem_cb_s(int cpu_id, uint64_t va, uint64_t pa, 
                         uint8_t size, int type);
-    int mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
+    void mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
                uint8_t size, int type);
     static uint32_t *io_cb_s(int cpu_id, uint64_t port, uint8_t s, int type,
                              uint32_t data);

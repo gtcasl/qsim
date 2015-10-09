@@ -49,6 +49,7 @@ namespace Mgzd {
                 << "\") returned " << r <<".\nrm /";
       exit(1);
     }
+    std::cout << "Opening " << lib.file.c_str() << std::endl;
 
     lib.handle = dlopen(lib.file.c_str(), RTLD_NOW|RTLD_LOCAL);
     if (lib.handle == NULL) {

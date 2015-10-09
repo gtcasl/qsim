@@ -62,7 +62,7 @@ enum flags {
 typedef void (*inst_cb_t)(int cpu_id, uint64_t vaddr, uint64_t paddr,
                           uint8_t length, const uint8_t *bytes,
                           enum inst_type type);
-typedef int (*mem_cb_t)(int cpu_id, uint64_t vaddr, uint64_t paddr,
+typedef void (*mem_cb_t)(int cpu_id, uint64_t vaddr, uint64_t paddr,
                         uint8_t  size, int type);
 typedef uint32_t* (*io_cb_t) (int cpu_id, uint64_t addr, uint8_t size,
                               int type, uint32_t val);
