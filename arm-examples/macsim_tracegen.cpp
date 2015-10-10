@@ -336,14 +336,20 @@ public:
       *debug_file << " Core: " << std::dec << c;
 #endif
       dis.free_insn(insn, count);
+
+      --curr_inst_n;
+      if (!curr_inst_n) {
+        // end trace collection
+        for (int i = 0; i < osd.get_n(); i++)
+          app_end_cb(i);
+      }
+
       return;
   }
 
-  int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
+  void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
       inst_handle[c].populateMemInfo(v, p, s, w);
-
-      return 0;
   }
 
 private:

@@ -144,10 +144,9 @@ class TraceWriter {
             return 0;
         }
 
-        int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
+        void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
             uint64_t hashed_addr = v ^ (v >> 13);
             counter.insert(v, hashed_addr);
-            return 0;
         }
 
         double get_hit_ratio() { return counter.getHitRatio(); }

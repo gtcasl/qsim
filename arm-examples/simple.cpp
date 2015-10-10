@@ -54,11 +54,10 @@ public:
     return;
   }
 
-  int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
+  void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
     tracefile << std::dec << c << ":  " << (w?"WR":"RD") << "(0x" << std::hex
               << v << "/0x" << p << "): " << std::dec << (unsigned)(s*8) 
               << " bits.\n";
-    return 0;
   }
 
   void reg_cb(int c, int r, uint8_t s, int type) {
