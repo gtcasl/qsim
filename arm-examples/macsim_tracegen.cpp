@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <capstone.h>
 #include <zlib.h>
+#include <getopt.h>
 
 #include "gzstream.h"
 #include "cs_disas.h"
@@ -28,7 +29,9 @@ using Qsim::OSDomain;
 using std::ostream;
 ogzstream* debug_file;
 
-#define STREAM_SIZE 1000000
+#define MILLION(x) (x * 1000000)
+
+#define STREAM_SIZE 10000000
 
 class InstHandler {
 public:
@@ -277,13 +280,14 @@ bool InstHandler::populateInstInfo(cs_insn *insn, cs_regs regs_read, cs_regs reg
 
 class TraceWriter {
 public:
-  TraceWriter(OSDomain &osd) :
+  TraceWriter(OSDomain &osd, unsigned long max_inst) :
     osd(osd), finished(false), dis(CS_ARCH_ARM64, CS_MODE_ARM)
   { 
     inst_handle = new InstHandler[osd.get_n()];
     osd.set_app_start_cb(this, &TraceWriter::app_start_cb);
     trace_file_count = 0;
     finished = false;
+    max_inst_n = max_inst;
   }
 
   bool hasFinished() { return finished; }
@@ -304,12 +308,16 @@ public:
     inst_handle[0].openDebugFile();
     trace_file_count++;
     finished = false;
+    curr_inst_n = max_inst_n;
 
     return 0;
   }
 
   int app_end_cb(int c)
   {
+      if (finished)
+        return 0;
+
       std::cout << "App end cb called" << std::endl;
       finished = true;
 
@@ -324,6 +332,9 @@ public:
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
                enum inst_type t)
   {
+      if (!curr_inst_n)
+        return;
+
       cs_insn *insn = NULL;
       uint8_t regs_read_count, regs_write_count;
       cs_regs regs_read, regs_write;
@@ -340,8 +351,7 @@ public:
       --curr_inst_n;
       if (!curr_inst_n) {
         // end trace collection
-        for (int i = 0; i < osd.get_n(); i++)
-          app_end_cb(i);
+        app_end_cb(0);
       }
 
       return;
@@ -349,6 +359,9 @@ public:
 
   void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
+      if (!curr_inst_n)
+        return;
+
       inst_handle[c].populateMemInfo(v, p, s, w);
   }
 
@@ -358,52 +371,56 @@ private:
   int  trace_file_count;
   InstHandler *inst_handle;
   cs_disas dis;
-
-  static const char * itype_str[];
-};
-
-const char *TraceWriter::itype_str[] = {
-  "QSIM_INST_NULL",
-  "QSIM_INST_INTBASIC",
-  "QSIM_INST_INTMUL",
-  "QSIM_INST_INTDIV",
-  "QSIM_INST_STACK",
-  "QSIM_INST_BR",
-  "QSIM_INST_CALL",
-  "QSIM_INST_RET",
-  "QSIM_INST_TRAP",
-  "QSIM_INST_FPBASIC",
-  "QSIM_INST_FPMUL",
-  "QSIM_INST_FPDIV"
+  unsigned long max_inst_n;
+  unsigned long curr_inst_n;
 };
 
 int main(int argc, char** argv) {
   using std::istringstream;
   using std::ofstream;
 
-  unsigned n_cpus = 1;
+  int n_cpus = 1, max_inst = MILLION(500);
 
   std::string qsim_prefix(getenv("QSIM_PREFIX"));
 
-  // Read number of CPUs as a parameter. 
-  if (argc >= 2) {
-    istringstream s(argv[1]);
-    s >> n_cpus;
-  }
+  static struct option long_options[] = {
+    {"help",  no_argument, NULL, 'h'},
+    {"ncpu", required_argument, NULL, 'n'},
+    {"max_inst", required_argument, NULL, 'm'},
+    {"state", required_argument, NULL, 's'}
+  };
 
   OSDomain *osd_p(NULL);
 
-  if (argc >= 4) {
-    // Create new OSDomain from saved state.
-    osd_p = new OSDomain(argv[3]);
-    n_cpus = osd_p->get_n();
-  } else {
-    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64");
+  int c = 0;
+  while((c = getopt_long(argc, argv, "hn:m:", long_options, NULL)) != -1) {
+    switch(c) {
+      case 'n':
+        n_cpus = atoi(optarg);
+        break;
+      case 'm':
+        max_inst = MILLION(atoi(optarg));
+        break;
+      case 's':
+        osd_p = new OSDomain(optarg);
+        n_cpus = osd_p->get_n();
+      case 'h':
+      case '?':
+      default:
+        std::cout << "Usage: " << argv[0] << " --ncpu(-n) <num_cpus> --max_inst(-m)" <<  
+                     "  <num_inst(M)> --state <state_file>" << std::endl;
+        exit(0);
+    }
   }
+
+  unsigned long max_inst_n = n_cpus * max_inst;
+
+  if (!osd_p)
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64");
   OSDomain &osd(*osd_p);
 
   // Attach a TraceWriter if a trace file is given.
-  TraceWriter tw(osd);
+  TraceWriter tw(osd, max_inst_n);
 
   // If this OSDomain was created from a saved state, the app start callback was
   // received prior to the state being saved.
