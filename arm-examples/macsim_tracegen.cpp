@@ -100,7 +100,8 @@ void InstHandler::closeOutFile(void)
 
 void InstHandler::populateMemInfo(uint64_t v, uint64_t p, uint8_t s, int w)
 {
-    trace_info_a64_s *op = &stream[stream_idx];
+    trace_info_a64_s *op = &stream[stream_idx-1]; // stream_idx is atleast 1,
+                                                  // since inst_cb if called first
     if (w) {
         if (!op->m_has_st) { /* first write */
           op->m_has_st            = 1;
