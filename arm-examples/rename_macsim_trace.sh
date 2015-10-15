@@ -16,7 +16,7 @@ do
     num=`expr $3 + $i`;
     if [ -e ${1}-${num}.log.gz ]
     then
-        mv ${1}-${num}.log.gz $2_$i.log.gz
+        mv ${1}-${num}.log.gz $2_$i.raw
     else
         echo "$1-$num does not exist!"
     fi
