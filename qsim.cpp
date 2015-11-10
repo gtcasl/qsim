@@ -134,6 +134,7 @@ void Qsim::QemuCpu::load_linux(const char* bzImage) {
     exit(1);
   }
 
+  /*
   // Load Linux kernel from file.
   uint8_t  setup_sects;
   uint32_t syssize_16;
@@ -161,6 +162,7 @@ void Qsim::QemuCpu::load_linux(const char* bzImage) {
 	set_reg(QSIM_RSP, 0x1000 );
 	set_reg(QSIM_SS,  0x200  );
   }
+  */
 
   // Close bzImage
   fclose(f);
@@ -229,11 +231,13 @@ Qsim::QemuCpu::QemuCpu(int id,
 	  // Load the Linux kernel
 	  load_linux(kernel);
 	  // Set initial values for registers.
+      /*
 	  set_reg(QSIM_RIP, 0x0000       );
 	  set_reg(QSIM_CS,  0x1000       );
 	  set_reg(QSIM_DS,  0x1000 - 0x20);
 	  set_reg(QSIM_RSP, 0x1000       );
 	  set_reg(QSIM_SS,  0x200        );
+      */
   }
 
   // Initialize mutexes.

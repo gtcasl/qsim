@@ -73,11 +73,11 @@ public:
     tracefile << " (" << itype_str[t] << ")\n";
   }
 
-  int mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
+  void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
     tracefile << std::dec << c << ":  " << (w?"WR":"RD") << "(0x" << std::hex
               << v << "/0x" << p << "): " << std::dec << (unsigned)(s*8) 
               << " bits.\n";
-    return 0;
+    return;
   }
 
   int int_cb(int c, uint8_t v) {
@@ -132,6 +132,8 @@ int main(int argc, char** argv) {
 
   unsigned n_cpus = 1;
 
+  std::string qsim_prefix(getenv("QSIM_PREFIX"));
+
   // Read number of CPUs as a parameter. 
   if (argc >= 2) {
     istringstream s(argv[1]);
@@ -144,15 +146,15 @@ int main(int argc, char** argv) {
   }
 
   OSDomain *osd_p(NULL);
-  OSDomain &osd(*osd_p);
 
   if (argc >= 4) {
     // Create new OSDomain from saved state.
     osd_p = new OSDomain(argv[3]);
-    n_cpus = osd.get_n();
+    n_cpus = osd_p->get_n();
   } else {
-    osd_p = new OSDomain(n_cpus, "linux/bzImage");
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../x86_64_images/vmlinuz", "x86");
   }
+  OSDomain &osd(*osd_p);
 
   // Attach a TraceWriter if a trace file is given.
   TraceWriter tw(osd, outfile?*outfile:std::cout);
