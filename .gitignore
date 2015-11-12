@@ -21,7 +21,6 @@ examples/qtm
 examples/simple
 examples/TRACE
 mkstate.log
-qemu
 lib
 arm-examples/simple
 arm-examples/trace*
