@@ -1,5 +1,5 @@
 #ifndef __ARM64_REGS_H
-#define __ARM46_REGS_H
+#define __ARM64_REGS_H
 
 enum _a64_regs {
     QSIM_X0 = 0, QSIM_X1, QSIM_X2, QSIM_X3,

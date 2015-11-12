@@ -474,6 +474,8 @@ unsigned Qsim::OSDomain::run(uint16_t i, unsigned n) {
   pthread_mutex_unlock(&pending_ipis_mutex);
 
   if (running[i]) { return cpus[i]->run(n); } 
+
+  return 0;
 }
 
 void Qsim::OSDomain::connect_console(std::ostream& s) {
@@ -580,6 +582,8 @@ void Qsim::OSDomain::unset_app_end_cb(end_cb_handle_t h) {
 
 int Qsim::OSDomain::atomic_cb_s(int cpu_id) {
   osdomains[cpu_id >> 16]->atomic_cb(cpu_id & 0xffff);
+
+  return 0;
 }
 
 int Qsim::OSDomain::atomic_cb(int cpu_id) {
@@ -688,6 +692,8 @@ void Qsim::OSDomain::trans_cb(int cpu_id) {
 
 int Qsim::OSDomain::magic_cb_s(int cpu_id, uint64_t rax) {
   osdomains[cpu_id >> 16]->magic_cb(cpu_id & 0xffff, rax);
+
+  return 0;
 }
 
 int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
