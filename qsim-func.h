@@ -1,4 +1,4 @@
-#ifndef __VM_FUNC__H
+#ifndef __VM_FUNC_H
 #define __VM_FUNC_H
 /*****************************************************************************\
 * Qemu Simulation Framework (qsim)                                            *
