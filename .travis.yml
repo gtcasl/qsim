@@ -16,6 +16,11 @@ script:
     - make -j2
 install:
     - make install
+after_success:
+    - cd examples/
+    - make
+    - cd ../arm-examples/
+    - make
 compiler:
 - clang
 - gcc
