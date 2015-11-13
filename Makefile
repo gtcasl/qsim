@@ -39,9 +39,11 @@ install: libqsim.so qsim-fastforwarder qsim.h qsim-vm.h mgzd.h \
 	mkdir -p $(QSIM_PREFIX)/include
 	mkdir -p $(QSIM_PREFIX)/bin
 	cp libqsim.so $(QSIM_PREFIX)/lib/
+	cp capstone/libcapstone.so $(QSIM_PREFIX)/lib
 	cp qsim.h qsim-vm.h mgzd.h qsim-load.h qsim-prof.h \
      qsim-regs.h qsim-arm-regs.h qsim-x86-regs.h qsim-arm64-regs.h \
 	 qsim-lock.h qsim-rwlock.h $(QSIM_PREFIX)/include/
+	cp capstone/include/capstone/*.h $(QSIM_PREFIX)/include
 	cp qsim-fastforwarder $(QSIM_PREFIX)/bin/
 	cp $(QEMU_BUILD_DIR)/x86_64-softmmu/qemu-system-x86_64 \
 	   $(QSIM_PREFIX)/lib/libqemu-qsim-x86.so

@@ -2,8 +2,8 @@ language: cpp
 before_install:
     - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test  # gcc v4.8
     - sudo apt-get -qq update
-    - if [ "$CC" = "gcc" ]; then sudo apt-get install -qq g++-4.8; fi
-    - if [ "$CC" = "gcc" ]; then sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90; fi
+    - sudo apt-get install -qq g++-4.8
+    - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
     - if [ "$CC" = "clang" ]; then sudo apt-get install -qq clang-3.4; fi
     - sudo apt-get build-dep qemu
     - git submodule update --init --recursive
@@ -11,6 +11,9 @@ before_install:
     - mkdir build
     - cd build
     - ../arm64-build.sh release
+    - cd ..
+    - cd capstone
+    - make
     - cd ..
 script:
     - make -j2
