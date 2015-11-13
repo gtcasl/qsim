@@ -27,6 +27,5 @@ arm-examples/trace*
 examples/cachesim
 examples/trace*
 include/
-capstone/
 dbg_build
 up_build

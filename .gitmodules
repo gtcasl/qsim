@@ -1,3 +1,6 @@
 [submodule "qemu"]
 	path = qemu
 	url = https://github.com/pranith/qemu
+[submodule "capstone"]
+	path = capstone
+	url = https://github.com/pranith/capstone
