@@ -1,4 +1,4 @@
-language: c
+language: cpp
 before_install:
     - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test  # gcc v4.8
     - sudo apt-get -qq update
@@ -18,7 +18,7 @@ install:
     - make install
 after_success:
     - cd examples/
-    - make
+    - make simple cachesim
     - cd ../arm-examples/
     - make
 compiler:
