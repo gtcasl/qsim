@@ -28,7 +28,7 @@ using std::cout; using std::vector; using std::ofstream; using std::string;
 using Qsim::OSDomain; using std::map;
 
 const unsigned BRS_PER_MILN = 1  ;
-const unsigned MAX_CPUS     = 256;
+const unsigned MAX_CPUS     = 16;
 
 pthread_mutex_t   output_mutex      = PTHREAD_MUTEX_INITIALIZER;
 pthread_barrier_t cpu_barrier1;
@@ -164,17 +164,18 @@ int end_cb(int c) { app_finished = true; return 1; }
 int main(int argc, char** argv) {
   // Open trace file.
   tout.open("EXEC_TRACE");
+  std::string qsim_prefix(getenv("QSIM_PREFIX"));
   if (!tout) { cout << "Could not open EXEC_TRACE for writing.\n"; exit(1); }
 
   // Create a runnable OSDomain.
   OSDomain *cdp;
   OSDomain &cd(*cdp);
   if (argc < 3) {
-    cdp = new OSDomain(MAX_CPUS, "linux/bzImage", 3*1024);
-    cd.connect_console(cout);
+    cdp = new OSDomain(MAX_CPUS, qsim_prefix + "/../x86_64_images/vmlinuz", "x86");
+    //cd.connect_console(cout);
   } else {
     cdp = new OSDomain(argv[1]);
-    cd.connect_console(cout);
+    //cd.connect_console(cout);
     cout << "Loaded state. Reading benchmark.\n";
     Qsim::load_file(cd, argv[2]);
     cout << "Loaded benchmark .tar file.\n";

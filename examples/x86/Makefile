@@ -20,7 +20,7 @@ vistrace: vistrace.cpp $(QSIM_PREFIX)/lib/libqsim.so
 simple: simple.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(QSIM_PREFIX)/distorm/distorm64.a $(LDLIBS)
 
-io-test: io-test.cpp $(QSIM_PREFIX)/lib/libqsim.so ../distorm/distorm64.a
+io-test: io-test.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(QSIM_PREFIX)/distorm/distorm64.a $(LDLIBS)
 
 qtm: qtm.cpp $(QSIM_PREFIX)/lib/libqsim.so
