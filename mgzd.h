@@ -17,9 +17,10 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-static const char* TMP_DIR = "/tmp";
-static const char* TMP_PFX = "qsim_tmp";
+static const char* TMP_DIR = "/tmp/";
+static const char* TMP_PFX = "qsim_XXXXXX";
 
 namespace Mgzd {
   struct lib_t {
@@ -27,28 +28,39 @@ namespace Mgzd {
     std::string file;
   };
 
-  static lib_t open(const char *libfile) {
+  static lib_t __attribute__((unused)) open(const char *libfile) {
     lib_t lib;
 
     // Use $QSIM_TMP, if it's set.
     const char* tmpdir = getenv("QSIM_TMP");
     if (tmpdir) TMP_DIR = tmpdir;
 
-    // Make temporary copy of libfile, so opening multiple copies of the same
-    // file results in independent copies of global variables.
-    const char* tmp_filename_ptr = tempnam(TMP_DIR, TMP_PFX);
-    lib.file = tmp_filename_ptr;
-    free((void *)tmp_filename_ptr);
+    const int buf_size = 1024; // 1KB
+    char tmpfile[buf_size], buf[buf_size];
 
-    std::ostringstream cp_command;
+    size_t size = sizeof(TMP_DIR);
+    strncpy(tmpfile, TMP_DIR, size);
+    strcat(tmpfile, TMP_PFX);
 
-    cp_command << "cp " << libfile << ' ' << lib.file;
-    int r;
-    if ((r = system(cp_command.str().c_str())) != 0) {
-      std::cerr << "system(\"" << cp_command.str() 
-                << "\") returned " << r <<".\nrm /";
+    int fd = mkstemp(tmpfile);
+    FILE* fp = fdopen(fd, "wb");
+    FILE* libfp = fopen(libfile, "r");
+
+    if (!libfp) {
+      std::cerr << "Cannot open library " << libfile << std::endl;
       exit(1);
     }
+
+    while ((size = fread(buf, 1, buf_size, libfp)) > 0) {
+      if (fwrite(buf, 1, size, fp) != size) {
+        std::cerr << "couldn't write whole buffer" << std::endl;
+        exit(1);
+      }
+    }
+
+    // Make temporary copy of libfile, so opening multiple copies of the same
+    // file results in independent copies of global variables.
+    lib.file = tmpfile;
     std::cout << "Opening " << lib.file.c_str() << std::endl;
 
     lib.handle = dlopen(lib.file.c_str(), RTLD_NOW|RTLD_LOCAL);
@@ -60,7 +72,7 @@ namespace Mgzd {
     return lib;
   }
 
-  static void close(const lib_t &lib) {
+  static void __attribute__((unused)) close(const lib_t &lib) {
     //dlclose(lib.handle);
     unlink(lib.file.c_str());
   }
