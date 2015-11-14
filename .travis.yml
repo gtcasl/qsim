@@ -20,9 +20,9 @@ script:
 install:
     - make install
 after_success:
-    - cd examples/
+    - cd examples/x86/
     - make simple cachesim
-    - cd ../arm-examples/
+    - cd ../arm64/
     - make
 compiler:
 - clang
