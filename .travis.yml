@@ -15,13 +15,16 @@ before_install:
     - cd capstone
     - make
     - cd ..
+    - cd distorm/distorm64/build/linux
+    - make clib
+    - cd ../../../..
 script:
     - make -j2
 install:
     - make install
 after_success:
     - cd examples/x86/
-    - make simple cachesim
+    - make
     - cd ../arm64/
     - make
 compiler:
