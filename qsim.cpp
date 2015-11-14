@@ -170,7 +170,7 @@ void Qsim::QemuCpu::load_linux(const char* bzImage) {
 
 void Qsim::QemuCpu::save_state(ostream &o) {
   // Save all of the registers.
-  int max_regs;
+  int max_regs = 0;
   if (cpu_type == "x86")
 	  max_regs = QSIM_X86_N_REGS;
   else if (cpu_type == "a64")
@@ -284,7 +284,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
   qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id, n_cpus);
   ramdesc = master_cpu->ramdesc;
 
-  int max_regs;
+  int max_regs = 0;
   if (cpu_type == "x86")
 	  max_regs = QSIM_X86_N_REGS;
   else if (cpu_type == "a64")
@@ -319,7 +319,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb, int n_cpus,
   // Read RAM state.
   zrun_compress_read(file, (void*)ramdesc->mem_ptr, ramdesc->sz);
 
-  int max_regs;
+  int max_regs = 0;
   if (cpu_type == "x86")
 	  max_regs = QSIM_X86_N_REGS;
   else if (cpu_type == "a64")
@@ -426,7 +426,7 @@ void Qsim::OSDomain::save_state(std::ostream &o) {
   //  uint32_t RAM size, MB
   //  CPU STATE[#cores]
   //  Memory state.
-  uint32_t n_cores(cpus.size()), ram_mb(ram_size_mb);
+  uint32_t n_cores(cpus.size()); //, ram_mb(ram_size_mb);
 
   o.write((const char*)&n_cores, sizeof(n_cores));
   o.write((const char*)&ram_size_mb, sizeof(ram_size_mb));
@@ -717,9 +717,6 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   // If this is a "CD Ignore" magic instruction, ignore it.
   if ((rax&0xffff0000) == 0xcd160000) return rval;
 
-  // Look up CPU
-  Qsim::QemuCpu *cpu = cpus[cpu_id];
- 
   // Take appropriate action
   if ( (rax&0xffffff00) == 0xc501e000 ) {
     // Console output
@@ -730,7 +727,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     if (c == '\n') {
       std::vector<std::ostream *>::iterator i;
       for (i = consoles.begin(); i != consoles.end(); i++) {
-		**i << linebuf << '\n';
+        **i << linebuf << '\n';
       }
       linebuf = "";
     }

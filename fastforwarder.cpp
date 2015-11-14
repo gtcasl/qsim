@@ -24,6 +24,8 @@
 struct Magic_cb_s {
   Magic_cb_s(Qsim::OSDomain &osd): osd(osd), app_started(false) {}
 
+  Qsim::OSDomain &osd;
+
   int magic_cb_f(int cpu_id, uint64_t rax) {
     if (rax == 0xaaaaaaaa) {
       app_started = true;
@@ -47,8 +49,6 @@ struct Magic_cb_s {
                 << '(' << std::setw(2) << osd.get_reg(i, QSIM_CPSR) << ')';
     }
   }
-
-  Qsim::OSDomain &osd;
 };
 
 int main(int argc, char** argv) {
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
   slow_cycles[0] = 70000;
   do {
     for (unsigned i = 0; i < 100 && !magic_cb_s.app_started; i++) {
-      for (unsigned j = 0; j < cpus && !magic_cb_s.app_started; j++) {
+      for (int j = 0; j < cpus && !magic_cb_s.app_started; j++) {
         if (osd.runnable(j)) {
           if (osd.idle(j) && !slow_cycles[j]) {
               osd.run(j, 100);
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
 #endif
   for (unsigned i = 0; i < 1; ++i) {
     for (unsigned j = 0; j < 100; ++j) {
-      for (unsigned k = 0; k < cpus; ++k) {
+      for (int k = 0; k < cpus; ++k) {
         osd.run(k, runfor);
       }
 #ifndef LOAD

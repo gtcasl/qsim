@@ -57,7 +57,6 @@ unsigned long long start_time, end_time;
 void *cpu_thread_main(void* thread_arg) {
   void mem_cb(int cpu, uint64_t vaddr, uint64_t paddr, uint8_t size, int type);
   thread_arg_t *arg = (thread_arg_t*)thread_arg;
-  uint64_t local_inst_count = 0;
   
   // The first barrier. Wait for all of the threads to get initialized.
   pthread_barrier_wait(&cpu_barrier1);
@@ -123,8 +122,6 @@ void inst_cb(int            cpu_id,
 
 int int_cb(int cpu_id, uint8_t vec) 
 {
-  uint16_t tid = thread_args[cpu_id]->cd->get_tid(cpu_id);
-
   pthread_mutex_lock(&output_mutex);
   tout << "CPU " << cpu_id << ": Interrupt 0x" << std::hex 
        << std::setw(2) << (unsigned)vec << '\n';
@@ -139,6 +136,7 @@ int int_cb(int cpu_id, uint8_t vec)
 
   if (vec == 0x0e) {
 #if 0
+    uint16_t tid = thread_args[cpu_id]->cd->get_tid(cpu_id);
     pagefault_counts[tid]++;
 #endif
   }
@@ -168,7 +166,7 @@ int main(int argc, char** argv) {
   if (!tout) { cout << "Could not open EXEC_TRACE for writing.\n"; exit(1); }
 
   // Create a runnable OSDomain.
-  OSDomain *cdp;
+  OSDomain *cdp = NULL;
   OSDomain &cd(*cdp);
   if (argc < 3) {
     cdp = new OSDomain(MAX_CPUS, qsim_prefix + "/../x86_64_images/vmlinuz", "x86");
@@ -191,7 +189,7 @@ int main(int argc, char** argv) {
 
   // Launch threads
   start_time = utime();
-  for (unsigned i = 0; i < cd.get_n(); i++) {
+  for (int i = 0; i < cd.get_n(); i++) {
     threads[i]     = new pthread_t    ;
     thread_args[i] = new thread_arg_t ;
 
@@ -203,7 +201,7 @@ int main(int argc, char** argv) {
   }
 
   // Wait for threads to end
-  for (unsigned i = 0; i < cd.get_n(); i++) pthread_join(*threads[i], NULL);
+  for (int i = 0; i < cd.get_n(); i++) pthread_join(*threads[i], NULL);
   end_time = utime();
 
   // Print stats.
@@ -216,7 +214,7 @@ int main(int argc, char** argv) {
   // Clean up.
   pthread_barrier_destroy(&cpu_barrier1);
   pthread_barrier_destroy(&cpu_barrier2);
-  for (unsigned i = 0; i < cd.get_n(); i++) { 
+  for (int i = 0; i < cd.get_n(); i++) { 
     delete threads[i]; 
     delete thread_args[i];
   }

@@ -34,7 +34,7 @@ public:
     // The main loop: run until 'finished' is true.                            
     while (!finished) {
       for (unsigned i = 0; i < 100; i++) {
-        for (unsigned j = 0; j < osd.get_n(); j++) {
+        for (int j = 0; j < osd.get_n(); j++) {
           if (osd.idle(j)) osd.run(j, 100);
           else             osd.run(j, 10000);
         }

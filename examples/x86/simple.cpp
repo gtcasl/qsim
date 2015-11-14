@@ -42,6 +42,8 @@ public:
 
       return 1;
     }
+
+    return 0;
   }
 
   int app_end_cb(int c)   { finished = true; return 0; }

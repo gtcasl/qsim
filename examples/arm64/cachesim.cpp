@@ -123,8 +123,8 @@ class CacheHitCounter {
 
 class TraceWriter {
     public:
-        TraceWriter(OSDomain &osd, ostream &tracefile) : 
-            osd(osd), tracefile(tracefile), finished(false) 
+        TraceWriter(OSDomain &osd) : 
+            osd(osd), finished(false) 
         { 
             //osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
             counter.initialize(MB(8));
@@ -153,7 +153,6 @@ class TraceWriter {
 
     private:
         OSDomain &osd;
-        ostream &tracefile;
         bool finished;
 
         static const char * itype_str[];
@@ -195,12 +194,6 @@ int main(int argc, char** argv) {
         s >> n_cpus;
     }
 
-    // Read trace file as a parameter.
-    if (argc >= 3) {
-        outfile = new ofstream(argv[2]);
-    } else 
-        outfile = new ofstream("trace.log");
-
     OSDomain *osd_p(NULL);
 
     if (argc >= 4) {
@@ -213,7 +206,7 @@ int main(int argc, char** argv) {
     OSDomain &osd(*osd_p);
 
     // Attach a TraceWriter if a trace file is given.
-    TraceWriter tw(osd, outfile?*outfile:std::cout);
+    TraceWriter tw(osd);
 
     // If this OSDomain was created from a saved state, the app start callback was
     // received prior to the state being saved.
@@ -221,7 +214,7 @@ int main(int argc, char** argv) {
 
     osd.connect_console(std::cout);
 
-	unsigned long inst_per_iter = 1000000000;
+    unsigned long inst_per_iter = 1000000000;
     tw.app_start_cb(0);
     // The main loop: run until 'finished' is true.
     unsigned k = 0; // outer loop counter

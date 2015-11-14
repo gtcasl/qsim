@@ -97,7 +97,6 @@ private:
   OSDomain &osd;
   ostream &tracefile;
   bool finished;
-  char next_char;
   std::ifstream infile;
   static const char *itype_str[];
 };
