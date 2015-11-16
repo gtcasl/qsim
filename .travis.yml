@@ -38,3 +38,4 @@ notifications:
             - bobby.prani@gmail.com
         on_success: change
         on_failure: always
+    irc: "irc.oftc.net#qsim"
