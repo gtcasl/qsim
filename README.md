@@ -1,4 +1,4 @@
-qsim [![Build Status](https://travis-ci.org/pranith/qsim.svg?branch=master)](https://travis-ci.org/pranith/qsim)
+qsim [![Build Status](https://travis-ci.org/gtcasl/qsim.svg?branch=master)](https://travis-ci.org/gtcasl/qsim)
 =========================
 
   1. See building/installation instructions in INSTALL.
