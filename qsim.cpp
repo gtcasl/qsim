@@ -55,7 +55,7 @@ static inline void read_data_chunk(FILE*    f,
   fseek(f, offset, SEEK_SET);
   size_t ret = fread(ptr, size, 1, f);
   if (ret == 0)
-	  fprintf(stderr, "Read failed\n");
+    fprintf(stderr, "Read failed\n");
 }
 
 // Find the libqemu-qsim.so library.
@@ -202,7 +202,6 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   Mgzd::sym(qemu_set_trans_cb,    qemu_lib, "set_trans_cb"        );
   Mgzd::sym(qemu_set_gen_cbs,     qemu_lib, "set_gen_cbs"         );
   Mgzd::sym(qemu_set_sys_cbs,     qemu_lib, "set_sys_cbs"         );
-  Mgzd::sym(ramdesc_p,            qemu_lib, "qsim_ram"            );
   Mgzd::sym(qemu_get_reg,         qemu_lib, "get_reg"             );
   Mgzd::sym(qemu_set_reg,         qemu_lib, "set_reg"             );
   Mgzd::sym(qemu_mem_rd,          qemu_lib, "mem_rd"              );
@@ -223,9 +222,7 @@ Qsim::QemuCpu::QemuCpu(int id,
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
   // Initialize Qemu library
-  qemu_init(NULL, ram_size_ss.str().c_str(), id, n_cpus);
-  ramdesc = *ramdesc_p;
-
+  qemu_init(NULL, kernel, ram_size_ss.str().c_str(), id, n_cpus);
 
   if (cpu_type == "x86") {
 	  // Load the Linux kernel
@@ -255,15 +252,7 @@ Qsim::QemuCpu::QemuCpu(int id,
   cpu_type = type;
 
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id, n_cpus);
-  ramdesc = master_cpu->ramdesc;
-
-  if (cpu_type == "x86") {
-	// Set initial values for registers.
-	set_reg(QSIM_CS,  0x0000);
-	set_reg(QSIM_DS,  0x0000);
-	set_reg(QSIM_RIP, 0x0000);
-  }
+  qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
 
   // Initialize mutexes.
   pthread_mutex_init(&irq_mutex, NULL);
@@ -281,8 +270,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
   // Initialize Qemu library
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id, n_cpus);
-  ramdesc = master_cpu->ramdesc;
+  qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
 
   int max_regs = 0;
   if (cpu_type == "x86")
@@ -313,11 +301,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb, int n_cpus,
 
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
-  qemu_init(NULL, ram_size_ss.str().c_str(), id, n_cpus);
-  ramdesc = *ramdesc_p;
-
-  // Read RAM state.
-  zrun_compress_read(file, (void*)ramdesc->mem_ptr, ramdesc->sz);
+  qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
 
   int max_regs = 0;
   if (cpu_type == "x86")
@@ -379,9 +363,6 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, unsign
     // Create an empty pending-ipi queue.
     pending_ipis.push_back(queue<uint8_t>());
   }
-
-  // Keep a copy of the QEMU RAM descriptor.
-  // ramdesc = cpus[0]->get_ramdesc();
 }
 
 // Create an OSDomain from a saved state file.
@@ -414,9 +395,6 @@ Qsim::OSDomain::OSDomain(const char* filename):
     running.push_back(true);
   }
 
-  // Get a copy of the RAM descriptor.
-  // ramdesc = cpus[0]->get_ramdesc();
-
   file.close();
 }
 
@@ -430,8 +408,6 @@ void Qsim::OSDomain::save_state(std::ostream &o) {
 
   o.write((const char*)&n_cores, sizeof(n_cores));
   o.write((const char*)&ram_size_mb, sizeof(ram_size_mb));
-
-  zrun_compress_write(o,(const void*)ramdesc.mem_ptr,ramdesc.sz);
 
   cpus[0]->save_state(o);
 }
@@ -705,15 +681,6 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   for (i = magic_cbs.begin(); i != magic_cbs.end(); ++i)
     if ((**i)(cpu_id, rax)) rval = 1;
 
-  /*
-  if (waiting_for_eip != 0) {
-    cpus[waiting_for_eip]->set_reg(QSIM_CS, rax>>4);
-    running[waiting_for_eip] = true;
-    waiting_for_eip = 0;
-    return rval;
-  }
-  */
-
   // If this is a "CD Ignore" magic instruction, ignore it.
   if ((rax&0xffff0000) == 0xcd160000) return rval;
 
@@ -771,7 +738,6 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     for (i = end_cbs.begin(); i != end_cbs.end(); ++i) {
       if ((**i)(cpu_id)) rval = 1;
     }
-    //for (unsigned i = 0; i < n; i++) running[i] = false;
   } else if ( (rax & 0xfffffff0) != 0x00000000 &&
               (rax & 0xfffffff0) != 0x80000000 &&
               (rax & 0xfffffff0) != 0x40000000 ) {
