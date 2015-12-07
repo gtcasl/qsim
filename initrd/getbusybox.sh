@@ -11,7 +11,7 @@ BBOX_URL=http://www.busybox.net/downloads/$BBOX_ARCHIVE
 UNPACK="tar -xjf"
 
 pushd ../linux
-LINUX_DIR=`pwd`/linux-2.6.34
+LINUX_DIR=`pwd`/linux/
 popd
 
 # Download the archive if we don't already have it.
