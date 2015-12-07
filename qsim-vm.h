@@ -32,6 +32,12 @@ enum inst_type {
   QSIM_INST_FPDIV
 };
 
+enum qsim_mode {
+  QSIM_INTERACTIVE,
+  QSIM_HEADLESS,
+  QSIM_NUM_MODES
+};
+
 /* The flags enum is used with the register access callback (size=0) to signal
    condition code access. */
 enum flags {

@@ -72,7 +72,7 @@ namespace Qsim {
     void load_linux(const char* bzImage);
 
   public:
-    QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86");
+    QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86", qsim_mode mode = QSIM_HEADLESS);
     QemuCpu(int id, QemuCpu *master_cpu, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86");
     QemuCpu(int id, std::istream &file, unsigned ram_mb, int n_cpus, std::string cpu_type = "x86");
     QemuCpu(int id, std::istream &file, Qsim::QemuCpu* master_cpu, unsigned ram_mb, int n_cpus, std::string cpu_type = "x86");
@@ -190,7 +190,7 @@ namespace Qsim {
     enum cpu_prot { PROT_KERN, PROT_USER };
 
     // Create a OSDomain with n CPUs, booting the kernel at the given path
-	OSDomain(uint16_t n, std::string kernel_path, std::string cpu_type, unsigned ram_mb = 1024);
+    OSDomain(uint16_t n, std::string kernel_path, std::string cpu_type, qsim_mode mode = QSIM_HEADLESS, unsigned ram_mb = 1024);
 
     // Create a new OSDomain from a state file.
     OSDomain(const char *filename);
@@ -589,6 +589,8 @@ namespace Qsim {
     void lock_addr(uint64_t pa);
     void unlock_addr(uint64_t pa);
 
+    void qsim_qemu_mode(qsim_mode _mode) { mode = _mode; }
+
     ~OSDomain();
 
   private:
@@ -638,6 +640,8 @@ namespace Qsim {
 
     static std::vector<OSDomain *> osdomains;
     static pthread_mutex_t osdomains_lock;
+
+    qsim_mode mode;
   };
 };
 
