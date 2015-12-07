@@ -36,9 +36,7 @@ namespace Qsim {
     pthread_mutex_t cb_mutex;
 
     // Function pointers into the qemu library                                 
-    void     (*qemu_init)(qemu_ramdesc_t *ram,
-			  const char* ram_size, 
-              int cpu_id, int n_cpus);
+    void     (*qemu_init)(const char** argv);
     uint64_t (*qemu_run)(uint64_t n);
     int      (*qemu_interrupt)(uint8_t vec);
 
@@ -314,7 +312,7 @@ namespace Qsim {
       T* p; magic_cb_t f;
       magic_cb_obj(T* p, magic_cb_t f) : p(p), f(f) {}
       int operator()(int cpu_id, uint64_t rax) {
-	return ((p)->*(f))(cpu_id, rax);
+        return ((p)->*(f))(cpu_id, rax);
       }
     };
 
@@ -325,7 +323,7 @@ namespace Qsim {
       uint32_t *operator()
         (int cpu_id, uint64_t port, uint8_t size, int type, uint32_t val)
       {
-	return ((p)->*(f))(cpu_id, port, size, type, val);
+        return ((p)->*(f))(cpu_id, port, size, type, val);
       }
     };
 
@@ -346,7 +344,7 @@ namespace Qsim {
       T* p; mem_cb_t f;
       mem_cb_obj(T* p, mem_cb_t f) : p(p), f(f) {}
       void operator()(int cpu_id, uint64_t va, uint64_t pa, uint8_t s, int t) {
-	((p)->*(f))(cpu_id, va, pa, s, t);
+        ((p)->*(f))(cpu_id, va, pa, s, t);
       }
     };
 
@@ -355,7 +353,7 @@ namespace Qsim {
       T* p; int_cb_t f;
       int_cb_obj(T* p, int_cb_t f) : p(p), f(f) {}
       int operator()(int cpu_id, uint8_t vec) { 
-	return ((p)->*(f))(cpu_id, vec); 
+        return ((p)->*(f))(cpu_id, vec); 
       }
     };
 
@@ -363,7 +361,7 @@ namespace Qsim {
       typedef void(T::*inst_cb_t)(int, uint64_t, uint64_t,
                                   uint8_t, const uint8_t*, enum inst_type);
       T* p; inst_cb_t f;
-    inst_cb_obj(T* p, inst_cb_t f) : p(p), f(f) {}
+      inst_cb_obj(T* p, inst_cb_t f) : p(p), f(f) {}
       void operator()(int cpu_id,
                       uint64_t va,
                       uint64_t pa,
@@ -388,7 +386,7 @@ namespace Qsim {
       T* p; start_cb_t f;
       start_cb_obj(T* p, start_cb_t f) : p(p), f(f) {}
       int operator()(int cpu_id) {
-	return ((p)->*(f))(cpu_id);
+        return ((p)->*(f))(cpu_id);
       }
     };
 
@@ -397,7 +395,7 @@ namespace Qsim {
       T* p; end_cb_t f;
       end_cb_obj(T* p, end_cb_t f) : p(p), f(f) {}
       int operator()(int cpu_id) {
-	return ((p)->*(f))(cpu_id);
+        return ((p)->*(f))(cpu_id);
       }
     };
 
@@ -549,15 +547,15 @@ namespace Qsim {
       paddr += sz - 1;
       d = 0;
       while (sz--) {
-	d <<= 8;
-	d |= cpus[0]->mem_rd(paddr--);
+        d <<= 8;
+        d |= cpus[0]->mem_rd(paddr--);
       }
     }
 
     template <typename T> void mem_wr(T d, uint64_t paddr) {
       size_t sz = sizeof(T);
       while (sz--) {
-	cpus[0]->mem_wr(paddr++, (d)&0xff);
+        cpus[0]->mem_wr(paddr++, (d)&0xff);
         d >>= 8;
       }
     }
@@ -569,8 +567,8 @@ namespace Qsim {
       vaddr += sz - 1;
       d = 0;
       while (sz--) {
-	d <<= 8;
-	d |= cpus[0]->mem_rd_virt(vaddr--);
+        d <<= 8;
+        d |= cpus[0]->mem_rd_virt(vaddr--);
       }
     }
 
@@ -578,8 +576,8 @@ namespace Qsim {
     {
       size_t sz = sizeof(T);
       while (sz--) {
-	cpus[0]->mem_wr_virt(vaddr++, d&0xff);
-	d >>= 8;
+        cpus[0]->mem_wr_virt(vaddr++, d&0xff);
+        d >>= 8;
       }
     }
 
@@ -605,9 +603,7 @@ namespace Qsim {
     std::vector<uint16_t> tids   ;       // Current tid of each CPU
     std::vector<bool>     running;       // Whether CPU is running.
 
-    std::vector<std::queue<uint8_t> > pending_ipis;
     std::vector<std::ostream *>       consoles;
-    pthread_mutex_t pending_ipis_mutex;
    
     qemu_ramdesc_t ramdesc;
     unsigned ram_size_mb;

@@ -134,36 +134,6 @@ void Qsim::QemuCpu::load_linux(const char* bzImage) {
     exit(1);
   }
 
-  /*
-  // Load Linux kernel from file.
-  uint8_t  setup_sects;
-  uint32_t syssize_16;
-  uint64_t pref_address;
-
-  read_header_field(f, 0x1f1, setup_sects );
-  read_header_field(f, 0x1f4, syssize_16  );
-  read_header_field(f, 0x258, pref_address);
-  
-
-  read_data_chunk(f, 
-                  0x0000, 
-                  ramdesc->mem_ptr + 0x10000 - 0x200, 
-                  setup_sects*512 + 512);
-  read_data_chunk(f, 
-                  setup_sects*512 + 512, 
-                  ramdesc->mem_ptr + 0x100000, 
-                  syssize_16*16);
-
-  if (cpu_type == "x86") {
-	// Set CPU registers to boot linux kernel.
-	set_reg(QSIM_RIP, 0x0000 );
-	set_reg(QSIM_CS,  0x1000 );
-	set_reg(QSIM_DS,  0x1000 - 0x20);
-	set_reg(QSIM_RSP, 0x1000 );
-	set_reg(QSIM_SS,  0x200  );
-  }
-  */
-
   // Close bzImage
   fclose(f);
 }
@@ -333,38 +303,14 @@ Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
   // Load the library file and get pointers
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
+  const char** argv = get_qemu_args(kernel, ram_mb, n_cpus, type, mode);
   // Initialize Qemu library
-  qemu_init(NULL, kernel, ram_size_ss.str().c_str(), id, n_cpus);
+  qemu_init(argv);
 
   if (cpu_type == "x86") {
-	  // Load the Linux kernel
-	  load_linux(kernel);
-	  // Set initial values for registers.
-      /*
-	  set_reg(QSIM_RIP, 0x0000       );
-	  set_reg(QSIM_CS,  0x1000       );
-	  set_reg(QSIM_DS,  0x1000 - 0x20);
-	  set_reg(QSIM_RSP, 0x1000       );
-	  set_reg(QSIM_SS,  0x200        );
-      */
+    // Load the Linux kernel
+    load_linux(kernel);
   }
-
-  // Initialize mutexes.
-  pthread_mutex_init(&irq_mutex, NULL);
-  pthread_mutex_init(&cb_mutex, NULL);
-}
-
-Qsim::QemuCpu::QemuCpu(int id, 
-		       Qsim::QemuCpu* master_cpu, 
-		       unsigned ram_mb, int n_cpus,
-			   std::string type)
-: cpu_id(id&0xffff), ram_size_mb(ram_mb)
-{
-  std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
-  cpu_type = type;
-
-  load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
-  qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
 
   // Initialize mutexes.
   pthread_mutex_init(&irq_mutex, NULL);
@@ -373,7 +319,7 @@ Qsim::QemuCpu::QemuCpu(int id,
 
 Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu, 
                        unsigned ram_mb, int n_cpus, string type)
-  : cpu_id(id&0xffff), ram_size_mb(master_cpu->ram_size_mb)
+  : cpu_id(id & 0xffff), ram_size_mb(master_cpu->ram_size_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
   cpu_type = type;
@@ -382,7 +328,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
   // Initialize Qemu library
-  qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
+  //qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
 
   int max_regs = 0;
   if (cpu_type == "x86")
@@ -405,15 +351,15 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
 }
 
 Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb, int n_cpus,
-		               std::string type) :
-  cpu_id(id&0xffff), ram_size_mb(ram_mb)
+                       std::string type) :
+  cpu_id(id & 0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
   cpu_type = type;
 
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
-  qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
+  //qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
 
   int max_regs = 0;
   if (cpu_type == "x86")
@@ -470,9 +416,6 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, qsim_m
     // Initialize Linux task ID to zero and idle to true
     tids.push_back(0);
     idlevec.push_back(true);
-
-    // Create an empty pending-ipi queue.
-    pending_ipis.push_back(queue<uint8_t>());
   }
 }
 
@@ -480,7 +423,6 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, qsim_m
 Qsim::OSDomain::OSDomain(const char* filename):
   waiting_for_eip(0)
 {
-  pthread_mutex_init(&pending_ipis_mutex, NULL);
   assign_id();
 
   ifstream file(filename);
@@ -500,7 +442,6 @@ Qsim::OSDomain::OSDomain(const char* filename):
   if (n > 0) {
     cpus.push_back(new QemuCpu(id << 16, file, ram_size_mb, n));
     cpus[0]->set_magic_cb(magic_cb_s);
-    pending_ipis.push_back(queue<uint8_t>());
     tids.push_back(0);
     idlevec.push_back(true);
     running.push_back(true);
@@ -550,17 +491,8 @@ Qsim::OSDomain::cpu_prot Qsim::OSDomain::get_prot(uint16_t i) {
 
 unsigned Qsim::OSDomain::run(uint16_t i, unsigned n) {
   if(i != 0)            { return n;               }
-  // First, if there are any pending IPIs try to clear them.
-  pthread_mutex_lock(&pending_ipis_mutex);
-  if (!pending_ipis[i].empty()) {
-    uint8_t fv = pending_ipis[i].front();
-    int     rv = cpus[i]->interrupt(fv);
-    pending_ipis[i].pop();
-    if (rv != -1 && rv != 0xef && rv != 0x30) pending_ipis[i].push(rv);
-  }
-  pthread_mutex_unlock(&pending_ipis_mutex);
 
-  if (running[i]) { return cpus[i]->run(n); } 
+  if (running[0]) { return cpus[0]->run(n); } 
 
   return 0;
 }
@@ -785,7 +717,7 @@ int Qsim::OSDomain::magic_cb_s(int cpu_id, uint64_t rax) {
 
 int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   int rval = 0;
-  
+
   // Start by calling other registered magic instruction callbacks. 
   std::vector<magic_cb_obj_base*>::iterator i;
  
@@ -815,7 +747,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   } else if ( (rax & 0xffff0000) == 0xc75c0000 ) {
     // Context switch
     idlevec[cpu_id] = false;
-    tids[cpu_id] = rax&0xffff;
+    tids[cpu_id] = rax & 0xffff;
   } else if ( (rax & 0xffff0000) == 0xb0070000 ) {
     // CPU bootstrap
     waiting_for_eip = rax&0xffff;
@@ -823,13 +755,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     // Inter-processor interrupt
     uint16_t cpu = (rax & 0x00ffff00)>>8;
     uint8_t  vec = (rax & 0x000000ff);
-    int v = cpus[cpu]->interrupt(vec);
-    
-    if (v != -1 && v != 0xef && v != 0x30) {
-      pthread_mutex_lock(&pending_ipis_mutex);
-      pending_ipis[cpu].push((uint8_t)v);
-      pthread_mutex_unlock(&pending_ipis_mutex);
-    }
+    rval = cpus[cpu]->interrupt(vec);
   } else if ( (rax & 0xffffffff) == 0xc7c7c7c7 ) {
     // CPU count request
     //cpus[cpu_id]->set_reg(QSIM_RAX, n);

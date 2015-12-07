@@ -17,7 +17,7 @@ extern "C" {
 #include "qsim-vm.h"
 
 // Functions that QEMU must export
-void qemu_init(qemu_ramdesc_t *ram, const char* ram_size, int cpu_id, int n_cpus);
+void qemu_init(const char* argv[]);
 
 uint64_t run(uint64_t n);
 
