@@ -24,7 +24,7 @@ cachesim: cachesim.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
 
 macsim_tracegen: macsim_tracegen.cpp cs_disas.o $(QSIM_PREFIX)/lib/libqsim.so
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ cs_disas.o $< $(LDLIBS) -lcapstone
+	$(CXX) $(CXXFLAGS) -o $@ cs_disas.o $< $(LDLIBS) -lcapstone
 
 io-test: io-test.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)

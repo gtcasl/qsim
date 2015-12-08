@@ -47,6 +47,7 @@ template <typename T> static inline void read_header_field(FILE*    f,
 	  fprintf(stderr, "Read failed\n");
 }
 
+__attribute__((unused))
 static inline void read_data_chunk(FILE*    f, 
                                    uint64_t offset,
                                    uint8_t* ptr, 

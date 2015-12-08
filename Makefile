@@ -16,13 +16,13 @@ QEMU_BUILD_DIR=build
 all: libqsim.so qsim-fastforwarder
 
 statesaver.o: statesaver.cpp statesaver.h qsim.h
-	$(CXX) $(CXXFLAGS) -I./ -c -o statesaver.o $(LDLIBS) statesaver.cpp
+	$(CXX) $(CXXFLAGS) -I./ -fPIC -c -o statesaver.o statesaver.cpp
 
 qsim-load.o: qsim-load.cpp qsim-load.h qsim.h
-	$(CXX) $(CXXFLAGS) -I./ -fPIC -shared -c -o qsim-load.o qsim-load.cpp
+	$(CXX) $(CXXFLAGS) -I./ -fPIC -c -o qsim-load.o qsim-load.cpp
 
 qsim-prof.o: qsim-prof.cpp qsim-prof.h qsim.h
-	$(CXX) $(CXXFLAGS) -I./ -fPIC -shared -c -o qsim-prof.o qsim-prof.cpp
+	$(CXX) $(CXXFLAGS) -I./ -fPIC -c -o qsim-prof.o qsim-prof.cpp
 
 qsim-fastforwarder: fastforwarder.cpp statesaver.o statesaver.h libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -I ./ -L ./ -pthread \
