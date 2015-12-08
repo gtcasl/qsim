@@ -211,13 +211,13 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
   char* disk_path   = strdup(disk_path_s.c_str());
 
   static const char *argv_interactive_a32[] = {
-		"qemu", "-monitor", "/dev/null",
-		"-m", ramsize, "-M", "vexpress-a9",
-		"-kernel", kernel_path,
-		"-initrd", initrd_path,
-		"-sd", disk_path,
-		"-append", "root=/dev/mmcblk0p2 lpj=34920500",
-		NULL
+    "qemu", "-monitor", "/dev/null",
+    "-m", ramsize, "-M", "vexpress-a9",
+    "-kernel", kernel_path,
+    "-initrd", initrd_path,
+    "-sd", disk_path,
+    "-append", "root=/dev/mmcblk0p2 lpj=34920500",
+    NULL
   };
   std::string a64_img_options_s = "file=" + disk_path_s + ",id=coreimg,cache=unsafe,if=none";
   char* a64_img_options = strdup(a64_img_options_s.c_str());
@@ -233,7 +233,7 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
     "-device", "virtio-net-device,netdev=unet",
     "-kernel", kernel_path,
     "-initrd", initrd_path,
-    "-append", "root=/dev/sda2 lpj=34920500 nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
+    "-append", "root=/dev/sda2 nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
     "-display", "sdl",
     "-nographic",
     "-redir", "tcp:2222::22",
@@ -244,13 +244,13 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
   std::string bios_path_s = qsim_prefix + "qemu/pc-bios";
   char* bios_path = strdup(bios_path_s.c_str());
   static const char *argv_interactive_x86[] = {
-    "qemu", "-no-hpet", "-no-acpi",
+    "qemu", "-no-hpet",
     "-L", bios_path,
     "-m", ramsize,
     "-hda",  disk_path,
     "-kernel", kernel_path,
     "-initrd", initrd_path,
-    "-append", "root=/dev/sda1 lpj=34920500 console=ttyAMA0,115200 console=tty"
+    "-append", "root=/dev/sda1 console=ttyAMA0,115200 console=tty"
     " console=ttyS0 nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
     "-display", "sdl",
     "-nographic",

@@ -78,7 +78,7 @@ class CacheHitCounter {
         delete [] addresses;
     }
 
-    void insert(size_t cacheLine, size_t hashedCacheLine) {
+    bool insert(size_t cacheLine, size_t hashedCacheLine) {
 
         size_t col = hashedCacheLine % width; 
         size_t* c  = &addresses[col*depth];
@@ -89,11 +89,12 @@ class CacheHitCounter {
             c[r] = pc;
             if (oldC == cacheLine) {
                 hits++;
-                return;
+                return true;
             }
             pc = oldC;
         }
         misses++;
+        return false;
     };
 
     size_t getHits() {
@@ -124,19 +125,28 @@ class CacheHitCounter {
 class TraceWriter {
     public:
         TraceWriter(OSDomain &osd) : 
-            osd(osd), finished(false) 
+            osd(osd), ran(false), finished(false)
         { 
-            //osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
-            counter.initialize(MB(8));
+            l1cache = new CacheHitCounter[osd.get_n()];
+            for (int i = 0; i < osd.get_n(); i++)
+                l1cache[i].initialize(KB(32));
+            osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
+            l2cache.initialize(MB(8));
+            total_instructions = 1;
         }
 
         bool hasFinished() { return finished; }
 
         int app_start_cb(int c) {
-            static bool ran = false;
+            total_instructions = 1;
+            for (int i = 0; i < osd.get_n(); i++)
+                l1cache[i].clear();
+	    l2cache.clear();
             if (!ran) {
                 ran = true;
+                osd.set_inst_cb(this, &TraceWriter::inst_cb);
                 osd.set_mem_cb(this, &TraceWriter::mem_cb);
+                osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
 
                 return 1;
             }
@@ -144,19 +154,50 @@ class TraceWriter {
             return 0;
         }
 
-        void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
-            uint64_t hashed_addr = v ^ (v >> 13);
-            counter.insert(v, hashed_addr);
+        void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b, 
+                enum inst_type t)
+        {
+            total_instructions++;
         }
 
-        double get_hit_ratio() { return counter.getHitRatio(); }
+        void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
+            uint64_t hashed_addr = v ^ (v >> 13);
+            if (!l1cache[c].insert(v, hashed_addr))
+                l2cache.insert(v, hashed_addr);
+        }
+
+        void print_stats()
+        {
+            if (!ran) return;
+            std::cout << "L1 Hit%: (";
+            for (int i = 0; i < osd.get_n(); i++)
+                std::cout << " " << std::fixed << std::setw(5) <<
+                    std::setprecision(2) << l1cache[i].getHits() * 100.0 /
+                    l1cache[i].getTotalAccesses();
+
+            std::cout << "), L2 Hit%: " << l2cache.getHits() * 100.0 /
+                            l2cache.getTotalAccesses() << ", L2 MPKI : " <<
+                            (l2cache.getTotalAccesses() - l2cache.getHits()) * 1000.0 
+                                                   / total_instructions << std::endl;
+        }
+
+        int app_end_cb(int c)
+        {
+            finished = true;
+            print_stats();
+            return 0;
+        }
+
+        double get_hit_ratio() { return l2cache.getHitRatio(); }
 
     private:
         OSDomain &osd;
+        bool ran;
         bool finished;
 
         static const char * itype_str[];
-        CacheHitCounter counter;
+        CacheHitCounter *l1cache, l2cache;
+        uint64_t total_instructions;
 };
 
 const char *TraceWriter::itype_str[] = {
@@ -214,22 +255,15 @@ int main(int argc, char** argv) {
 
     osd.connect_console(std::cout);
 
-    unsigned long inst_per_iter = 1000000000;
-    tw.app_start_cb(0);
+    unsigned long inst_per_iter = 1000000000, inst_run;
     // The main loop: run until 'finished' is true.
-    unsigned k = 0; // outer loop counter
     std::cout << "Starting execution..." << std::endl;
-    while (!tw.hasFinished()) {
-        for (unsigned i = 0; i < 100; i++) {
-            for (unsigned long j = 0; j < n_cpus; j++) {
-                osd.run(j, inst_per_iter);
-            }
-            std::cerr << ((i+1) + k * 100) * inst_per_iter / 1e6 << " million instructions, hit ratio " <<
-                tw.get_hit_ratio() << std::endl;
-            fflush(NULL);
-        }
-        k++;
-        osd.timer_interrupt();
+    inst_run = inst_per_iter;
+    while (!(inst_per_iter - inst_run)) {
+      inst_run = 0;
+      inst_run = osd.run(0, inst_per_iter);
+      //osd.timer_interrupt();
+      tw.print_stats();
     }
 
     if (outfile) { outfile->close(); }

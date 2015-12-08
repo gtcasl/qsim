@@ -78,7 +78,7 @@ class CacheHitCounter {
         delete [] addresses;
     }
 
-    void insert(size_t cacheLine, size_t hashedCacheLine) {
+    bool insert(size_t cacheLine, size_t hashedCacheLine) {
 
         size_t col = hashedCacheLine % width; 
         size_t* c  = &addresses[col*depth];
@@ -89,11 +89,12 @@ class CacheHitCounter {
             c[r] = pc;
             if (oldC == cacheLine) {
                 hits++;
-                return;
+                return true;
             }
             pc = oldC;
         }
         misses++;
+        return false;
     };
 
     size_t getHits() {
@@ -126,14 +127,18 @@ class TraceWriter {
         TraceWriter(OSDomain &osd) : 
             osd(osd), ran(false), finished(false)
         { 
+            l1cache = new CacheHitCounter[osd.get_n()];
+            for (int i = 0; i < osd.get_n(); i++)
+                l1cache[i].initialize(KB(32));
             osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
-            counter.initialize(MB(8));
+            l2cache.initialize(MB(8));
             total_instructions = 1;
         }
 
         bool hasFinished() { return finished; }
 
         int app_start_cb(int c) {
+            static bool ran = false;
             total_instructions = 1;
             if (!ran) {
                 ran = true;
@@ -155,15 +160,22 @@ class TraceWriter {
 
         void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
             uint64_t hashed_addr = v ^ (v >> 13);
-            counter.insert(v, hashed_addr);
+            if (!l1cache[c].insert(v, hashed_addr))
+                l2cache.insert(v, hashed_addr);
         }
 
         void print_stats()
         {
             if (!ran) return;
-            std::cout << "Hit%: " << counter.getHits() * 100.0 /
-                            counter.getTotalAccesses() << ", MPKI : " <<
-                            (counter.getTotalAccesses() - counter.getHits()) * 1000.0 
+            std::cout << "L1 Hit%: (";
+            for (int i = 0; i < osd.get_n(); i++)
+                std::cout << " " << std::fixed << std::setw(5) <<
+                    std::setprecision(2) << l1cache[i].getHits() * 100.0 /
+                    l1cache[i].getTotalAccesses();
+
+            std::cout << "), L2 Hit%: " << l2cache.getHits() * 100.0 /
+                            l2cache.getTotalAccesses() << ", L2 MPKI : " <<
+                            (l2cache.getTotalAccesses() - l2cache.getHits()) * 1000.0 
                                                    / total_instructions << std::endl;
         }
 
@@ -174,7 +186,7 @@ class TraceWriter {
             return 0;
         }
 
-        double get_hit_ratio() { return counter.getHitRatio(); }
+        double get_hit_ratio() { return l2cache.getHitRatio(); }
 
     private:
         OSDomain &osd;
@@ -182,7 +194,7 @@ class TraceWriter {
         bool finished;
 
         static const char * itype_str[];
-        CacheHitCounter counter;
+        CacheHitCounter *l1cache, l2cache;
         uint64_t total_instructions;
 };
 
@@ -241,7 +253,6 @@ int main(int argc, char** argv) {
 
     osd.connect_console(std::cout);
 
-    //tw.app_start_cb(0);
     // The main loop: run until 'finished' is true.
     std::cout << "Starting execution..." << std::endl;
     while (!tw.hasFinished()) {
