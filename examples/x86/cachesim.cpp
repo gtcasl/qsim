@@ -221,7 +221,7 @@ int main(int argc, char** argv) {
         osd_p = new OSDomain(argv[3]);
         n_cpus = osd_p->get_n();
     } else {
-        osd_p = new OSDomain(n_cpus, qsim_prefix + "/../x86_64_images/vmlinuz", "x86");
+        osd_p = new OSDomain(n_cpus, qsim_prefix + "/../x86_64_images/vmlinuz", "x86", QSIM_INTERACTIVE);
     }
     OSDomain &osd(*osd_p);
 
@@ -240,8 +240,11 @@ int main(int argc, char** argv) {
     std::cout << "Starting execution..." << std::endl;
     inst_run = inst_per_iter;
     while (!(inst_per_iter - inst_run)) {
-        inst_run = osd.run(0, inst_per_iter);
-        osd.timer_interrupt();
+        for (unsigned i = 0; i < 100; i++) {
+            for (unsigned j = 0; j < n_cpus; j++) {
+                osd.run(j, 10000);
+            }
+        }
     }
 
     if (outfile) { outfile->close(); }

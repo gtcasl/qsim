@@ -124,7 +124,7 @@ class CacheHitCounter {
 class TraceWriter {
     public:
         TraceWriter(OSDomain &osd) : 
-            osd(osd), finished(false) 
+            osd(osd), ran(false), finished(false)
         { 
             osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
             counter.initialize(MB(8));
@@ -134,7 +134,6 @@ class TraceWriter {
         bool hasFinished() { return finished; }
 
         int app_start_cb(int c) {
-            static bool ran = false;
             total_instructions = 1;
             if (!ran) {
                 ran = true;
@@ -159,12 +158,19 @@ class TraceWriter {
             counter.insert(v, hashed_addr);
         }
 
-        int app_end_cb(int c)   {
-            finished = true;
+        void print_stats()
+        {
+            if (!ran) return;
             std::cout << "Hit%: " << counter.getHits() * 100.0 /
                             counter.getTotalAccesses() << ", MPKI : " <<
                             (counter.getTotalAccesses() - counter.getHits()) * 1000.0 
                                                    / total_instructions << std::endl;
+        }
+
+        int app_end_cb(int c)
+        {
+            finished = true;
+            print_stats();
             return 0;
         }
 
@@ -172,6 +178,7 @@ class TraceWriter {
 
     private:
         OSDomain &osd;
+        bool ran;
         bool finished;
 
         static const char * itype_str[];
@@ -234,14 +241,15 @@ int main(int argc, char** argv) {
 
     osd.connect_console(std::cout);
 
-    tw.app_start_cb(0);
+    //tw.app_start_cb(0);
     // The main loop: run until 'finished' is true.
     std::cout << "Starting execution..." << std::endl;
     while (!tw.hasFinished()) {
       for (unsigned i = 0; i < 100; i++) {
-          osd.run(0, 10000);
+          osd.run(0, 100000);
       }
       osd.timer_interrupt();
+      tw.print_stats();
     }
 
     if (outfile) { outfile->close(); }
