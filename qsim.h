@@ -22,11 +22,74 @@
 #include "mgzd.h"
 
 namespace Qsim {
-  class QemuCpu {
+  struct QueueItem {
+    // Constructors for use within Queue; automatically set type field to
+    // appropriate value.
+    QueueItem(uint64_t vadr, uint64_t padr, uint8_t len, const uint8_t *bytes):
+      type(INST)
+    {
+      data.inst.vaddr = vadr;
+      data.inst.paddr = padr;
+      data.inst.len   = len;
+      memcpy((void *)data.inst.bytes, (const void *)bytes, len);
+    }
+
+    QueueItem(uint64_t vaddr, uint64_t paddr, uint8_t size, int      type ):
+      type(MEM)
+    {
+      data.mem.vaddr  = vaddr;
+      data.mem.paddr  = paddr;
+      data.mem.size   = size;
+      data.mem.type   = type;
+    }
+
+    QueueItem(uint8_t vec):
+      type(INTR)
+    {
+      data.intr.vec   = vec;
+      type            = INTR;
+    }
+
+    enum {INST, MEM, INTR} type;
+    union {
+      struct {
+        uint64_t vaddr; uint64_t paddr; uint8_t len ; uint8_t  bytes[15];
+      } inst;
+      struct {
+        uint64_t vaddr; uint64_t paddr; uint8_t size; int      type ;
+      } mem;
+      struct {
+        uint8_t    vec;
+      } intr;
+    } data;
+  };
+
+  class Cpu {
+  public:
+    // Initialize with named parameter set p.
+    Cpu() {}
+    virtual ~Cpu();
+
+    // Run for n instructions.
+    virtual uint64_t run(unsigned n) = 0;
+
+    // Trigger an interrupt with vector v.
+    virtual int interrupt(uint8_t v) = 0;
+
+    // Set appropriate callbacks.
+    virtual void set_atomic_cb(atomic_cb_t cb) = 0;
+    virtual void set_magic_cb (magic_cb_t  cb) = 0;
+    virtual void set_int_cb   (int_cb_t    cb) = 0;
+    virtual void set_inst_cb  (inst_cb_t   cb) = 0;
+    virtual void set_mem_cb   (mem_cb_t    cb) = 0;
+    virtual void set_reg_cb   (reg_cb_t    cb) = 0;
+  };
+
+  class QemuCpu : public Cpu {
   private:
     // Local copy of ID number                                                 
     int cpu_id;
-	std::string cpu_type;
+    std::string cpu_type;
 
     // The qemu library object                                                 
     Mgzd::lib_t qemu_lib;
@@ -77,6 +140,8 @@ namespace Qsim {
     virtual ~QemuCpu();
  
     uint64_t run(unsigned n) { return qemu_run(n); }
+
+    std::string getCpuType() { return cpu_type; }
 
     // Save state to file.
     void save_state(std::ostream &file);
@@ -201,6 +266,8 @@ namespace Qsim {
     int           get_tid (uint16_t i);
     enum cpu_mode get_mode(uint16_t i);
     enum cpu_prot get_prot(uint16_t i);
+
+    std::string getCpuType(uint16_t i);
     
     // Run CPU i for n instructions, if it's ready. Otherwise, do nothing.
     // Returns the number of instructions the CPU ran for (either n or 0)
@@ -260,7 +327,7 @@ namespace Qsim {
  
     struct io_cb_obj_base {
       virtual ~io_cb_obj_base() {}
-      virtual uint32_t *operator()(int, uint64_t, uint8_t, int, uint32_t)=0;
+      virtual void operator()(int, uint64_t, uint8_t, int, uint32_t)=0;
     };
 
     struct mem_cb_obj_base {
@@ -320,22 +387,10 @@ namespace Qsim {
       typedef uint32_t *(T::*io_cb_t)(int, uint64_t, uint8_t, int, uint32_t);
       T* p; io_cb_t f;
       io_cb_obj(T* p, io_cb_t f) : p(p), f(f) {}
-      uint32_t *operator()
-        (int cpu_id, uint64_t port, uint8_t size, int type, uint32_t val)
-      {
-        return ((p)->*(f))(cpu_id, port, size, type, val);
-      }
-    };
-
-    template <typename T> struct io_cb_old_obj : public io_cb_obj_base {
-      typedef void (T::*io_cb_t)(int, uint64_t, uint8_t, int, uint32_t);
-      T* p; io_cb_t f;
-      io_cb_old_obj(T* p, io_cb_t f) : p(p), f(f) {}
-      uint32_t *operator()
+      void operator()
         (int cpu_id, uint64_t port, uint8_t size, int type, uint32_t val)
       {
         ((p)->*(f))(cpu_id, port, size, type, val);
-        return NULL;
       }
     };
 
@@ -456,14 +511,6 @@ namespace Qsim {
     }
 
     template <typename T>
-      io_cb_handle_t set_io_cb(T* p, typename io_cb_old_obj<T>::io_cb_t f)
-    {
-      io_cbs.push_back(new io_cb_old_obj<T>(p, f));
-      set_io_cb(io_cb_s);
-      return io_cbs.end() - 1;
-    }
-
-    template <typename T>
       mem_cb_handle_t set_mem_cb(T* p, typename mem_cb_obj<T>::mem_cb_t f)
     {
       mem_cbs.push_back(new mem_cb_obj<T>(p, f));
@@ -528,6 +575,10 @@ namespace Qsim {
     void unset_app_start_cb(start_cb_handle_t);
     void unset_app_end_cb(end_cb_handle_t);
     void unset_trans_cb(trans_cb_handle_t);
+
+    // Set the "application start" and "application end" callbacks.
+    void set_app_start_cb(int (*)(int));
+    void set_app_end_cb  (int (*)(int));
 
     // Get the number of CPUs
     int get_n() const { return n; }
@@ -596,12 +647,14 @@ namespace Qsim {
     void assign_id();
 
     std::string linebuf;
-
     uint16_t              n      ;       // Number of CPUs
     std::vector<QemuCpu*> cpus   ;       // Vector of CPU objects
     std::vector<bool>     idlevec;       // Whether CPU is in idle loop.
     std::vector<uint16_t> tids   ;       // Current tid of each CPU
     std::vector<bool>     running;       // Whether CPU is running.
+
+    int (*app_start_cb)(int);  // Call this when the app starts running
+    int (*app_end_cb  )(int);  // Call this when the app finishes
 
     std::vector<std::ostream *>       consoles;
    
@@ -619,9 +672,9 @@ namespace Qsim {
                           enum inst_type type);
     void inst_cb(int cpu_id, uint64_t va, uint64_t pa,
                  uint8_t l, const uint8_t *bytes, enum inst_type type);
-    static void mem_cb_s(int cpu_id, uint64_t va, uint64_t pa, 
+    static void mem_cb_s(int cpu_id, uint64_t va, uint64_t pa,
                         uint8_t size, int type);
-    void mem_cb(int cpu_id, uint64_t va, uint64_t pa, 
+    void mem_cb(int cpu_id, uint64_t va, uint64_t pa,
                uint8_t size, int type);
     static uint32_t *io_cb_s(int cpu_id, uint64_t port, uint8_t s, int type,
                              uint32_t data);
@@ -639,6 +692,43 @@ namespace Qsim {
 
     qsim_mode mode;
   };
+
+  // These can be attached on a per-CPU basis to store info about the
+  // instruction stream.
+  class Queue : public std::queue<QueueItem> {
+  public:
+    Queue(OSDomain &cd, int cpu, bool make_hlt_timer_interrupt = true);
+    ~Queue();
+    void set_filt(bool user, bool krnl, bool prot, bool real, int tid = -1);
+
+  private:
+    OSDomain *cd     ;
+    int      cpu     ;
+    bool     hlt     ;
+
+    int      flt_tid ;
+    bool     flt_krnl;
+    bool     flt_user;
+    bool     flt_prot;
+    bool     flt_real;
+
+    static std::vector<Queue*> *queues;
+
+    // The callbacks; static. Use queues[cpuid] to find the appropriate queue.
+    static void inst_cb_flt(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
+                            enum inst_type);
+    static void inst_cb_hlt(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
+                            enum inst_type);
+    static void inst_cb    (int, uint64_t, uint64_t, uint8_t, const uint8_t *,
+                            enum inst_type);
+
+    static void mem_cb     (int, uint64_t, uint64_t, uint8_t, int            );
+    static void mem_cb_flt (int, uint64_t, uint64_t, uint8_t, int            );
+
+    static int  int_cb     (int, uint8_t                                     );
+    static int  int_cb_flt (int, uint8_t                                     );
+  };
+
 };
 
 #endif
