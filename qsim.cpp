@@ -47,6 +47,7 @@ template <typename T> static inline void read_header_field(FILE*    f,
 	  fprintf(stderr, "Read failed\n");
 }
 
+__attribute__((unused))
 static inline void read_data_chunk(FILE*    f, 
                                    uint64_t offset,
                                    uint8_t* ptr, 
@@ -55,7 +56,7 @@ static inline void read_data_chunk(FILE*    f,
   fseek(f, offset, SEEK_SET);
   size_t ret = fread(ptr, size, 1, f);
   if (ret == 0)
-	  fprintf(stderr, "Read failed\n");
+    fprintf(stderr, "Read failed\n");
 }
 
 // Find the libqemu-qsim.so library.
@@ -134,36 +135,6 @@ void Qsim::QemuCpu::load_linux(const char* bzImage) {
     exit(1);
   }
 
-  /*
-  // Load Linux kernel from file.
-  uint8_t  setup_sects;
-  uint32_t syssize_16;
-  uint64_t pref_address;
-
-  read_header_field(f, 0x1f1, setup_sects );
-  read_header_field(f, 0x1f4, syssize_16  );
-  read_header_field(f, 0x258, pref_address);
-  
-
-  read_data_chunk(f, 
-                  0x0000, 
-                  ramdesc->mem_ptr + 0x10000 - 0x200, 
-                  setup_sects*512 + 512);
-  read_data_chunk(f, 
-                  setup_sects*512 + 512, 
-                  ramdesc->mem_ptr + 0x100000, 
-                  syssize_16*16);
-
-  if (cpu_type == "x86") {
-	// Set CPU registers to boot linux kernel.
-	set_reg(QSIM_RIP, 0x0000 );
-	set_reg(QSIM_CS,  0x1000 );
-	set_reg(QSIM_DS,  0x1000 - 0x20);
-	set_reg(QSIM_RSP, 0x1000 );
-	set_reg(QSIM_SS,  0x200  );
-  }
-  */
-
   // Close bzImage
   fclose(f);
 }
@@ -202,7 +173,6 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   Mgzd::sym(qemu_set_trans_cb,    qemu_lib, "set_trans_cb"        );
   Mgzd::sym(qemu_set_gen_cbs,     qemu_lib, "set_gen_cbs"         );
   Mgzd::sym(qemu_set_sys_cbs,     qemu_lib, "set_sys_cbs"         );
-  Mgzd::sym(ramdesc_p,            qemu_lib, "qsim_ram"            );
   Mgzd::sym(qemu_get_reg,         qemu_lib, "get_reg"             );
   Mgzd::sym(qemu_set_reg,         qemu_lib, "set_reg"             );
   Mgzd::sym(qemu_mem_rd,          qemu_lib, "mem_rd"              );
@@ -211,10 +181,122 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   Mgzd::sym(qemu_mem_wr_virt,     qemu_lib, "mem_wr_virt"         );
 }
 
-Qsim::QemuCpu::QemuCpu(int id, 
-		       const char* kernel, 
-		       unsigned ram_mb, int n_cpus, std::string type) :
-	cpu_id(id&0xffff), ram_size_mb(ram_mb)
+const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::string cpu_type, qsim_mode mode)
+{
+  std::string qsim_prefix(getenv("QSIM_PREFIX"));
+  qsim_prefix += "/";
+  std::stringstream ncpus_ss;
+  ncpus_ss << n_cpus;
+  char* ncpus = strdup(ncpus_ss.str().c_str());
+  std::stringstream ramsize_ss;
+  ramsize_ss << ram_size;
+  char* ramsize = strdup(ramsize_ss.str().c_str());
+  std::string kernel_s(kernel);
+  std::string image_prefix;
+
+  if (cpu_type == "arm32")
+    image_prefix = "arm";
+  else if (cpu_type == "a64") {
+    image_prefix = "arm64";
+    mode = QSIM_INTERACTIVE;
+  } else if (cpu_type == "x86")
+    image_prefix = "x86_64";
+
+  std::string kernel_path_s = qsim_prefix + "../" + image_prefix + "_images/vmlinuz";
+  std::string initrd_path_s = qsim_prefix + "../" + image_prefix + "_images/initrd.img";
+  std::string disk_path_s   = qsim_prefix + "../" + image_prefix + "_images/" +
+                                                  image_prefix + "disk.img";
+
+  char* kernel_path = strdup(kernel_path_s.c_str());
+  char* initrd_path = strdup(initrd_path_s.c_str());
+  char* disk_path   = strdup(disk_path_s.c_str());
+
+  static const char *argv_interactive_a32[] = {
+    "qemu", "-monitor", "/dev/null",
+    "-m", ramsize, "-M", "vexpress-a9",
+    "-kernel", kernel_path,
+    "-initrd", initrd_path,
+    "-sd", disk_path,
+    "-append", "root=/dev/mmcblk0p2 lpj=34920500",
+    NULL
+  };
+  std::string a64_img_options_s = "file=" + disk_path_s + ",id=coreimg,cache=unsafe,if=none";
+  char* a64_img_options = strdup(a64_img_options_s.c_str());
+  static const char *argv_interactive_a64[] = {
+    "qemu", 
+    "-m", ramsize, "-M", "virt",
+    "-cpu", "cortex-a57",
+    "-global", "virtio-blk-device.scsi=off",
+    "-device", "virtio-scsi-device,id=scsi",
+    "-drive",  a64_img_options,
+    "-device", "scsi-hd,drive=coreimg",
+    "-netdev", "user,id=unet",
+    "-device", "virtio-net-device,netdev=unet",
+    "-kernel", kernel_path,
+    "-initrd", initrd_path,
+    "-append", "root=/dev/sda2 nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
+    "-display", "sdl",
+    "-nographic",
+    "-redir", "tcp:2222::22",
+    "-smp", ncpus,
+    NULL
+  };
+
+  std::string bios_path_s = qsim_prefix + "qemu/pc-bios";
+  char* bios_path = strdup(bios_path_s.c_str());
+  static const char *argv_interactive_x86[] = {
+    "qemu", "-no-hpet",
+    "-L", bios_path,
+    "-m", ramsize,
+    "-hda",  disk_path,
+    "-kernel", kernel_path,
+    "-initrd", initrd_path,
+    "-append", "root=/dev/sda1 console=ttyAMA0,115200 console=tty"
+    " console=ttyS0 nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
+    "-display", "sdl",
+    "-nographic",
+    "-redir", "tcp:2223::22",
+    "-smp", ncpus,
+    //"--enable-kvm",
+    NULL
+
+  };
+  //static char *argv_headless_a32[];
+  //static char *argv_headless_a64[];
+  initrd_path_s = qsim_prefix + "initrd/initrd.cpio";
+  static const char *argv_headless_x86[] = {
+    "qemu", "-no-hpet", "-no-acpi",
+    "-L", bios_path,
+    "-m", ramsize,
+    "-kernel", strdup(kernel),
+    "-initrd", strdup(initrd_path_s.c_str()),
+    "-append", "init=/init lpj=34920500 console=tty console=ttyS0 console=/dev/ttyS0"
+    " nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
+    "-display", "sdl",
+    "-nographic",
+    "-smp", ncpus,
+    //"--enable-kvm",
+    NULL
+  };
+
+  if (mode == QSIM_INTERACTIVE) {
+    if (cpu_type == "x86")
+      return argv_interactive_x86;
+    else if (cpu_type == "a64")
+      return argv_interactive_a64;
+    else
+      return argv_interactive_a32;
+  } else {
+    if (cpu_type == "x86")
+      return argv_headless_x86;
+  }
+
+  return NULL;
+}
+
+Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
+		                   int n_cpus, std::string type, qsim_mode mode) :
+	cpu_id(id & 0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
   cpu_type = type;
@@ -222,47 +304,13 @@ Qsim::QemuCpu::QemuCpu(int id,
   // Load the library file and get pointers
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
+  const char** argv = get_qemu_args(kernel, ram_mb, n_cpus, type, mode);
   // Initialize Qemu library
-  qemu_init(NULL, ram_size_ss.str().c_str(), id, n_cpus);
-  ramdesc = *ramdesc_p;
-
+  qemu_init(argv);
 
   if (cpu_type == "x86") {
-	  // Load the Linux kernel
-	  load_linux(kernel);
-	  // Set initial values for registers.
-      /*
-	  set_reg(QSIM_RIP, 0x0000       );
-	  set_reg(QSIM_CS,  0x1000       );
-	  set_reg(QSIM_DS,  0x1000 - 0x20);
-	  set_reg(QSIM_RSP, 0x1000       );
-	  set_reg(QSIM_SS,  0x200        );
-      */
-  }
-
-  // Initialize mutexes.
-  pthread_mutex_init(&irq_mutex, NULL);
-  pthread_mutex_init(&cb_mutex, NULL);
-}
-
-Qsim::QemuCpu::QemuCpu(int id, 
-		       Qsim::QemuCpu* master_cpu, 
-		       unsigned ram_mb, int n_cpus,
-			   std::string type)
-: cpu_id(id&0xffff), ram_size_mb(ram_mb)
-{
-  std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
-  cpu_type = type;
-
-  load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id, n_cpus);
-  ramdesc = master_cpu->ramdesc;
-
-  if (cpu_type == "x86") {
-	// Set initial values for registers.
-	set_reg(QSIM_CS,  0x0000);
-	set_reg(QSIM_DS,  0x0000);
-	set_reg(QSIM_RIP, 0x0000);
+    // Load the Linux kernel
+    load_linux(kernel);
   }
 
   // Initialize mutexes.
@@ -272,7 +320,7 @@ Qsim::QemuCpu::QemuCpu(int id,
 
 Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu, 
                        unsigned ram_mb, int n_cpus, string type)
-  : cpu_id(id&0xffff), ram_size_mb(master_cpu->ram_size_mb)
+  : cpu_id(id & 0xffff), ram_size_mb(master_cpu->ram_size_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
   cpu_type = type;
@@ -281,8 +329,7 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
   // Initialize Qemu library
-  qemu_init(master_cpu->ramdesc, ram_size_ss.str().c_str(), id, n_cpus);
-  ramdesc = master_cpu->ramdesc;
+  //qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
 
   int max_regs = 0;
   if (cpu_type == "x86")
@@ -305,19 +352,15 @@ Qsim::QemuCpu::QemuCpu(int id, istream &file, Qsim::QemuCpu* master_cpu,
 }
 
 Qsim::QemuCpu::QemuCpu(int id, istream &file, unsigned ram_mb, int n_cpus,
-		               std::string type) :
-  cpu_id(id&0xffff), ram_size_mb(ram_mb)
+                       std::string type) :
+  cpu_id(id & 0xffff), ram_size_mb(ram_mb)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
   cpu_type = type;
 
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
-  qemu_init(NULL, ram_size_ss.str().c_str(), id, n_cpus);
-  ramdesc = *ramdesc_p;
-
-  // Read RAM state.
-  zrun_compress_read(file, (void*)ramdesc->mem_ptr, ramdesc->sz);
+  //qemu_init(NULL, NULL, ram_size_ss.str().c_str(), id, n_cpus);
 
   int max_regs = 0;
   if (cpu_type == "x86")
@@ -356,18 +399,17 @@ void Qsim::OSDomain::assign_id() {
   pthread_mutex_unlock(&osdomains_lock);
 }
 
-Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, unsigned ram_mb):
-  n(n), waiting_for_eip(0)
+Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, qsim_mode mode, unsigned ram_mb):
+	n(n), waiting_for_eip(0)
 {
-  pthread_mutex_init(&pending_ipis_mutex, NULL);
   assign_id();
 
   ram_size_mb = ram_mb;
 
   if (n > 0) {
     // Create a master CPU using the given kernel
-	cpus.push_back(new QemuCpu(id << 16, kernel_path.c_str(), ram_mb, n, cpu_type));
-	cpus[0]->set_magic_cb(magic_cb_s);
+    cpus.push_back(new QemuCpu(id << 16, kernel_path.c_str(), ram_mb, n, cpu_type, mode));
+    cpus[0]->set_magic_cb(magic_cb_s);
 
     // Set master CPU state to "running"
     running.push_back(true);
@@ -375,20 +417,13 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, unsign
     // Initialize Linux task ID to zero and idle to true
     tids.push_back(0);
     idlevec.push_back(true);
-
-    // Create an empty pending-ipi queue.
-    pending_ipis.push_back(queue<uint8_t>());
   }
-
-  // Keep a copy of the QEMU RAM descriptor.
-  // ramdesc = cpus[0]->get_ramdesc();
 }
 
 // Create an OSDomain from a saved state file.
 Qsim::OSDomain::OSDomain(const char* filename):
   waiting_for_eip(0)
 {
-  pthread_mutex_init(&pending_ipis_mutex, NULL);
   assign_id();
 
   ifstream file(filename);
@@ -408,14 +443,10 @@ Qsim::OSDomain::OSDomain(const char* filename):
   if (n > 0) {
     cpus.push_back(new QemuCpu(id << 16, file, ram_size_mb, n));
     cpus[0]->set_magic_cb(magic_cb_s);
-    pending_ipis.push_back(queue<uint8_t>());
     tids.push_back(0);
     idlevec.push_back(true);
     running.push_back(true);
   }
-
-  // Get a copy of the RAM descriptor.
-  // ramdesc = cpus[0]->get_ramdesc();
 
   file.close();
 }
@@ -430,8 +461,6 @@ void Qsim::OSDomain::save_state(std::ostream &o) {
 
   o.write((const char*)&n_cores, sizeof(n_cores));
   o.write((const char*)&ram_size_mb, sizeof(ram_size_mb));
-
-  zrun_compress_write(o,(const void*)ramdesc.mem_ptr,ramdesc.sz);
 
   cpus[0]->save_state(o);
 }
@@ -463,17 +492,8 @@ Qsim::OSDomain::cpu_prot Qsim::OSDomain::get_prot(uint16_t i) {
 
 unsigned Qsim::OSDomain::run(uint16_t i, unsigned n) {
   if(i != 0)            { return n;               }
-  // First, if there are any pending IPIs try to clear them.
-  pthread_mutex_lock(&pending_ipis_mutex);
-  if (!pending_ipis[i].empty()) {
-    uint8_t fv = pending_ipis[i].front();
-    int     rv = cpus[i]->interrupt(fv);
-    pending_ipis[i].pop();
-    if (rv != -1 && rv != 0xef && rv != 0x30) pending_ipis[i].push(rv);
-  }
-  pthread_mutex_unlock(&pending_ipis_mutex);
 
-  if (running[i]) { return cpus[i]->run(n); } 
+  if (running[0]) { return cpus[0]->run(n); } 
 
   return 0;
 }
@@ -698,21 +718,12 @@ int Qsim::OSDomain::magic_cb_s(int cpu_id, uint64_t rax) {
 
 int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   int rval = 0;
-  
+
   // Start by calling other registered magic instruction callbacks. 
   std::vector<magic_cb_obj_base*>::iterator i;
  
   for (i = magic_cbs.begin(); i != magic_cbs.end(); ++i)
     if ((**i)(cpu_id, rax)) rval = 1;
-
-  /*
-  if (waiting_for_eip != 0) {
-    cpus[waiting_for_eip]->set_reg(QSIM_CS, rax>>4);
-    running[waiting_for_eip] = true;
-    waiting_for_eip = 0;
-    return rval;
-  }
-  */
 
   // If this is a "CD Ignore" magic instruction, ignore it.
   if ((rax&0xffff0000) == 0xcd160000) return rval;
@@ -737,7 +748,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
   } else if ( (rax & 0xffff0000) == 0xc75c0000 ) {
     // Context switch
     idlevec[cpu_id] = false;
-    tids[cpu_id] = rax&0xffff;
+    tids[cpu_id] = rax & 0xffff;
   } else if ( (rax & 0xffff0000) == 0xb0070000 ) {
     // CPU bootstrap
     waiting_for_eip = rax&0xffff;
@@ -745,13 +756,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     // Inter-processor interrupt
     uint16_t cpu = (rax & 0x00ffff00)>>8;
     uint8_t  vec = (rax & 0x000000ff);
-    int v = cpus[cpu]->interrupt(vec);
-    
-    if (v != -1 && v != 0xef && v != 0x30) {
-      pthread_mutex_lock(&pending_ipis_mutex);
-      pending_ipis[cpu].push((uint8_t)v);
-      pthread_mutex_unlock(&pending_ipis_mutex);
-    }
+    rval = cpus[cpu]->interrupt(vec);
   } else if ( (rax & 0xffffffff) == 0xc7c7c7c7 ) {
     // CPU count request
     //cpus[cpu_id]->set_reg(QSIM_RAX, n);
@@ -771,7 +776,6 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     for (i = end_cbs.begin(); i != end_cbs.end(); ++i) {
       if ((**i)(cpu_id)) rval = 1;
     }
-    //for (unsigned i = 0; i < n; i++) running[i] = false;
   } else if ( (rax & 0xfffffff0) != 0x00000000 &&
               (rax & 0xfffffff0) != 0x80000000 &&
               (rax & 0xfffffff0) != 0x40000000 ) {

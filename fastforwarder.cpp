@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
 #ifdef LOAD
   Qsim::OSDomain osd("state.debug");
 #else
-  Qsim::OSDomain osd(cpus, argv[1], "x86", ram_mb);
+  Qsim::OSDomain osd(cpus, argv[1], "x86", QSIM_HEADLESS, ram_mb);
 #endif
   Magic_cb_s magic_cb_s(osd);
 

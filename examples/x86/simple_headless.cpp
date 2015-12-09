@@ -37,7 +37,7 @@ public:
       osd.set_mem_cb(this, &TraceWriter::mem_cb);
       osd.set_int_cb(this, &TraceWriter::int_cb);
       osd.set_io_cb(this, &TraceWriter::io_cb);
-      osd.set_reg_cb(this, &TraceWriter::reg_cb);
+      //osd.set_reg_cb(this, &TraceWriter::reg_cb);
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
 
       return 1;
@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
     osd_p = new OSDomain(argv[3]);
     n_cpus = osd_p->get_n();
   } else {
-    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../x86_64_images/vmlinuz", "x86", QSIM_INTERACTIVE);
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/linux/bzImage", "x86", QSIM_HEADLESS);
   }
   OSDomain &osd(*osd_p);
 
@@ -170,11 +170,9 @@ int main(int argc, char** argv) {
   // The main loop: run until 'finished' is true.
   while (!tw.hasFinished()) {
     for (unsigned i = 0; i < 100; i++) {
-      for (unsigned j = 0; j < n_cpus; j++) {
-           osd.run(j, 10000);
-      }
+           osd.run(0, 10000);
     }
-    osd.timer_interrupt();
+    //osd.timer_interrupt();
   }
   
   if (outfile) { outfile->close(); }

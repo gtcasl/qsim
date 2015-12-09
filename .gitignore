@@ -15,7 +15,8 @@ qsim-fastforwarder
 *.o
 state.*
 linux/*.tar.bz2
-linux/linux-2.6.34
+linux/linux-4.1.13.tar.xz
+linux/linux
 examples/x86/io-test
 examples/x86/qtm
 examples/x86/simple
@@ -27,6 +28,12 @@ examples/arm64/simple
 examples/arm64/trace*
 examples/arm64/cachesim
 examples/arm64trace*
+examples/x86/cachesim_headless
+examples/x86/headless
+examples/x86/trace.log
+initrd/init_old
+initrd/test_inst
+initrd/test_mem
 include/
 dbg_build
 up_build

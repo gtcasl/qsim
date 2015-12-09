@@ -138,10 +138,8 @@ class TraceWriter {
         bool hasFinished() { return finished; }
 
         int app_start_cb(int c) {
+            static bool ran = false;
             total_instructions = 1;
-            for (int i = 0; i < osd.get_n(); i++)
-                l1cache[i].clear();
-            l2cache.clear();
             if (!ran) {
                 ran = true;
                 osd.set_inst_cb(this, &TraceWriter::inst_cb);
@@ -242,7 +240,7 @@ int main(int argc, char** argv) {
         osd_p = new OSDomain(argv[3]);
         n_cpus = osd_p->get_n();
     } else {
-        osd_p = new OSDomain(n_cpus, qsim_prefix + "/../x86_64_images/vmlinuz", "x86", QSIM_INTERACTIVE);
+        osd_p = new OSDomain(n_cpus, qsim_prefix + "/linux/bzImage", "x86", QSIM_HEADLESS);
     }
     OSDomain &osd(*osd_p);
 
@@ -255,14 +253,13 @@ int main(int argc, char** argv) {
 
     osd.connect_console(std::cout);
 
-    unsigned long inst_per_iter = 1000000000, inst_run;
     // The main loop: run until 'finished' is true.
     std::cout << "Starting execution..." << std::endl;
-    inst_run = inst_per_iter;
-    while (!(inst_per_iter - inst_run)) {
-      inst_run = 0;
-          inst_run += osd.run(0, inst_per_iter);
-      //osd.timer_interrupt();
+    while (!tw.hasFinished()) {
+      for (unsigned i = 0; i < 100; i++) {
+          osd.run(0, 100000);
+      }
+      osd.timer_interrupt();
       tw.print_stats();
     }
 

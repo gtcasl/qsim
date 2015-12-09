@@ -4,14 +4,14 @@
 # NOTE: This is optional. The binary of busybox distributed with QSim should
 # work perfectly adequately.
 
-BBOX=busybox-1.21.1
+BBOX=busybox-1.24.1
 BBOX_ARCHIVE=$BBOX.tar.bz2
 BBOX_URL=http://www.busybox.net/downloads/$BBOX_ARCHIVE
 
 UNPACK="tar -xjf"
 
 pushd ../linux
-LINUX_DIR=`pwd`/linux-2.6.34
+LINUX_DIR=`pwd`/linux/
 popd
 
 # Download the archive if we don't already have it.
