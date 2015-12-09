@@ -4,4 +4,4 @@ sys
 data
 *.cpio
 *.tar.bz2
-busybox-1.21.1
+busybox-1.24.1
