@@ -71,12 +71,12 @@ uninstall: $(QSIM_PREFIX)/lib/libqsim.so
 .PHONY: debug
 
 debug: all
-	./arm64-build.sh $@		
+	./build-qemu.sh $@		
 
 .PHONY: release
 
 release: all
-	./arm64-build.sh $@		
+	./build-qemu.sh $@		
 
 clean:
 	rm -f *~ \#*\# libqsim.so *.o test qtm qsim-fastforwarder build

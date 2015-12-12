@@ -10,7 +10,7 @@ addons:
 before_install:
     - git submodule update --init --recursive
     - export QSIM_PREFIX=`pwd`
-    - ./arm64-build.sh release
+    - ./build-qemu.sh release
     - cd capstone
     - make
     - cd ..
