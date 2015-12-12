@@ -7,12 +7,25 @@ else
   exit 0;
 fi
 
-if [ -z $1 ]; then
+if [ $1 = "debug" ]; then
   debug_flags="--enable-debug --enable-debug-tcg --enable-debug-info"
+  build_dir=.dbg_build
+fi
+
+if [ $1 = "release" ]; then
+  build_dir=.opt_build
 fi
 
 mkdir -p $QSIM_PREFIX/lib/
-QEMU_CFLAGS="-I${QSIM_PREFIX} -m64 -g -Werror -fPIC -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wstrict-prototypes -Wredundant-decls -Wall -Wundef -Wwrite-strings -Wmissing-prototypes -fno-strict-aliasing -fno-common -Wendif-labels -Wmissing-include-dirs -Wempty-body -Wnested-externs -Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers -Wtype-limits -fstack-protector-all -Wno-uninitialized" ../qemu/configure --extra-ldflags=-shared --target-list=aarch64-softmmu,x86_64-softmmu --disable-pie $debug_flags
+if [ ! -d "$build_dir" ]; then
+  mkdir -p $build_dir
+  cd $build_dir
+  QEMU_CFLAGS="-I${QSIM_PREFIX} -m64 -g -Werror -fPIC -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wstrict-prototypes -Wredundant-decls -Wall -Wundef -Wwrite-strings -Wmissing-prototypes -fno-strict-aliasing -fno-common -Wendif-labels -Wmissing-include-dirs -Wempty-body -Wnested-externs -Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers -Wtype-limits -fstack-protector-all -Wno-uninitialized" ../qemu/configure --extra-ldflags=-shared --target-list=aarch64-softmmu,x86_64-softmmu --disable-pie $debug_flags
+else
+  cd $build_dir
+fi
+
 make -j16
-cp aarch64-softmmu/qemu-system-aarch64 $QSIM_PREFIX/lib/libqemu-qsim-a64.so
-cp x86_64-softmmu/qemu-system-x86_64 $QSIM_PREFIX/lib/libqemu-qsim-x86.so
+cd ..
+rm -f build
+ln -s $build_dir build

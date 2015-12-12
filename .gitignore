@@ -35,5 +35,5 @@ initrd/init_old
 initrd/test_inst
 initrd/test_mem
 include/
-dbg_build
-up_build
+.dbg_build
+.opt_build

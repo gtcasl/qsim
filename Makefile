@@ -6,7 +6,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2. See the    #
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
-CXXFLAGS ?= -O2 -g -Wall -Idistorm/
+CXXFLAGS ?= -g -Wall -Idistorm/
 QSIM_PREFIX ?= /usr/local
 LDFLAGS = -L./
 LDLIBS = -lqsim -ldl
@@ -14,6 +14,11 @@ LDLIBS = -lqsim -ldl
 QEMU_BUILD_DIR=build
 
 all: libqsim.so qsim-fastforwarder
+
+debug: CXXFLAGS += -O0
+debug: BUILD_DIR = .dbg_build
+release: CXXFLAGS += -O2
+release: BUILD_DIR = .opt_build
 
 statesaver.o: statesaver.cpp statesaver.h qsim.h
 	$(CXX) $(CXXFLAGS) -I./ -fPIC -c -o statesaver.o statesaver.cpp
@@ -40,14 +45,14 @@ install: libqsim.so qsim-fastforwarder qsim.h qsim-vm.h mgzd.h \
 	mkdir -p $(QSIM_PREFIX)/bin
 	cp libqsim.so $(QSIM_PREFIX)/lib/
 	cp capstone/libcapstone.so $(QSIM_PREFIX)/lib
-	cp qsim.h qsim-vm.h mgzd.h qsim-load.h qsim-prof.h \
-     qsim-regs.h qsim-arm-regs.h qsim-x86-regs.h qsim-arm64-regs.h \
+	cp qsim.h qsim-vm.h mgzd.h qsim-load.h qsim-prof.h 		\
+     	 qsim-regs.h qsim-arm-regs.h qsim-x86-regs.h qsim-arm64-regs.h 	\
 	 qsim-lock.h qsim-rwlock.h $(QSIM_PREFIX)/include/
 	cp capstone/include/capstone/*.h $(QSIM_PREFIX)/include
 	cp qsim-fastforwarder $(QSIM_PREFIX)/bin/
-	cp $(QEMU_BUILD_DIR)/x86_64-softmmu/qemu-system-x86_64 \
+	cp $(QEMU_BUILD_DIR)/x86_64-softmmu/qemu-system-x86_64 		\
 	   $(QSIM_PREFIX)/lib/libqemu-qsim-x86.so
-	cp $(QEMU_BUILD_DIR)/aarch64-softmmu/qemu-system-aarch64 \
+	cp $(QEMU_BUILD_DIR)/aarch64-softmmu/qemu-system-aarch64 	\
 	   $(QSIM_PREFIX)/lib/libqemu-qsim-a64.so
 ifeq ($(USER),root) # Only need this if we're installing globally as root.
 	/sbin/ldconfig
@@ -63,5 +68,18 @@ uninstall: $(QSIM_PREFIX)/lib/libqsim.so
 	      $(QSIM_PREFIX)/include/qsim-rwlock.h                        \
 	      $(QSIM_PREFIX)/bin/qsim-fastforwarder
 
+.PHONY: debug
+
+debug: all
+	./arm64-build.sh $@		
+
+.PHONY: release
+
+release: all
+	./arm64-build.sh $@		
+
 clean:
-	rm -f *~ \#*\# libqsim.so *.o test qtm qsim-fastforwarder
+	rm -f *~ \#*\# libqsim.so *.o test qtm qsim-fastforwarder build
+
+distclean: clean
+	rm -rf .dbg_build .opt_build
