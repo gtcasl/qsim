@@ -10,10 +10,7 @@ addons:
 before_install:
     - git submodule update --init --recursive
     - export QSIM_PREFIX=`pwd`
-    - mkdir build
-    - cd build
-    - ../arm64-build.sh release
-    - cd ..
+    - ./arm64-build.sh release
     - cd capstone
     - make
     - cd ..
@@ -22,9 +19,8 @@ before_install:
     - cd ../../../..
 script:
     - make -j2
-install:
-    - make install
 after_success:
+    - make install
     - cd examples/x86/
     - make
     - cd ../arm64/
