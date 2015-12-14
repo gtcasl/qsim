@@ -7,10 +7,10 @@
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
 QSIM_PREFIX ?= /usr/local
-CXXFLAGS ?= -g -O3 -Wall -I$(QSIM_PREFIX)/distorm/ -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
+CXXFLAGS ?= -g -O2 -Wall -I$(QSIM_PREFIX)/distorm/ -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
 LDLIBS ?= -lqsim -pthread -ldl
 
-EXAMPLES = qtm simple io-test cachesim headless cachesim_headless
+EXAMPLES = qtm simple io-test cachesim headless cachesim_headless virt_rw
 
 all: $(EXAMPLES)
 
