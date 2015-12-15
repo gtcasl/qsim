@@ -87,8 +87,6 @@ namespace Qsim {
 
   class QemuCpu : public Cpu {
   private:
-    // Local copy of ID number                                                 
-    int cpu_id;
     std::string cpu_type;
 
     // The qemu library object                                                 
@@ -126,11 +124,6 @@ namespace Qsim {
     int      (*qsim_loadvm_state) (const char *filename);
 
     void load_and_grab_pointers(const char *libfile);
-
-    // Structure for accessing and sharing QEMU RAM.
-    qemu_ramdesc_t **ramdesc_p;
-    qemu_ramdesc_t  *ramdesc;  // Load this from *ramdesc_p after init.
-    unsigned         ram_size_mb;
 
     // Load Linux from bzImage into QEMU RAM
     void load_linux(const char* bzImage);
@@ -241,8 +234,6 @@ namespace Qsim {
     virtual void     set_reg (int c, int r, uint64_t v) {
       qemu_set_reg(c, r, v);
     }
-
-    qemu_ramdesc_t get_ramdesc() const { return *ramdesc; }
   };
 
 

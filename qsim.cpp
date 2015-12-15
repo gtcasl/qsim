@@ -288,8 +288,7 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
 }
 
 Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
-		                   int n_cpus, std::string type, qsim_mode mode) :
-	cpu_id(id & 0xffff), ram_size_mb(ram_mb)
+		                   int n_cpus, std::string type, qsim_mode mode)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
   cpu_type = type;

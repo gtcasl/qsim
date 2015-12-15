@@ -29,8 +29,8 @@ class Statesaver;
 
 class Statesaver {
 public:
-  Statesaver(Qsim::OSDomain &osd, const char* state_filename):
-    osd(osd), last_was_br(osd.get_n()), last_was_cbr(osd.get_n())
+  Statesaver(Qsim::OSDomain &_osd, const char* state_filename):
+    osd(_osd), last_was_br(_osd.get_n()), last_was_cbr(_osd.get_n())
   {
     Qsim::OSDomain::inst_cb_handle_t icb_handle;
     Qsim::OSDomain::reg_cb_handle_t rcb_handle;

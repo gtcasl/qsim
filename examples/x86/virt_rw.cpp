@@ -21,8 +21,8 @@ using std::ostream;
 
 class TraceWriter {
 public:
-  TraceWriter(OSDomain &osd, ostream &tracefile) : 
-    osd(osd), tracefile(tracefile), finished(false) 
+  TraceWriter(OSDomain &osd) : 
+    osd(osd), finished(false) 
   { 
     osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
   }
@@ -56,7 +56,6 @@ public:
 
 private:
   OSDomain &osd;
-  ostream &tracefile;
   bool finished;
 
   static const char * itype_str[];
@@ -93,29 +92,24 @@ int main(int argc, char** argv) {
     s >> n_cpus;
   }
 
-  // Read trace file as a parameter.
-  if (argc >= 3) {
-    outfile = new ofstream(argv[2]);
-  }
-
   OSDomain *osd_p(NULL);
 
-  if (argc >= 4) {
+  if (argc >= 3) {
     // Create new OSDomain from saved state.
-    osd_p = new OSDomain(n_cpus, argv[3]);
+    osd_p = new OSDomain(n_cpus, argv[2]);
   } else {
     osd_p = new OSDomain(n_cpus, qsim_prefix + "/../x86_64_images/vmlinuz", "x86", QSIM_INTERACTIVE);
   }
   OSDomain &osd(*osd_p);
 
   std::string benchmark;
-  if (argc >= 5) {
-    istringstream bench_file(argv[4]);
+  if (argc >= 4) {
+    istringstream bench_file(argv[3]);
     bench_file >> benchmark;
   }
 
   // Attach a TraceWriter if a trace file is given.
-  TraceWriter tw(osd, outfile?*outfile:std::cout);
+  TraceWriter tw(osd);
 
   // If this OSDomain was created from a saved state, the app start callback was
   // received prior to the state being saved.
