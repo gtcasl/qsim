@@ -170,6 +170,8 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   Mgzd::sym(qemu_mem_wr,          qemu_lib, "mem_wr"              );
   Mgzd::sym(qemu_mem_rd_virt,     qemu_lib, "mem_rd_virt"         );
   Mgzd::sym(qemu_mem_wr_virt,     qemu_lib, "mem_wr_virt"         );
+  Mgzd::sym(qsim_savevm_state,    qemu_lib, "qsim_savevm_state"   );
+  Mgzd::sym(qsim_loadvm_state,    qemu_lib, "qsim_loadvm_state"   );
 }
 
 const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::string cpu_type, qsim_mode mode)
