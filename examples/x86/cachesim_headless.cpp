@@ -146,6 +146,7 @@ class TraceWriter {
                 osd.set_inst_cb(this, &TraceWriter::inst_cb);
                 osd.set_mem_cb(this, &TraceWriter::mem_cb);
                 osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
+                osd.set_sys_cbs(true);
 
                 return 1;
             }
