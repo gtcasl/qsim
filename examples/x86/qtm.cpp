@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
     cdp = new OSDomain(MAX_CPUS, qsim_prefix + "/../x86_64_images/vmlinuz", "x86");
     //cd.connect_console(cout);
   } else {
-    cdp = new OSDomain(argv[1]);
+    cdp = new OSDomain(MAX_CPUS, argv[1]);
     //cd.connect_console(cout);
     cout << "Loaded state. Reading benchmark.\n";
     Qsim::load_file(cd, argv[2]);

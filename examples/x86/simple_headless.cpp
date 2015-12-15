@@ -151,8 +151,7 @@ int main(int argc, char** argv) {
 
   if (argc >= 4) {
     // Create new OSDomain from saved state.
-    osd_p = new OSDomain(argv[3]);
-    n_cpus = osd_p->get_n();
+    osd_p = new OSDomain(n_cpus, argv[3]);
   } else {
     osd_p = new OSDomain(n_cpus, qsim_prefix + "/linux/bzImage", "x86", QSIM_HEADLESS);
   }

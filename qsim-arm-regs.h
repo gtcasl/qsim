@@ -19,7 +19,7 @@ static const char *arm_regs_str[] __attribute__((unused)) = {
   NULL
 };
 
-uint64_t get_reg(int r);
-void     set_reg(int r, uint64_t val );
+uint64_t get_reg(int c, int r);
+void     set_reg(int c, int r, uint64_t val );
 
 #endif

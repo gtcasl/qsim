@@ -27,7 +27,7 @@ static const char *a64_regs_str[] __attribute__((unused)) = {
     NULL
 };
 
-uint64_t get_reg64(int r);
-void     set_reg64(int r, uint64_t val );
+uint64_t get_reg64(int c, int r);
+void     set_reg64(int c, int r, uint64_t val );
 
 #endif

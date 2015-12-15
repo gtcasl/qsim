@@ -390,9 +390,8 @@ int main(int argc, char** argv) {
     {"state", required_argument, NULL, 's'}
   };
 
-  OSDomain *osd_p(NULL);
-
   int c = 0;
+  char *state_file = NULL;
   while((c = getopt_long(argc, argv, "hn:m:", long_options, NULL)) != -1) {
     switch(c) {
       case 'n':
@@ -402,8 +401,7 @@ int main(int argc, char** argv) {
         max_inst = MILLION(atoi(optarg));
         break;
       case 's':
-        osd_p = new OSDomain(optarg);
-        n_cpus = osd_p->get_n();
+        state_file = strdup(optarg);
       case 'h':
       case '?':
       default:
@@ -415,8 +413,13 @@ int main(int argc, char** argv) {
 
   unsigned long max_inst_n = n_cpus * max_inst;
 
-  if (!osd_p)
+  OSDomain *osd_p(NULL);
+
+  if (!state_file)
     osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64");
+  else
+    osd_p = new OSDomain(n_cpus, state_file);
+
   OSDomain &osd(*osd_p);
 
   // Attach a TraceWriter if a trace file is given.

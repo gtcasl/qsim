@@ -220,23 +220,19 @@ void *thread_main(void *arg_vp) {
 int main(int argc, char** argv) {
   int threads;
 
-  if (argc < 3) {
+  if (argc < 4) {
     std::cout << "Usage:\n  " << argv[0] << " <state file> "
               << "<benchmark tar file> <# host threads> [trace file]\n";
     exit(1);
   }
 
-  Qsim::OSDomain osd(argv[1]);
+  Qsim::OSDomain osd(atoi(argv[3]), argv[1]);
   std::cout << "State loaded. Loading benchmark.\n";
   osd.connect_console(std::cout);
   Qsim::load_file(osd, argv[2]);
   std::cout << "Benchmark loaded. Running.\n";
 
-  if (argc >= 4) {
-    threads = atol(argv[3]);
-  } else {
-    threads = osd.get_n();
-  }
+  threads = atol(argv[3]);
 
   std::vector<thread_arg_t> targs(threads);
 

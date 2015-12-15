@@ -34,11 +34,7 @@ public:
     // The main loop: run until 'finished' is true.                            
     while (!finished) {
       for (unsigned i = 0; i < 100; i++) {
-        for (int j = 0; j < osd.get_n(); j++) {
-          if (osd.idle(j)) osd.run(j, 100);
-          else             osd.run(j, 10000);
-        }
-        if (finished) break;
+          osd.run(0, 100000);
       }
       if (!finished) osd.timer_interrupt();
     }
@@ -82,6 +78,8 @@ private:
       osd.set_reg(c, QSIM_RAX, ch);
     } else if ((rax & 0xffffff00) == 0xc5b100) {
       std::cout << "binary write: " << (rax&0xff) << '\n';
+    } else if (rax == 0xc5b1fffc) {
+      osd.set_n(osd.get_reg(c, QSIM_RBX));
     }
 
     return 0;

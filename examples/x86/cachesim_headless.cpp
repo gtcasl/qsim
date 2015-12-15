@@ -235,10 +235,9 @@ int main(int argc, char** argv) {
 
     OSDomain *osd_p(NULL);
 
-    if (argc >= 4) {
+    if (argc >= 3) {
         // Create new OSDomain from saved state.
-        osd_p = new OSDomain(argv[3]);
-        n_cpus = osd_p->get_n();
+        osd_p = new OSDomain(n_cpus, argv[2]);
     } else {
         osd_p = new OSDomain(n_cpus, qsim_prefix + "/linux/bzImage", "x86", QSIM_HEADLESS);
     }
@@ -246,20 +245,22 @@ int main(int argc, char** argv) {
 
     // Attach a TraceWriter if a trace file is given.
     TraceWriter tw(osd);
+    std::string benchmark;
+    if (argc >= 4) {
+        istringstream bench_file(argv[3]);
+        bench_file >> benchmark;
+    }
 
     // If this OSDomain was created from a saved state, the app start callback was
     // received prior to the state being saved.
-    //if (argc >= 4) tw.app_start_cb(0);
+    if (argc >= 4) tw.app_start_cb(0);
+    Qsim::load_file(osd, benchmark.c_str());
 
     osd.connect_console(std::cout);
 
     // The main loop: run until 'finished' is true.
-    std::cout << "Starting execution..." << std::endl;
     while (!tw.hasFinished()) {
-      for (unsigned i = 0; i < 100; i++) {
-          osd.run(0, 100000);
-      }
-      osd.timer_interrupt();
+      osd.run(0, 10000000);
       tw.print_stats();
     }
 

@@ -139,9 +139,8 @@ int main(int argc, char** argv) {
 
   if (argc >= 5) {
     // Create new OSDomain from saved state.
-    osd_p = new OSDomain(argv[3]);
+    osd_p = new OSDomain(n_cpus, argv[3]);
     std::cout << "Finished loading state.\n";
-    n_cpus = osd_p->get_n();
   } else {
     std::cout << "Usage:\n  " << argv[0] << " #cpus tracefile statefile tar\n";
     return 1;

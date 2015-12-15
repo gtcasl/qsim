@@ -114,13 +114,16 @@ namespace Qsim {
     void (*qemu_set_gen_cbs)  (bool state);
     void (*qemu_set_sys_cbs)  (bool state);
 
-    uint64_t (*qemu_get_reg) (union regs r               );
-    void     (*qemu_set_reg) (union regs r, uint64_t val );
+    uint64_t (*qemu_get_reg) (int c, int r);
+    void     (*qemu_set_reg) (int c, int r, uint64_t val );
 
     uint8_t  (*qemu_mem_rd)  (uint64_t paddr);
     void     (*qemu_mem_wr)  (uint64_t paddr, uint8_t data);
-    uint8_t  (*qemu_mem_rd_virt) (uint64_t vaddr);
-    void     (*qemu_mem_wr_virt) (uint64_t vaddr, uint8_t data);
+    uint8_t  (*qemu_mem_rd_virt) (int c, uint64_t vaddr);
+    void     (*qemu_mem_wr_virt) (int c, uint64_t vaddr, uint8_t data);
+
+    int      (*qsim_savevm_state) (const char *filename);
+    int      (*qsim_loadvm_state) (const char *filename);
 
     void load_and_grab_pointers(const char *libfile);
 
@@ -134,9 +137,7 @@ namespace Qsim {
 
   public:
     QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86", qsim_mode mode = QSIM_HEADLESS);
-    QemuCpu(int id, QemuCpu *master_cpu, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86");
-    QemuCpu(int id, std::istream &file, unsigned ram_mb, int n_cpus, std::string cpu_type = "x86");
-    QemuCpu(int id, std::istream &file, Qsim::QemuCpu* master_cpu, unsigned ram_mb, int n_cpus, std::string cpu_type = "x86");
+    QemuCpu(const char* state_file);
     virtual ~QemuCpu();
  
     uint64_t run(unsigned n) { return qemu_run(n); }
@@ -144,7 +145,7 @@ namespace Qsim {
     std::string getCpuType() { return cpu_type; }
 
     // Save state to file.
-    void save_state(std::ostream &file);
+    void save_state(const char *file);
 
     virtual void set_atomic_cb(atomic_cb_t cb) { 
       pthread_mutex_lock(&cb_mutex); 
@@ -214,8 +215,11 @@ namespace Qsim {
       qemu_mem_wr(pa, val);
     }
 
-    uint8_t mem_rd_virt(uint64_t va)      { return qemu_mem_rd_virt(va); }
-    void    mem_wr_virt(uint64_t va, uint8_t val){ qemu_mem_wr_virt(va, val); }
+    uint8_t mem_rd_virt(int c, uint64_t va) { return qemu_mem_rd_virt(c, va); }
+    void    mem_wr_virt(int c, uint64_t va, uint8_t val)
+    {
+      qemu_mem_wr_virt(c, va, val);
+    }
 
     virtual int  interrupt    (uint8_t   vec)   { 
       int r;
@@ -225,14 +229,14 @@ namespace Qsim {
       return r;
     }
 
-    virtual uint64_t get_reg (union regs r)      {
+    virtual uint64_t get_reg (int c, int r)      {
       uint64_t v; 
-      v = qemu_get_reg(r);
+      v = qemu_get_reg(c, r);
       return v;
     }
 
-    virtual void     set_reg (union regs r, uint64_t v) {
-      qemu_set_reg(r, v);
+    virtual void     set_reg (int c, int r, uint64_t v) {
+      qemu_set_reg(c, r, v);
     }
 
     qemu_ramdesc_t get_ramdesc() const { return *ramdesc; }
@@ -256,7 +260,7 @@ namespace Qsim {
     OSDomain(uint16_t n, std::string kernel_path, std::string cpu_type, qsim_mode mode = QSIM_HEADLESS, unsigned ram_mb = 1024);
 
     // Create a new OSDomain from a state file.
-    OSDomain(const char *filename);
+    OSDomain(int n_cpus, const char *filename);
 
     // Save a snapshot of the OSDomain state
     void save_state(std::ostream &outfile);
@@ -582,15 +586,15 @@ namespace Qsim {
 
     // Get the number of CPUs
     int get_n() const { return n; }
+    // Set the number of CPUs
+    void set_n(int num) { n = num; }
 
     // Get the QEMU RAM descriptor
     qemu_ramdesc_t get_ramdesc() const { return ramdesc; }
 
     // Retreive/set register contents.
-    uint64_t get_reg(unsigned i, union regs r) { return cpus[i]->get_reg(r); }
-    void     set_reg(unsigned i, union regs r, uint64_t v) {
-      cpus[i]->set_reg(r, v);
-    }
+    uint64_t get_reg(int c, int r) { return cpus[0]->get_reg(c, r); }
+    void     set_reg(int c, int r, uint64_t v) { cpus[0]->set_reg(c, r, v); }
 
     // Get/set memory contents (physical address)
     template <typename T> void mem_rd(T& d, uint64_t paddr) {
@@ -619,7 +623,7 @@ namespace Qsim {
       d = 0;
       while (sz--) {
         d <<= 8;
-        d |= cpus[0]->mem_rd_virt(vaddr--);
+        d |= cpus[0]->mem_rd_virt(cpu, vaddr--);
       }
     }
 
@@ -627,7 +631,7 @@ namespace Qsim {
     {
       size_t sz = sizeof(T);
       while (sz--) {
-        cpus[0]->mem_wr_virt(vaddr++, d&0xff);
+        cpus[0]->mem_wr_virt(cpu, vaddr++, d&0xff);
         d >>= 8;
       }
     }
