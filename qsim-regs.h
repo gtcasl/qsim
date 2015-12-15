@@ -13,6 +13,7 @@
 #include "qsim-arm64-regs.h"
 #include "qsim-arm-regs.h"
 
+/*
 union regs {
   enum _x86_regs x86_regs;
   enum _a64_regs a64_regs;
@@ -23,5 +24,6 @@ union regs {
   regs& operator=(const _arm_regs& rhs);
   regs(int i) { memset(this, i, sizeof(*this));}
 };
+*/
 
 #endif

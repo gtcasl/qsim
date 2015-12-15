@@ -43,7 +43,7 @@ struct Magic_cb_s {
 
   void reg_cb_f(int i, int r, uint8_t s, int w) {
     if (!w && s) {
-      std::cerr << ' ' << x86_regs_str[r] << '(' << osd.get_reg(i, regs(r)) << ')';
+      std::cerr << ' ' << x86_regs_str[r] << '(' << osd.get_reg(i, r) << ')';
     } else if (!w) {
       std::cerr << " f" << std::setw(2) << std::setfill('0') << r
                 << '(' << std::setw(2) << osd.get_reg(i, QSIM_CPSR) << ')';
@@ -91,10 +91,10 @@ int main(int argc, char** argv) {
         if (osd.runnable(j)) {
           if (osd.idle(j) && !slow_cycles[j]) {
               osd.run(j, 100);
-	  } else {
+          } else {
             if (osd.idle(j)) --slow_cycles[j];
             osd.run(j, 10000);
-	  }
+          }
         }
 
         // So we don't immediately run the app start callback on load

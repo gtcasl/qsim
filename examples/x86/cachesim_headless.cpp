@@ -12,6 +12,7 @@
 #include <string>
 
 #include <qsim.h>
+#include <qsim-load.h>
 
 using Qsim::OSDomain;
 
@@ -138,7 +139,7 @@ class TraceWriter {
         bool hasFinished() { return finished; }
 
         int app_start_cb(int c) {
-            static bool ran = false;
+            ran = false;
             total_instructions = 1;
             if (!ran) {
                 ran = true;
@@ -183,7 +184,7 @@ class TraceWriter {
         {
             finished = true;
             print_stats();
-            return 0;
+            return 1;
         }
 
         double get_hit_ratio() { return l2cache.getHitRatio(); }

@@ -168,11 +168,7 @@ int main(int argc, char** argv) {
 
   // The main loop: run until 'finished' is true.
   while (!tw.hasFinished()) {
-    for (unsigned i = 0; i < 100; i++) {
-      for (unsigned j = 0; j < n_cpus; j++) {
-           osd.run(j, 10000);
-      }
-    }
+    osd.run(0, 1000000);
     osd.timer_interrupt();
   }
   

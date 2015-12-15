@@ -185,7 +185,7 @@ class TraceWriter {
         {
             finished = true;
             print_stats();
-            return 0;
+            return 1;
         }
 
         double get_hit_ratio() { return l2cache.getHitRatio(); }
