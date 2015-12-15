@@ -13,6 +13,7 @@
 #include "distorm.h"
 
 #include <qsim.h>
+#include <qsim-load.h>
 
 using Qsim::OSDomain;
 
