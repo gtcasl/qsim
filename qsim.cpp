@@ -647,9 +647,7 @@ void Qsim::OSDomain::trans_cb(int cpu_id) {
 }
 
 int Qsim::OSDomain::magic_cb_s(int cpu_id, uint64_t rax) {
-  osdomains[cpu_id >> 16]->magic_cb(cpu_id & 0xffff, rax);
-
-  return 0;
+  return osdomains[cpu_id >> 16]->magic_cb(cpu_id & 0xffff, rax);
 }
 
 int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
