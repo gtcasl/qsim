@@ -32,9 +32,9 @@ public:
  CPUTimer(int id, MemSysDev &dMem, MemSysDev &iMem, Tickable *mc=NULL):
     id(id), dMem(&dMem), cyc(0), now(0), stallCycles(0),
     loadInst(false), iMem(&iMem), mc(mc),
-    eq(dMem.getLatency(), std::vector<bool>(QSIM_N_REGS)), dloads(0), xloads(0),
+    eq(dMem.getLatency(), std::vector<bool>(QSIM_X86_N_REGS)), dloads(0), xloads(0),
     issued(0)
-  { for (unsigned i = 0; i < QSIM_N_REGS; ++i) notReady[i] = 0; 
+  { for (unsigned i = 0; i < QSIM_X86_N_REGS; ++i) notReady[i] = 0;
     for (unsigned i = 0; i < ISSUEWIDTH; ++i)  instFlag[i] = 0;
   }
 
@@ -68,7 +68,7 @@ public:
     }
   }
 
-  void regCallback(regs r, int wr) {
+  void regCallback(int r, int wr) {
     if (!wr && notReady[r]) {
       MEM_BARRIER();
       while(notReady[r]) { advance(); ++stallCycles; MEM_BARRIER(); }
@@ -113,7 +113,7 @@ private:
     if (mc) mc->tick();
 
     // Advance the event queue.
-    for (unsigned i = 0; i < QSIM_N_REGS; ++i) {
+    for (unsigned i = 0; i < QSIM_X86_N_REGS; ++i) {
       if (eq[cyc%eq.size()][i]) {
         notReady[i] = 0;
         eq[cyc%eq.size()][i] = false;
@@ -128,7 +128,7 @@ private:
   addr_t loadAddr, loadPc;
   inst_type curType;
   MemSysDev *dMem, *iMem;
-  unsigned notReady[QSIM_N_REGS], instFlag[ISSUEWIDTH];
+  unsigned notReady[QSIM_X86_N_REGS], instFlag[ISSUEWIDTH];
   std::vector<std::vector<bool> > eq;
   Tickable *mc;
 };
@@ -174,7 +174,7 @@ public:
     robHead = (robHead+1)%ROBSZ;
   }
 
-  void regCallback(regs r, int wr) {}
+  void regCallback(int r, int wr) {}
 
   void memCallback(uint64_t addr, uint64_t pc, int wr) {
     if (memOpIssued) instEnd();
