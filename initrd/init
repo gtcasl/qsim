@@ -35,6 +35,6 @@ fi
 
 # Spin forever.
 while true; do
-  echo --- error: init still alive after program exit ---
+  echo --- program exit, will shutdown shortly... ---
   sleep 10
 done
