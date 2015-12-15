@@ -33,8 +33,9 @@ enum inst_type {
 };
 
 enum qsim_mode {
-  QSIM_INTERACTIVE,
   QSIM_HEADLESS,
+  QSIM_INTERACTIVE,
+  QSIM_KVM,
   QSIM_NUM_MODES
 };
 
