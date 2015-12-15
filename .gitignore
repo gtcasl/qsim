@@ -30,6 +30,7 @@ examples/arm64/cachesim
 examples/arm64trace*
 examples/x86/cachesim_headless
 examples/x86/headless
+examples/x86/virt_rw
 examples/x86/trace.log
 initrd/init_old
 initrd/test_inst
