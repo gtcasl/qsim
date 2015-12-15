@@ -135,6 +135,9 @@ namespace Qsim {
     // Load Linux from bzImage into QEMU RAM
     void load_linux(const char* bzImage);
 
+    // save the current VM arguments
+    const char **cmd_argv;
+
   public:
     QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86", qsim_mode mode = QSIM_HEADLESS);
     QemuCpu(const char* state_file);

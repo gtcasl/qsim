@@ -229,7 +229,6 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
     "-kernel", kernel_path,
     "-initrd", initrd_path,
     "-append", "root=/dev/sda2 nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
-    "-display", "sdl",
     "-nographic",
     "-redir", "tcp:2222::22",
     "-smp", ncpus,
@@ -248,7 +247,6 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
     "-initrd", initrd_path,
     "-append", "root=/dev/sda1 console=ttyAMA0,115200 console=tty"
     " console=ttyS0 nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
-    "-display", "sdl",
     "-nographic",
     "-redir", "tcp:2223::22",
     "-smp", ncpus,
@@ -268,7 +266,6 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
     "-initrd", strdup(initrd_path_s.c_str()),
     "-append", "init=/init lpj=34920500 console=ttyS0 console=/dev/ttyS0"
     " nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
-    "-display", "sdl",
     "-nographic",
     "-smp", ncpus,
     (mode == QSIM_KVM) ? "--enable-kvm" : NULL,
@@ -300,9 +297,9 @@ Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
   // Load the library file and get pointers
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
-  const char** argv = get_qemu_args(kernel, ram_mb, n_cpus, type, mode);
+  cmd_argv = get_qemu_args(kernel, ram_mb, n_cpus, type, mode);
   // Initialize Qemu library
-  qemu_init(argv);
+  qemu_init((const char**)cmd_argv);
 
   if (cpu_type == "x86") {
     // Load the Linux kernel
@@ -317,30 +314,51 @@ Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
 // Create QemuCpu from saved state file
 Qsim::QemuCpu::QemuCpu(const char* state_file)
 {
-  std::string qsim_prefix(getenv("QSIM_PREFIX"));
-  qsim_prefix += "/";
   int fd = open(state_file, O_RDONLY);
   std::string fd_arg_s = "fd:" + std::to_string(fd);
   char *fd_arg = strdup(fd_arg_s.c_str());
-  std::string bios_path_s = qsim_prefix + "qemu/pc-bios";
-  char* bios_path = strdup(bios_path_s.c_str());
+  std::string cmd_filename = std::string(state_file) + std::string(".cmd");
 
-  const char *argv[] = {
-    "qemu",
-    "-L", bios_path,
-    "-m", "1024",
-    "-nographic",
-    "-incoming", fd_arg,
-    NULL
-  };
+  std::ifstream cmd_file(cmd_filename);
 
+  int argc = 0;
+  char **cmd_args = (char **)malloc(sizeof(char*));
+  string cmd;
+  while (cmd_file >> cmd) {
+    cmd_args[argc++] = strdup(cmd.c_str());
+    cmd_args = (char **)realloc(cmd_args, (argc+1)*sizeof(char*));
+  }
+
+  // append incoming and state file descriptor
+  cmd_args = (char **)realloc(cmd_args, (argc+3)*sizeof(char*));
+  cmd_args[argc] = strdup("-incoming");
+  cmd_args[argc+1] = fd_arg;
+  cmd_args[argc+2] = NULL;
+
+  cmd_argv = (const char **)cmd_args;
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
-  qemu_init(argv);
+  qemu_init(cmd_argv);
 }
 
 void Qsim::QemuCpu::save_state(const char *filename)
 {
   qsim_savevm_state(filename);
+
+  std::string cmd_filename = std::string(filename) + std::string(".cmd");
+  std::ofstream cmd_file(cmd_filename);
+
+  for (int argc = 0; cmd_argv[argc] != NULL; argc++) {
+    // skip kernel initrd and append args
+    if (!(strcmp(cmd_argv[argc], "-kernel") && strcmp(cmd_argv[argc], "-initrd")
+          && strcmp(cmd_argv[argc], "-append"))) {
+      argc++;
+      continue;
+    }
+
+    cmd_file << cmd_argv[argc] << " ";
+  }
+
+  cmd_file.close();
 }
 
 Qsim::QemuCpu::~QemuCpu() {
