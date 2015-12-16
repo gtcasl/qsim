@@ -33,9 +33,7 @@ public:
     
     // The main loop: run until 'finished' is true.                            
     while (!finished) {
-      for (unsigned i = 0; i < 100; i++) {
-          osd.run(0, 100000);
-      }
+      osd.run(0, 100000);
       if (!finished) osd.timer_interrupt();
     }
 
