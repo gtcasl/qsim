@@ -296,9 +296,9 @@ Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
   // Load the library file and get pointers
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
-  cmd_argv = get_qemu_args(kernel, ram_mb, n_cpus, type, mode);
+  const char **cmd_argv = get_qemu_args(kernel, ram_mb, n_cpus, type, mode);
   // Initialize Qemu library
-  qemu_init((const char**)cmd_argv);
+  qemu_init(cmd_argv);
 
   if (cpu_type == "x86") {
     // Load the Linux kernel
@@ -311,30 +311,8 @@ Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
 }
 
 // Create QemuCpu from saved state file
-Qsim::QemuCpu::QemuCpu(const char* state_file)
+Qsim::QemuCpu::QemuCpu(const char** cmd_argv)
 {
-  int fd = open(state_file, O_RDONLY);
-  std::string fd_arg_s = "fd:" + std::to_string(fd);
-  char *fd_arg = strdup(fd_arg_s.c_str());
-  std::string cmd_filename = std::string(state_file) + std::string(".cmd");
-
-  std::ifstream cmd_file(cmd_filename);
-
-  int argc = 0;
-  char **cmd_args = (char **)malloc(sizeof(char*));
-  string cmd;
-  while (cmd_file >> cmd) {
-    cmd_args[argc++] = strdup(cmd.c_str());
-    cmd_args = (char **)realloc(cmd_args, (argc+1)*sizeof(char*));
-  }
-
-  // append incoming and state file descriptor
-  cmd_args = (char **)realloc(cmd_args, (argc+3)*sizeof(char*));
-  cmd_args[argc] = strdup("-incoming");
-  cmd_args[argc+1] = fd_arg;
-  cmd_args[argc+2] = NULL;
-
-  cmd_argv = (const char **)cmd_args;
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
   qemu_init(cmd_argv);
 }
@@ -342,22 +320,6 @@ Qsim::QemuCpu::QemuCpu(const char* state_file)
 void Qsim::QemuCpu::save_state(const char *filename)
 {
   qsim_savevm_state(filename);
-
-  std::string cmd_filename = std::string(filename) + std::string(".cmd");
-  std::ofstream cmd_file(cmd_filename);
-
-  for (int argc = 0; cmd_argv[argc] != NULL; argc++) {
-    // skip kernel initrd and append args
-    if (!(strcmp(cmd_argv[argc], "-kernel") && strcmp(cmd_argv[argc], "-initrd")
-          && strcmp(cmd_argv[argc], "-append"))) {
-      argc++;
-      continue;
-    }
-
-    cmd_file << cmd_argv[argc] << " ";
-  }
-
-  cmd_file.close();
 }
 
 Qsim::QemuCpu::~QemuCpu() {
@@ -399,9 +361,8 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, qsim_m
   }
 }
 
-// Create an OSDomain from a saved state file.
-Qsim::OSDomain::OSDomain(int n_cpus, const char* filename):
-  n(n_cpus), waiting_for_eip(0)
+// Create an OSDomain from a saved state file
+Qsim::OSDomain::OSDomain(const char* filename)
 {
   assign_id();
 
@@ -411,16 +372,94 @@ Qsim::OSDomain::OSDomain(int n_cpus, const char* filename):
     exit(1);
   }
 
-  cpus.push_back(new QemuCpu(filename));
+  int fd = open(filename, O_RDONLY);
+  string fd_arg_s = "fd:" + std::to_string(fd);
+  char *fd_arg = strdup(fd_arg_s.c_str());
+  string cmd_filename = string(filename) + string(".cmd");
+
+  ifstream cmd_file(cmd_filename);
+  if (!cmd_file) {
+    cerr << "Could not open \"" << cmd_filename << "\" for reading.\n";
+    exit(1);
+  }
+
+  string cmd;
+  int argc = 0, n_pos = 0, m_pos = 0;
+  while (cmd_file >> cmd) {
+    argc++;
+    if (cmd == "-smp")
+      n_pos = argc;
+    if (cmd == "-m")
+      m_pos = argc;
+  }
+
+  if (n_pos == 0 || m_pos == 0) {
+    cerr << "Error: CPU/Mem arg not found. Command file " << cmd_filename <<
+      "corrupted?" << std::endl;
+    exit(1);
+  }
+
+  // allocate space for args + incoming fd
+  char **cmd_args = (char **)malloc((argc+3)*sizeof(char*));
+
+  // go to the beginning of the arg list
+  cmd_file.clear();
+  cmd_file.seekg(0, cmd_file.beg);
+  argc = 0;
+  while (cmd_file >> cmd) {
+    cmd_args[argc++] = strdup(cmd.c_str());
+  }
+
+  cmd_args[argc] = strdup("-incoming");
+  cmd_args[argc+1] = fd_arg;
+  cmd_args[argc+2] = NULL;
+
+  cmd_argv = (const char **)cmd_args;
+
+  n = strtol(cmd_args[n_pos], NULL, 0);
+  ram_size_mb = strtol(cmd_args[m_pos], NULL, 0);
+
+  cpus.push_back(new QemuCpu(cmd_argv));
   cpus[0]->set_magic_cb(magic_cb_s);
   cpus[0]->set_gen_cbs(true);
+
   running.push_back(true);
   tids.push_back(0);
   idlevec.push_back(true);
+
+  mode = QSIM_HEADLESS;
+}
+
+// Create an OSDomain from a saved state file.
+Qsim::OSDomain::OSDomain(int n_cpus, const char* filename)
+{
+  // TODO: update this to use C++11 semantics once travis CI is fixed
+  new (this) OSDomain(filename);
+  if (n != n_cpus) {
+    cerr << "Error: State file passed has " << n << " cpus, but " << n_cpus <<
+      " specified" << std::endl;
+    exit(1);
+  }
 }
 
 void Qsim::OSDomain::save_state(const char* filename) {
   cpus[0]->save_state(filename);
+
+  string cmd_filename = string(filename) + string(".cmd");
+  ofstream cmd_file(cmd_filename);
+
+  for (int argc = 0; cmd_argv[argc] != NULL; argc++) {
+    // skip kernel initrd and append args
+    if (!(strcmp(cmd_argv[argc], "-kernel") && strcmp(cmd_argv[argc], "-initrd")
+          && strcmp(cmd_argv[argc], "-append"))) {
+      argc++;
+      continue;
+    }
+
+    cmd_file << cmd_argv[argc] << " ";
+  }
+
+  cmd_file.close();
 }
 
 int Qsim::OSDomain::get_tid(uint16_t i) {

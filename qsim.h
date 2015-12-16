@@ -128,12 +128,9 @@ namespace Qsim {
     // Load Linux from bzImage into QEMU RAM
     void load_linux(const char* bzImage);
 
-    // save the current VM arguments
-    const char **cmd_argv;
-
   public:
     QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86", qsim_mode mode = QSIM_HEADLESS);
-    QemuCpu(const char* state_file);
+    QemuCpu(const char** args);
     virtual ~QemuCpu();
  
     uint64_t run(unsigned n) { return qemu_run(n); }
@@ -254,6 +251,7 @@ namespace Qsim {
     OSDomain(uint16_t n, std::string kernel_path, std::string cpu_type, qsim_mode mode = QSIM_HEADLESS, unsigned ram_mb = 1024);
 
     // Create a new OSDomain from a state file.
+    OSDomain(const char *filename);
     OSDomain(int n_cpus, const char *filename);
 
     // Save a snapshot of the OSDomain state
@@ -689,6 +687,9 @@ namespace Qsim {
     static pthread_mutex_t osdomains_lock;
 
     qsim_mode mode;
+
+    // save the current VM arguments
+    const char **cmd_argv;
   };
 
   // These can be attached on a per-CPU basis to store info about the
