@@ -359,6 +359,7 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, qsim_m
     tids.push_back(0);
     idlevec.push_back(true);
   }
+  cmd_argv = get_qemu_args(kernel_path.c_str(), ram_mb, n, cpu_type, mode);
 }
 
 // Create an OSDomain from a saved state file
@@ -395,7 +396,7 @@ Qsim::OSDomain::OSDomain(const char* filename)
 
   if (n_pos == 0 || m_pos == 0) {
     cerr << "Error: CPU/Mem arg not found. Command file " << cmd_filename <<
-      "corrupted?" << std::endl;
+      " corrupted?" << std::endl;
     exit(1);
   }
 
