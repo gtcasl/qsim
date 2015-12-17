@@ -26,15 +26,15 @@ if [ $? != 0 ]; then
   echo Untar input failed. Are you providing a .tar archive? | /sbin/qsim_out
 fi
 
-if [ -ne runme.sh ]; then
+if [ ! -e runme.sh ]; then
   echo \"runme.sh\" not found. Input .tar must contain this. | /sbin/qsim_out
 fi
 
 /sbin/chmod +x ./runme.sh
 /sbin/ash ./runme.sh 2>&1 | /sbin/qsim_out
 
+echo --- program exit, will shutdown shortly... ---
 # Spin forever.
 while true; do
-  echo --- program exit, will shutdown shortly... ---
   sleep 10
 done
