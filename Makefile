@@ -78,6 +78,15 @@ debug: all
 release: all
 	./build-qemu.sh $@		
 
+.PHONY: tests
+
+tests:
+	./qsim-fastforwarder linux/bzImage 1 512 state.1
+	cd tests/x86 && make
+	cd tests && make &&			\
+	./tester 1 ../state.1 x86/icount.tar && \
+	./tester 1 ../state.1 x86/memory.tar
+
 clean:
 	rm -f *~ \#*\# libqsim.so *.o test qtm qsim-fastforwarder build
 
