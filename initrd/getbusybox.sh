@@ -6,7 +6,7 @@
 
 BBOX=busybox-1.24.1
 BBOX_ARCHIVE=$BBOX.tar.bz2
-BBOX_URL=http://www.busybox.net/downloads/$BBOX_ARCHIVE
+BBOX_URL=https://www.busybox.net/downloads/$BBOX_ARCHIVE
 
 UNPACK="tar -xjf"
 
@@ -17,7 +17,7 @@ popd
 # Download the archive if we don't already have it.
 if [ ! -e $BBOX_ARCHIVE ]; then
   echo === DOWNLOADING ARCHIVE ===
-  wget $BBOX_URL
+  wget $BBOX_URL --no-check-certificate
 fi
 
 # Delete the busybox directory if it already exists.
@@ -31,3 +31,9 @@ $UNPACK $BBOX_ARCHIVE
 echo === COPYING CONFIG ===
 sed "s#\\%LINUX_DIR\\%#$LINUX_DIR#g" < busybox-config \
   > $BBOX/.config
+
+echo == BUILDING ==
+cd $BBOX
+make -j4
+cp busybox ../sbin/
+cd ../
