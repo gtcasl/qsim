@@ -37,3 +37,4 @@ cd $BBOX
 make -j4
 cp busybox ../sbin/
 cd ../
+make

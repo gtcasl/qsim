@@ -29,4 +29,5 @@ echo === PATCHING ===
 #sed "s#%%%QSIM_INITRD_FILE%%%#\"$INITRD\"#" < ../$KERNEL.qsim.config > .config
 patch -p1 < ../$KERNEL.qsim.patch
 
-cd ..
+echo === BUILDING LINUX ===
+make -j4

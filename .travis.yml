@@ -19,10 +19,8 @@ before_install:
     - make clib
     - cd $QSIM_PREFIX/linux
     - ./getkernel.sh
-    - cd linux && time make -j3
     - cd $QSIM_PREFIX/initrd
     - ./getbusybox.sh
-    - make
     - cd $QSIM_PREFIX
 script:
     - make release install
