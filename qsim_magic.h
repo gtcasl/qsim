@@ -14,9 +14,9 @@
 #elif defined(__i386__) || defined(__x86_64__)
 
 #define qsim_magic_enable()				\
-	asm volatile("cpuid;"::"a"(0xaaaaaaaa));
+	asm volatile("cpuid;"::"a"(0xaaaaaaaa):"ebx","ecx","edx");
 #define qsim_magic_disable()				\
-	asm volatile("cpuid;"::"a"(0xfa11dead));
+	asm volatile("cpuid;"::"a"(0xfa11dead):"ebx","ecx","edx");
 
 #endif
 
