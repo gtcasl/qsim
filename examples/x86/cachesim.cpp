@@ -148,7 +148,7 @@ class TraceWriter {
                 osd.set_mem_cb(this, &TraceWriter::mem_cb);
                 osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
 
-                return 1;
+                return 0;
             }
 
             return 0;
@@ -185,7 +185,7 @@ class TraceWriter {
         {
             finished = true;
             print_stats();
-            return 1;
+            return 0;
         }
 
         double get_hit_ratio() { return l2cache.getHitRatio(); }
