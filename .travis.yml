@@ -7,23 +7,30 @@ addons:
         packages:
         - g++-4.8
         - clang-3.4
+        - bc
 before_install:
     - git submodule update --init --recursive
     - export QSIM_PREFIX=`pwd`
-    - ./build-qemu.sh release
+    - export LD_LIBRARY_PATH=$QSIM_PREFIX/lib:$LD_LIBRARY_PATH
     - cd capstone
     - make
     - cd ..
     - cd distorm/distorm64/build/linux
     - make clib
-    - cd ../../../..
-script:
-    - make -j2
-after_success:
-    - make install
-    - cd examples/x86/
+    - cd $QSIM_PREFIX/linux
+    - ./getkernel.sh
+    - cd linux && time make -j3
+    - cd $QSIM_PREFIX/initrd
+    - ./getbusybox.sh
     - make
-    - cd ../arm64/
+    - cd $QSIM_PREFIX
+script:
+    - make release install
+    - make tests
+after_success:
+    - cd $QSIM_PREFIX/examples/x86/
+    - make
+    - cd $QSIM_PREFIX/examples/arm64/
     - make
 compiler:
 - clang
