@@ -23,6 +23,7 @@
 #define APP_START() qsim_magic_enable()
 #define APP_END()   qsim_magic_disable()
 
+__attribute__((unused))
 static void qsim_sig_handler(int signo)
 {
 	char c;
