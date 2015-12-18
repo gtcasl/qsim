@@ -78,10 +78,9 @@ debug: all
 release: all
 	./build-qemu.sh $@		
 
-.PHONY: tests
-
-tests:
-	./qsim-fastforwarder linux/bzImage 1 512 state.1
+tests: release
+	if [ ! -e state.1 ]; then \
+		./qsim-fastforwarder linux/bzImage 1 512 state.1; fi;
 	cd tests/x86 && make
 	cd tests && make &&			\
 	./tester 1 ../state.1 x86/icount.tar && \
