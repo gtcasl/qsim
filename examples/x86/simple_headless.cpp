@@ -13,6 +13,7 @@
 #include "distorm.h"
 
 #include <qsim.h>
+#include <qsim-load.h>
 
 using Qsim::OSDomain;
 
@@ -21,7 +22,7 @@ using std::ostream;
 class TraceWriter {
 public:
   TraceWriter(OSDomain &osd, ostream &tracefile) : 
-    osd(osd), tracefile(tracefile), finished(false) 
+    osd(osd), tracefile(tracefile), finished(false), icount(0), mcount(0)
   { 
     osd.set_app_start_cb(this, &TraceWriter::app_start_cb); 
   }
@@ -46,7 +47,13 @@ public:
     return 0;
   }
 
-  int app_end_cb(int c)   { finished = true; return 0; }
+  int app_end_cb(int c)
+  {
+    std::cout << "Inst : " << icount << std::endl;
+    std::cout << "Mem  : " << mcount << std::endl;
+    finished = true;
+    return 0;
+  }
 
   int atomic_cb(int c) {
     tracefile << std::dec << c << ": Atomic\n";
@@ -73,12 +80,14 @@ public:
     else tracefile << inst[0].mnemonic.p << ' ' << inst[0].operands.p;
 
     tracefile << " (" << itype_str[t] << ")\n";
+    icount++;
   }
 
   void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w) {
     tracefile << std::dec << c << ":  " << (w?"WR":"RD") << "(0x" << std::hex
               << v << "/0x" << p << "): " << std::dec << (unsigned)(s*8) 
               << " bits.\n";
+    mcount++;
     return;
   }
 
@@ -107,6 +116,7 @@ private:
   OSDomain &osd;
   ostream &tracefile;
   bool finished;
+  uint64_t icount, mcount;
 
   static const char * itype_str[];
 };
@@ -159,6 +169,7 @@ int main(int argc, char** argv) {
 
   // Attach a TraceWriter if a trace file is given.
   TraceWriter tw(osd, outfile?*outfile:std::cout);
+  Qsim::load_file(osd, argv[4]);
 
   // If this OSDomain was created from a saved state, the app start callback was
   // received prior to the state being saved.
@@ -168,10 +179,7 @@ int main(int argc, char** argv) {
 
   // The main loop: run until 'finished' is true.
   while (!tw.hasFinished()) {
-    for (unsigned i = 0; i < 100; i++) {
-           osd.run(0, 10000);
-    }
-    //osd.timer_interrupt();
+    osd.run(0, 10000);
   }
   
   if (outfile) { outfile->close(); }
