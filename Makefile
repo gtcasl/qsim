@@ -84,7 +84,9 @@ tests: release
 	cd tests/x86 && make
 	cd tests && make &&			\
 	./tester 1 ../state.1 x86/icount.tar && \
-	./tester 1 ../state.1 x86/memory.tar
+	diff x86/icount.out x86/icount_gold.out && \
+	./tester 1 ../state.1 x86/memory.tar && \
+	diff x86/memory.out x86/memory_gold.out
 
 clean:
 	rm -f *~ \#*\# libqsim.so *.o test qtm qsim-fastforwarder build

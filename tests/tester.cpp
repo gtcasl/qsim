@@ -54,10 +54,12 @@ public:
     mem++;
   }
 
-  void print_stats()
+  void print_stats(std::ofstream& out)
   {
     std::cout << "Inst: " << inst << std::endl;
     std::cout << "Mem : " << mem << std::endl;
+    out << "Inst: " << inst << std::endl;
+    out << "Mem : " << mem << std::endl;
   }
 
 private:
@@ -69,8 +71,6 @@ private:
 int main(int argc, char** argv) {
   using std::istringstream;
   using std::ofstream;
-
-  ofstream *outfile(NULL);
 
   unsigned n_cpus = 1;
 
@@ -93,6 +93,9 @@ int main(int argc, char** argv) {
   Tester tw(osd);
 
   Qsim::load_file(osd, argv[3]);
+  std::string bench(argv[3]);
+  std::string ofname = bench.substr(0, bench.find(".tar")) + ".out";
+  std::ofstream out(ofname);
   // If this OSDomain was created from a saved state, the app start callback was
   // received prior to the state being saved.
   tw.app_start_cb(0);
@@ -105,10 +108,9 @@ int main(int argc, char** argv) {
     osd.timer_interrupt();
   }
 
-  tw.print_stats();
+  tw.print_stats(out);
 
-  if (outfile) { outfile->close(); }
-  delete outfile;
+  out.close();
 
   delete osd_p;
 
