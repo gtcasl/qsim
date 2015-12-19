@@ -92,10 +92,10 @@ int main(int argc, char** argv) {
   OSDomain &osd(*osd_p);
   Tester tw(osd);
 
+  Qsim::load_file(osd, argv[3]);
   // If this OSDomain was created from a saved state, the app start callback was
   // received prior to the state being saved.
   tw.app_start_cb(0);
-  Qsim::load_file(osd, argv[3]);
 
   osd.connect_console(std::cout);
 
