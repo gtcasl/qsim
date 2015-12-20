@@ -13,6 +13,7 @@
 #include "distorm.h"
 
 #include <qsim.h>
+#include <qsim-load.h>
 
 using Qsim::OSDomain;
 
@@ -162,7 +163,10 @@ int main(int argc, char** argv) {
 
   // If this OSDomain was created from a saved state, the app start callback was
   // received prior to the state being saved.
-  if (argc >= 4) tw.app_start_cb(0);
+  if (argc >= 4) {
+    Qsim::load_file(osd, argv[4]);
+    tw.app_start_cb(0);
+  }
 
   osd.connect_console(std::cout);
 
