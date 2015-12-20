@@ -8,15 +8,15 @@ int main(int argc, char *argv[])
   p = new int[argc];
   qsim_magic_enable();
   asm volatile("movl $1, (%1)\n"
-               "addl $1, (%1)\n"
-               "addl $1, (%1)\n"
-               "addl $1, (%1)\n"
-               "addl $1, (%1)\n"
-               "addl $1, (%1)\n"
-               "addl $1, (%1)\n"
-               "addl $1, (%1)\n"
-               "addl $1, (%1)\n"
-               "addl $1, (%1)\n"
+               "movl $1, (%1)\n"
+               "movl $1, (%1)\n"
+               "movl $1, (%1)\n"
+               "movl $1, (%1)\n"
+               "movl $1, (%1)\n"
+               "movl $1, (%1)\n"
+               "movl $1, (%1)\n"
+               "movl $1, (%1)\n"
+               "movl $1, (%1)\n"
                :"+r"(p));
   qsim_magic_disable();
 
