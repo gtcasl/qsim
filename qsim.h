@@ -459,6 +459,24 @@ namespace Qsim {
       }
     };
 
+    struct start_cb_obj_s : public start_cb_obj_base {
+      typedef int(*start_cb_t)(int);
+      start_cb_t f;
+      start_cb_obj_s(start_cb_t f): f(f) {}
+      int operator()(int cpu_id) {
+        return f(cpu_id);
+      }
+    };
+
+    struct end_cb_obj_s : public end_cb_obj_base {
+      typedef int(*end_cb_t)(int);
+      end_cb_t f;
+      end_cb_obj_s(end_cb_t f): f(f) {}
+      int operator()(int cpu_id) {
+        return f(cpu_id);
+      }
+    };
+
     std::vector<atomic_cb_obj_base*> atomic_cbs;
     std::vector<magic_cb_obj_base*>  magic_cbs;
     std::vector<io_cb_obj_base*>     io_cbs;
@@ -573,8 +591,15 @@ namespace Qsim {
     void unset_trans_cb(trans_cb_handle_t);
 
     // Set the "application start" and "application end" callbacks.
-    void set_app_start_cb(int (*)(int));
-    void set_app_end_cb  (int (*)(int));
+    void set_app_start_cb(int f(int))
+    {
+      start_cbs.push_back(new start_cb_obj_s(f));
+    }
+
+    void set_app_end_cb  (int f(int))
+    {
+      end_cbs.push_back(new end_cb_obj_s(f));
+    }
 
     // Get the number of CPUs
     int get_n() const { return n; }
