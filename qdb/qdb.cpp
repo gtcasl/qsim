@@ -301,7 +301,7 @@ void do_report() {
   puts(" Dynamic Insts     Symbol\n"
        "---------------   -----------------------------");
   for (i = prof_inst_counts.begin(); i != prof_inst_counts.end(); i++) {
-    printf("%15llu   %s\n", i->second, i->first.c_str());
+    printf("%15lu   %s\n", i->second, i->first.c_str());
   }
   pthread_mutex_unlock(&prof_lock);
 }
@@ -551,7 +551,7 @@ int main(int argc, char **argv) {
   rip_vec = new uint64_t[n_cpus];
 
   // Initialize our OSDomain.
-  cd = new OSDomain(n_cpus, kernel_filename, 3072);
+  cd = new OSDomain(n_cpus, kernel_filename, "x86", QSIM_INTERACTIVE, 3072);
   cd->set_inst_cb  (rip_inst_cb               );
   cd->set_app_start_cb(app_start_cb);
   cd->set_app_end_cb  (app_end_cb);

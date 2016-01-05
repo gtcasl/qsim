@@ -194,7 +194,7 @@ input:   T_HELP T_END              { show_help(-1);         return 1; }
 	   if ($3 == -1) {
 	     printf("Unrecognized register name.\n");
            } else {
-	     cd->set_reg($2, (enum regs)$3, $4);
+	     cd->set_reg($2, $3, $4);
            }
 	   return 1;
          }
