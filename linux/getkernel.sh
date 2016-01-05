@@ -14,8 +14,8 @@ if [ ! -e $KERNEL_ARC ]; then
 fi
 
 # Remove our kernel working directory if we're about to overwrite it.
-if [ -e $KERNEL ]; then
-  rm -rf $KERNEL
+if [ -e linux ]; then
+  rm -rf linux
 fi
 
 echo === UNPACKING ARCHIVE ===
@@ -31,3 +31,8 @@ patch -p1 < ../$KERNEL.qsim.patch
 
 echo === BUILDING LINUX ===
 make -j4
+
+if [ ! -z "$1" ]; then
+  cp ../$KERNEL.qsim-arm64.config .config
+  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j4
+fi

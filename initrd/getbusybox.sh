@@ -4,6 +4,11 @@
 # NOTE: This is optional. The binary of busybox distributed with QSim should
 # work perfectly adequately.
 
+if [ ! -z "$1" ]; then
+  CROSS=aarch64-linux-gnu-
+  ARCH=arm64
+fi
+
 BBOX=busybox-1.24.1
 BBOX_ARCHIVE=$BBOX.tar.bz2
 BBOX_URL=https://www.busybox.net/downloads/$BBOX_ARCHIVE
@@ -34,7 +39,7 @@ sed "s#\\%LINUX_DIR\\%#$LINUX_DIR#g" < busybox-config \
 
 echo == BUILDING ==
 cd $BBOX
-make -j4
+make -j4 CROSS_COMPILE=$CROSS
 cp busybox ../sbin/
 cd ../
-make
+make $ARCH

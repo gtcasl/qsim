@@ -9,14 +9,17 @@ sbin/test_inst: test_inst.c
 sbin/test_mem: test_mem.c
 
 sbin/hexdump : sbin/busybox
-	bash -c 'cd sbin; for a in `./busybox --list-full`; do ln -sf ./busybox $$a; done; cd ..'
+	bash -c 'cd sbin; for a in `$(QEMU) ./busybox --list-full`; do ln -sf ./busybox $$a; done; cd ..'
 
 sbin/% : %.c
-	gcc -o $@ -pthread -static $<
+	$(CC) -o $@ -pthread -static $<
 
 dev proc sys data:
 	mkdir -p dev proc sys data
 
+.PHONY: arm64
+arm64:
+	$(MAKE) CC=aarch64-linux-gnu-gcc QEMU=qemu-aarch64
 
 clean: 
 	rm -f sbin/test_inst sbin/test_mem sbin/qsim_io sbin/test_threads sbin/mark_app initrd.cpio *~ \#*
