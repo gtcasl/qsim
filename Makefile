@@ -78,7 +78,7 @@ debug: all
 release: all
 	./build-qemu.sh $@		
 
-tests: release
+tests: release install
 	if [ ! -e state.1 ]; then \
 		./qsim-fastforwarder linux/bzImage 1 512 state.1; fi;
 	cd tests/x86 && make
