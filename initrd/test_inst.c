@@ -2,7 +2,11 @@
 #include <stdint.h>
 
 static inline void do_cpuid(uint32_t val) {
+#if defined(__arm__) || defined(__aarch64__)
+  asm volatile("msr pmcr_el0, %0" :: "r" (val));
+#else
   asm("cpuid;\n":: "a"(val) : "%edx", "%ecx");
+#endif
 }
 
 volatile int val = 0;

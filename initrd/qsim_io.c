@@ -10,28 +10,62 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdint.h>
+
+static inline void do_cpuid(uint32_t val) {
+#if defined(__arm__) || defined(__aarch64__)
+  asm volatile("msr pmcr_el0, %0" :: "r" (val));
+#else
+  asm("cpuid;\n":: "a"(val) : "%ebx", "%ecx", "%edx");
+#endif
+}
+
+static inline int do_cpuid_return(uint32_t val) {
+  int ret;
+
+#if defined(__arm__) || defined(__aarch64__)
+  asm volatile("msr pmcr_el0, %0" : "=pmcr_el0"(ret) : "r" (val));
+#else
+  asm("cpuid;\n": "=a"(ret) : "a"(val) : "%edx", "%ecx");
+#endif
+
+  return ret;
+}
+
+static inline int do_cpuid2_return(uint32_t val, char* buf) {
+  int ret;
+
+#if defined(__arm__) || defined(__aarch64__)
+  asm volatile("msr pmcr_el0, %0" : "+pmcr_el0"(ret) : "r" (val));
+#else
+  asm("cpuid;\n": "=c"(ret) : "a"(val), "b"(buf) : "%edx");
+#endif
+
+  return ret;
+}
 
 static inline void qsim_out(char i) {
-  asm("cpuid;" : : "a" ((0xff&i)|0xc501e000) : "%ebx", "%edx", "%ecx");
+  do_cpuid((0xff & i) | 0xc501e000);
 }
 
 static inline void qsim_bin_out(char i) {
-  asm("cpuid;" : : "a" ((0xff&i)|0xc5b10000) : "%ebx", "%edx", "%ecx");
+  do_cpuid((0xff & i) | 0xc5b10000);
 }
 
 static inline char qsim_in() {
   char out;
   int ready;
-  asm("cpuid;" : "=a"(ready) : "a"(0xc5b1fffe) : "%ebx", "%edx", "%ecx");
+  ready = do_cpuid_return(0xc5b1fffe);
   if (!ready) exit(0);
-  asm("cpuid;" : "=a"(out) : "a"(0xc5b1ffff) : "%ebx", "%edx", "%ecx");
+  out = do_cpuid_return(0xc5b1ffff);
 
   return out;
 }
 
 static inline size_t qsim_in_block(char* buf) {
   size_t s;
-  asm("cpuid;" : "=c"(s) : "a"(0xc5b1fffd), "b"(buf) : "%edx");
+  s = do_cpuid2_return(0xc5b1fffd, buf);
+
   return s;
 }
 
