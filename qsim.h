@@ -136,6 +136,7 @@ namespace Qsim {
     uint64_t run(unsigned n) { return qemu_run(n); }
 
     std::string getCpuType() { return cpu_type; }
+    void setCpuType(std::string arch) { cpu_type = arch; }
 
     // Save state to file.
     void save_state(const char *file);

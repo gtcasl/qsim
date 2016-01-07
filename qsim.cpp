@@ -384,7 +384,8 @@ Qsim::OSDomain::OSDomain(const char* filename)
     exit(1);
   }
 
-  string cmd;
+  string arch, cmd;
+  cmd_file >> arch;
   int argc = 0, n_pos = 0, m_pos = 0;
   while (cmd_file >> cmd) {
     argc++;
@@ -395,7 +396,7 @@ Qsim::OSDomain::OSDomain(const char* filename)
   }
 
   if (n_pos == 0 || m_pos == 0) {
-    cerr << "Error: CPU/Mem arg not found. Command file " << cmd_filename <<
+    cerr << "Error: SMP/Mem arg not found. Command file " << cmd_filename <<
       " corrupted?" << std::endl;
     exit(1);
   }
@@ -406,6 +407,7 @@ Qsim::OSDomain::OSDomain(const char* filename)
   // go to the beginning of the arg list
   cmd_file.clear();
   cmd_file.seekg(0, cmd_file.beg);
+  cmd_file >> arch;
   argc = 0;
   while (cmd_file >> cmd) {
     cmd_args[argc++] = strdup(cmd.c_str());
@@ -423,6 +425,7 @@ Qsim::OSDomain::OSDomain(const char* filename)
   cpus.push_back(new QemuCpu(cmd_argv));
   cpus[0]->set_magic_cb(magic_cb_s);
   cpus[0]->set_gen_cbs(true);
+  cpus[0]->setCpuType(arch);
 
   running.push_back(true);
   tids.push_back(0);
@@ -449,6 +452,7 @@ void Qsim::OSDomain::save_state(const char* filename) {
   string cmd_filename = string(filename) + string(".cmd");
   ofstream cmd_file(cmd_filename);
 
+  cmd_file << cpus[0]->getCpuType() << std::endl;
   for (int argc = 0; cmd_argv[argc] != NULL; argc++) {
     // skip kernel initrd and append args
     if (!(strcmp(cmd_argv[argc], "-kernel") && strcmp(cmd_argv[argc], "-initrd")
