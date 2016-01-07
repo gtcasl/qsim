@@ -272,7 +272,7 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
     NULL
   };
 
-  if (mode >= QSIM_INTERACTIVE) {
+  if (mode == QSIM_INTERACTIVE) {
     if (cpu_type == "x86")
       return argv_interactive_x86;
     else if (cpu_type == "a64")
