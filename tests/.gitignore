@@ -6,3 +6,10 @@ x86/memory
 x86/memory.out
 x86/memory.tar
 x86/runme.sh
+arm64/icount
+arm64/icount.tar
+arm64/icount.out
+arm64/memory
+arm64/memory.out
+arm64/memory.tar
+arm64/runme.sh
