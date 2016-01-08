@@ -42,4 +42,4 @@ cd $BBOX
 make -j4 CROSS_COMPILE=$CROSS
 cp busybox ../sbin/
 cd ../
-make $ARCH
+make clean && make $ARCH

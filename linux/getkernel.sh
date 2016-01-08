@@ -13,26 +13,23 @@ if [ ! -e $KERNEL_ARC ]; then
   wget $KERNEL_URL
 fi
 
-# Remove our kernel working directory if we're about to overwrite it.
-if [ -e linux ]; then
-  rm -rf linux
+# unpack if kernel does not exists
+if [ ! -e linux ]; then
+    echo === UNPACKING ARCHIVE ===
+    $UNPACKAGE $KERNEL_ARC
+    mv $KERNEL linux
+    echo === PATCHING ===
+    #sed "s#%%%QSIM_INITRD_FILE%%%#\"$INITRD\"#" < ../$KERNEL.qsim.config > .config
+    patch -p1 < ../$KERNEL.qsim.patch
 fi
 
-echo === UNPACKING ARCHIVE ===
-$UNPACKAGE $KERNEL_ARC
-mv $KERNEL linux
-
-cp $KERNEL.qsim.config linux/.config
-cd linux
-
-echo === PATCHING ===
-#sed "s#%%%QSIM_INITRD_FILE%%%#\"$INITRD\"#" < ../$KERNEL.qsim.config > .config
-patch -p1 < ../$KERNEL.qsim.patch
-
 echo === BUILDING LINUX ===
-make -j4
-
 if [ ! -z "$1" ]; then
-  cp ../$KERNEL.qsim-arm64.config .config
+  cp $KERNEL.qsim-arm64.config linux/.config
+  cd linux
   make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j4
+else
+  cp $KERNEL.qsim.config linux/.config
+  cd linux
+  make -j4
 fi
