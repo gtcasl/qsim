@@ -129,8 +129,8 @@ namespace Qsim {
     void load_linux(const char* bzImage);
 
   public:
-    QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1, std::string cpu_type = "x86", qsim_mode mode = QSIM_HEADLESS);
-    QemuCpu(const char** args);
+    QemuCpu(int id, const char* kernel, unsigned ram_mb = 1024, int n_cpus = 1, const std::string& cpu_type = "x86", qsim_mode mode = QSIM_HEADLESS);
+    QemuCpu(const char** args, const std::string& type);
     virtual ~QemuCpu();
  
     uint64_t run(unsigned n) { return qemu_run(n); }
@@ -249,7 +249,7 @@ namespace Qsim {
     enum cpu_prot { PROT_KERN, PROT_USER };
 
     // Create a OSDomain with n CPUs, booting the kernel at the given path
-    OSDomain(uint16_t n, std::string kernel_path, std::string cpu_type, qsim_mode mode = QSIM_HEADLESS, unsigned ram_mb = 1024);
+    OSDomain(uint16_t n, std::string kernel_path, const std::string& cpu_type, qsim_mode mode = QSIM_HEADLESS, unsigned ram_mb = 1024);
 
     // Create a new OSDomain from a state file.
     OSDomain(const char *filename);

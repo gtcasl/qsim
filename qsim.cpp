@@ -174,30 +174,29 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   Mgzd::sym(qsim_loadvm_state,    qemu_lib, "qsim_loadvm_state"   );
 }
 
-const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::string cpu_type, qsim_mode mode)
+const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, const string& cpu_type, qsim_mode mode)
 {
-  std::string qsim_prefix(getenv("QSIM_PREFIX"));
+  string qsim_prefix(getenv("QSIM_PREFIX"));
   qsim_prefix += "/";
-  std::stringstream ncpus_ss;
+  stringstream ncpus_ss;
   ncpus_ss << n_cpus;
   char* ncpus = strdup(ncpus_ss.str().c_str());
-  std::stringstream ramsize_ss;
+  stringstream ramsize_ss;
   ramsize_ss << ram_size;
   char* ramsize = strdup(ramsize_ss.str().c_str());
-  std::string kernel_s(kernel);
-  std::string image_prefix;
+  string kernel_s(kernel);
+  string image_prefix;
 
   if (cpu_type == "arm32")
     image_prefix = "arm";
-  else if (cpu_type == "a64") {
+  else if (cpu_type == "a64")
     image_prefix = "arm64";
-    mode = QSIM_INTERACTIVE;
-  } else if (cpu_type == "x86")
+  else if (cpu_type == "x86")
     image_prefix = "x86_64";
 
-  std::string kernel_path_s = qsim_prefix + "../" + image_prefix + "_images/vmlinuz";
-  std::string initrd_path_s = qsim_prefix + "../" + image_prefix + "_images/initrd.img";
-  std::string disk_path_s   = qsim_prefix + "../" + image_prefix + "_images/" +
+  string kernel_path_s = qsim_prefix + "../" + image_prefix + "_images/vmlinuz";
+  string initrd_path_s = qsim_prefix + "../" + image_prefix + "_images/initrd.img";
+  string disk_path_s   = qsim_prefix + "../" + image_prefix + "_images/" +
                                                   image_prefix + "disk.img";
 
   char* kernel_path = strdup(kernel_path_s.c_str());
@@ -214,7 +213,7 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
     NULL
   };
 
-  std::string a64_img_options_s = "file=" + disk_path_s + ",id=coreimg,cache=unsafe,if=none";
+  string a64_img_options_s = "file=" + disk_path_s + ",id=coreimg,cache=unsafe,if=none";
   char* a64_img_options = strdup(a64_img_options_s.c_str());
   static const char *argv_interactive_a64[] = {
     "qemu", 
@@ -236,7 +235,7 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
     NULL
   };
 
-  std::string bios_path_s = qsim_prefix + "qemu/pc-bios";
+  string bios_path_s = qsim_prefix + "qemu/pc-bios";
   char* bios_path = strdup(bios_path_s.c_str());
   static const char *argv_interactive_x86[] = {
     "qemu", "-no-hpet",
@@ -256,7 +255,6 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
   };
 
   //static char *argv_headless_a32[];
-  //static char *argv_headless_a64[];
   initrd_path_s = qsim_prefix + "initrd/initrd.cpio";
   static const char *argv_headless_x86[] = {
     "qemu", "-no-hpet", "-no-acpi",
@@ -272,6 +270,22 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
     NULL
   };
 
+  static const char *argv_headless_a64[] = {
+    "qemu",
+    "-m", ramsize, "-M", "virt",
+    "-cpu", "cortex-a57",
+    "-drive",  a64_img_options,
+    "-kernel", strdup(kernel),
+    "-initrd", strdup(initrd_path_s.c_str()),
+    "-append", "init=/init lpj=34920500 console=ttyAMA0 console=ttyS0"
+    " nowatchdog rcupdate.rcu_cpu_stall_suppress=1 console=/dev/ttyS0",
+    "-nographic",
+    "-redir", "tcp:2222::22",
+    "-smp", ncpus,
+    (mode == QSIM_KVM) ? "--enable-kvm" : NULL,
+    NULL
+  };
+
   if (mode == QSIM_INTERACTIVE) {
     if (cpu_type == "x86")
       return argv_interactive_x86;
@@ -282,13 +296,15 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, std::st
   } else {
     if (cpu_type == "x86")
       return argv_headless_x86;
+    else if (cpu_type == "a64")
+      return argv_headless_a64;
   }
 
   return NULL;
 }
 
 Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
-		                   int n_cpus, std::string type, qsim_mode mode)
+		                   int n_cpus, const string& type, qsim_mode mode)
 {
   std::ostringstream ram_size_ss; ram_size_ss << ram_mb << 'M';
   cpu_type = type;
@@ -311,8 +327,9 @@ Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
 }
 
 // Create QemuCpu from saved state file
-Qsim::QemuCpu::QemuCpu(const char** cmd_argv)
+Qsim::QemuCpu::QemuCpu(const char** cmd_argv, const string& type)
 {
+  cpu_type = type;
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
   qemu_init(cmd_argv);
 }
@@ -340,8 +357,9 @@ void Qsim::OSDomain::assign_id() {
   pthread_mutex_unlock(&osdomains_lock);
 }
 
-Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, string cpu_type, qsim_mode mode, unsigned ram_mb):
-	n(n), waiting_for_eip(0)
+Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,
+                         qsim_mode mode, unsigned ram_mb)
+   : n(n), waiting_for_eip(0)
 {
   assign_id();
 
@@ -422,10 +440,9 @@ Qsim::OSDomain::OSDomain(const char* filename)
   n = strtol(cmd_args[n_pos], NULL, 0);
   ram_size_mb = strtol(cmd_args[m_pos], NULL, 0);
 
-  cpus.push_back(new QemuCpu(cmd_argv));
+  cpus.push_back(new QemuCpu(cmd_argv, arch));
   cpus[0]->set_magic_cb(magic_cb_s);
   cpus[0]->set_gen_cbs(true);
-  cpus[0]->setCpuType(arch);
 
   running.push_back(true);
   tids.push_back(0);
@@ -486,7 +503,7 @@ Qsim::OSDomain::cpu_prot Qsim::OSDomain::get_prot(uint16_t i) {
   return PROT_KERN;
 }
 
-std::string Qsim::OSDomain::getCpuType(uint16_t i) {
+string Qsim::OSDomain::getCpuType(uint16_t i) {
   return cpus[i]->getCpuType();
 }
 
