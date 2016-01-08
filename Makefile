@@ -73,12 +73,18 @@ uninstall: $(QSIM_PREFIX)/lib/libqsim.so
 debug: all
 	./build-qemu.sh $@		
 
-.PHONY: release
+.PHONY: release tests
 
 release: all
 	./build-qemu.sh $@		
 
-tests: release install
+tests: release install x86_tests a64_tests
+
+x86_prep:
+	cd linux && ./getkernel.sh
+	cd initrd && ./getbusybox.sh
+
+x86_tests: x86_prep
 	if [ ! -e state.1 ]; then \
 		./qsim-fastforwarder linux/bzImage 1 512 state.1; fi;
 	cd tests/x86 && make
@@ -87,6 +93,20 @@ tests: release install
 	diff x86/icount.out x86/icount_gold.out && \
 	./tester 1 ../state.1 x86/memory.tar && \
 	diff x86/memory.out x86/memory_gold.out
+
+a64_prep:
+	cd linux && ./getkernel.sh arm64
+	cd initrd && ./getbusybox.sh arm64
+
+a64_tests: a64_prep
+	if [ ! -e state.1.a64 ]; then \
+		./qsim-fastforwarder linux/Image 1 512 state.1.a64 a64; fi;
+	cd tests/arm64 && make
+	cd tests && make &&			\
+	./tester 1 ../state.1.a64 arm64/icount.tar && \
+	diff arm64/icount.out arm64/icount_gold.out && \
+	./tester 1 ../state.1.a64 arm64/memory.tar && \
+	diff arm64/memory.out arm64/memory_gold.out
 
 clean:
 	rm -f *~ \#*\# libqsim.so *.o test qtm qsim-fastforwarder build
