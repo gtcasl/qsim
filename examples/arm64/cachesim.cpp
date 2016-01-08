@@ -241,7 +241,7 @@ int main(int argc, char** argv) {
         // Create new OSDomain from saved state.
         osd_p = new OSDomain(n_cpus, argv[3]);
     } else {
-        osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64");
+        osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64", QSIM_INTERACTIVE);
     }
     OSDomain &osd(*osd_p);
 

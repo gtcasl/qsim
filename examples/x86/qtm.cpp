@@ -70,7 +70,7 @@ void *cpu_thread_main(void* thread_arg) {
     arg->cd->run(arg->cpu, 1000000/BRS_PER_MILN);
     arg->icount += 1000000/BRS_PER_MILN;
       
-    uint64_t last_rip = arg->cd->get_reg(arg->cpu, QSIM_RIP);
+    uint64_t last_rip = arg->cd->get_reg(arg->cpu, QSIM_X86_RIP);
     uint16_t last_tid = arg->cd->get_tid(arg->cpu);
     bool     kernel   = arg->cd->get_prot(arg->cpu) == OSDomain::PROT_KERN;
     if (i % BRS_PER_MILN == (BRS_PER_MILN - 1)) {
@@ -79,10 +79,10 @@ void *cpu_thread_main(void* thread_arg) {
            << " insts, stopping at 0x" << std::hex << std::setfill('0') 
            << std::setw(8) << last_rip << "(TID=" << std::dec << last_tid
            << ')' << (kernel?"-kernel\n":"\n");
-      tout << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RAX) << ", "
-           << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RCX) << ", "
-           << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RBX) << ", "
-           << std::hex << arg->cd->get_reg(arg->cpu, QSIM_RDX) << '\n';
+      tout << std::hex << arg->cd->get_reg(arg->cpu, QSIM_X86_RAX) << ", "
+           << std::hex << arg->cd->get_reg(arg->cpu, QSIM_X86_RCX) << ", "
+           << std::hex << arg->cd->get_reg(arg->cpu, QSIM_X86_RBX) << ", "
+           << std::hex << arg->cd->get_reg(arg->cpu, QSIM_X86_RDX) << '\n';
       pthread_mutex_unlock(&output_mutex);
     }
 
