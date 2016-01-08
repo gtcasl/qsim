@@ -1,13 +1,18 @@
 language: cpp
-sudo: false
+sudo: required
+dist: trusty
 addons:
     apt:
         sources:
         - ubuntu-toolchain-r-test
         packages:
-        - g++-4.8
-        - clang-3.4
+        - g++-4.9
+        - clang-3.5
+        - gcc-aarch64-linux-gnu
+        - g++-aarch64-linux-gnu
         - bc
+        - qemu-user
+        - qemu
 before_install:
     - git submodule update --init --recursive
     - export QSIM_PREFIX=`pwd`
@@ -19,6 +24,7 @@ before_install:
     - make clib
     - cd $QSIM_PREFIX/linux
     - ./getkernel.sh
+    - ./getkernel.sh arm64
     - cd $QSIM_PREFIX/initrd
     - ./getbusybox.sh
     - cd $QSIM_PREFIX

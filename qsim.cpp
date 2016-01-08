@@ -274,7 +274,6 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, const s
     "qemu",
     "-m", ramsize, "-M", "virt",
     "-cpu", "cortex-a57",
-    "-drive",  a64_img_options,
     "-kernel", strdup(kernel),
     "-initrd", strdup(initrd_path_s.c_str()),
     "-append", "init=/init lpj=34920500 console=ttyAMA0 console=ttyS0"
@@ -471,9 +470,11 @@ void Qsim::OSDomain::save_state(const char* filename) {
 
   cmd_file << cpus[0]->getCpuType() << std::endl;
   for (int argc = 0; cmd_argv[argc] != NULL; argc++) {
-    // skip kernel initrd and append args
-    if (!(strcmp(cmd_argv[argc], "-kernel") && strcmp(cmd_argv[argc], "-initrd")
-          && strcmp(cmd_argv[argc], "-append"))) {
+    // skip kernel initrd, append and drive args
+    if (!(strcmp(cmd_argv[argc], "-kernel") &&
+          strcmp(cmd_argv[argc], "-initrd") &&
+          strcmp(cmd_argv[argc], "-drive")  &&
+          strcmp(cmd_argv[argc], "-append"))) {
       argc++;
       continue;
     }

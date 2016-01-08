@@ -9,7 +9,7 @@
 CXXFLAGS ?= -g -Wall -Idistorm/ -std=c++0x
 QSIM_PREFIX ?= /usr/local
 LDFLAGS = -L./
-LDLIBS = -lqsim -ldl
+LDLIBS = -lqsim -ldl -lrt
 
 QEMU_BUILD_DIR=build
 
@@ -35,7 +35,7 @@ qsim-fastforwarder: fastforwarder.cpp statesaver.o statesaver.h libqsim.so
 
 libqsim.so: qsim.cpp qsim-load.o qsim-prof.o qsim.h qsim-vm.h qsim-lock.h mgzd.h \
             qsim-regs.h qsim-rwlock.h qsim-x86-regs.h qsim-arm64-regs.h
-	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o qsim-prof.o -ldl
+	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o qsim-prof.o -ldl -lrt
 
 install: libqsim.so qsim-fastforwarder qsim.h qsim-vm.h mgzd.h \
 	 qsim-load.h qsim-prof.h qsim-lock.h qsim-rwlock.h qsim-regs.h \
@@ -81,7 +81,6 @@ release: all
 tests: release install x86_tests a64_tests
 
 x86_prep:
-	cd linux && ./getkernel.sh
 	cd initrd && ./getbusybox.sh
 
 x86_tests: x86_prep
@@ -95,7 +94,6 @@ x86_tests: x86_prep
 	diff x86/memory.out x86/memory_gold.out
 
 a64_prep:
-	cd linux && ./getkernel.sh arm64
 	cd initrd && ./getbusybox.sh arm64
 
 a64_tests: a64_prep
