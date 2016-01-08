@@ -43,10 +43,10 @@ public:
   int magic_cb(int c, uint64_t rax)
   {
     if (rax == 0xc5b1fffd) {
-      uint64_t vaddr = osd.get_reg(c, QSIM_RBX);
+      uint64_t vaddr = osd.get_reg(c, QSIM_X86_RBX);
       uint32_t val = 0xfafa;
       osd.mem_wr_virt(c, val, vaddr);
-      osd.set_reg(c, QSIM_RCX, sizeof(val));
+      osd.set_reg(c, QSIM_X86_RCX, sizeof(val));
     }
 
     return 0;
