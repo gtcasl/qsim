@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 static inline void do_cpuid(uint32_t val) {
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
   asm volatile("msr pmcr_el0, %0" :: "r" (val));
 #else
   asm("cpuid;\n":: "a"(val) : "%ebx", "%ecx", "%edx");
@@ -23,8 +23,10 @@ static inline void do_cpuid(uint32_t val) {
 static inline int do_cpuid_return(uint32_t val) {
   int ret;
 
-#if defined(__arm__) || defined(__aarch64__)
-  asm volatile("msr pmcr_el0, %0" : "=pmcr_el0"(ret) : "r" (val));
+#if defined(__aarch64__)
+  asm volatile("msr pmcr_el0, %0\n"
+               "mov %0, x0\n"
+               : "=r"(ret) : "r" (val));
 #else
   asm("cpuid;\n": "=a"(ret) : "a"(val) : "%edx", "%ecx");
 #endif
@@ -35,8 +37,12 @@ static inline int do_cpuid_return(uint32_t val) {
 static inline int do_cpuid2_return(uint32_t val, char* buf) {
   int ret;
 
-#if defined(__arm__) || defined(__aarch64__)
-  asm volatile("msr pmcr_el0, %0" : "+pmcr_el0"(ret) : "r" (val));
+#if defined(__aarch64__)
+  asm volatile("mov x0, %1\n"
+               "mov x1, %2\n"
+               "msr pmcr_el0, %0\n"
+               "mov %0, x2\n"
+               : "=&r"(ret) : "r" (val), "r" (buf));
 #else
   asm("cpuid;\n": "=c"(ret) : "a"(val), "b"(buf) : "%edx");
 #endif

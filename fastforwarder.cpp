@@ -46,17 +46,22 @@ struct Magic_cb_s {
       std::cerr << ' ' << x86_regs_str[r] << '(' << osd.get_reg(i, r) << ')';
     } else if (!w) {
       std::cerr << " f" << std::setw(2) << std::setfill('0') << r
-                << '(' << std::setw(2) << osd.get_reg(i, QSIM_CPSR) << ')';
+                << '(' << std::setw(2) << osd.get_reg(i, QSIM_ARM_CPSR) << ')';
     }
   }
 };
 
 int main(int argc, char** argv) {
-  if (argc != 5) {
+  if (argc < 5) {
     std::cout << "Usage:\n  " << argv[0] 
-              << " <bzImage> <# CPUs> <ram size (MB)> <output state file>\n";
+              << " <bzImage> <# CPUs> <ram size (MB)> <output state file> <{x86/arm64}>\n";
     return 1;
   }
+
+  std::string arch("x86");
+
+  if (argc == 6)
+      arch = argv[5];
 
   int cpus(atoi(argv[2])), ram_mb(atoi(argv[3]));
   if (cpus <= 0) {
@@ -70,7 +75,7 @@ int main(int argc, char** argv) {
 #ifdef LOAD
   Qsim::OSDomain osd("state.debug");
 #else
-  Qsim::OSDomain osd(cpus, argv[1], "x86", QSIM_HEADLESS, ram_mb);
+  Qsim::OSDomain osd(cpus, argv[1], arch, QSIM_HEADLESS, ram_mb);
 #endif
   Magic_cb_s magic_cb_s(osd);
 

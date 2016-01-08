@@ -53,11 +53,24 @@ private:
   }
 
   int magic_cb(int c, uint64_t rax) {
+
+    static int addr_reg, size_reg, ready_reg;
+
+    if (osd.getCpuType(0) == "x86") {
+        addr_reg  = QSIM_X86_RBX;
+        size_reg  = QSIM_X86_RCX;
+        ready_reg = QSIM_X86_RAX;
+    } else {
+        addr_reg  = QSIM_ARM64_X1;
+        size_reg  = QSIM_ARM64_X2;
+        ready_reg = QSIM_ARM64_X0;
+    }
+
     if (rax == 0xc5b1fffd) {
       // Giving an address to deposit 1024 bytes in %rbx. Wants number of bytes
       // actually deposited in %rcx.                                           
 
-      uint64_t vaddr = osd.get_reg(c, QSIM_RBX);
+      uint64_t vaddr = osd.get_reg(c, addr_reg);
       int count = 1024;
       while (infile.good() && count) {
         char ch;
@@ -65,19 +78,19 @@ private:
         osd.mem_wr_virt(c, ch, vaddr++);
         count--;
       }
-      osd.set_reg(c, QSIM_RCX, 1024-count);
+      osd.set_reg(c, size_reg, 1024-count);
     } else if (rax == 0xc5b1fffe) {
       // Asking if input is ready
-      osd.set_reg(c, QSIM_RAX, !(!infile));
+      osd.set_reg(c, ready_reg, !(!infile));
     } else if (rax == 0xc5b1ffff) {
       // Asking for a byte of input.
       char ch;
       infile.get(ch);
-      osd.set_reg(c, QSIM_RAX, ch);
+      osd.set_reg(c, ready_reg, ch);
     } else if ((rax & 0xffffff00) == 0xc5b100) {
       std::cout << "binary write: " << (rax&0xff) << '\n';
     } else if (rax == 0xc5b1fffc) {
-      osd.set_n(osd.get_reg(c, QSIM_RBX));
+      osd.set_n(osd.get_reg(c, addr_reg));
     }
 
     return 0;
