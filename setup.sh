@@ -13,9 +13,11 @@ normal=$(tput sgr0)
 ARCH=$1
 
 # Install dependencies
+echo "Installing dependencies..."
 echo "sudo apt-get -y build-dep qemu"
 sudo apt-get -y build-dep qemu
 sudo apt-get -y install gcc-aarch64-linux-gnu
+sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
 # set the QSIM environment variable
 echo "Setting QSIM environment variable..."
