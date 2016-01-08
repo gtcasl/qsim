@@ -18,9 +18,11 @@ if [ ! -e linux ]; then
     echo === UNPACKING ARCHIVE ===
     $UNPACKAGE $KERNEL_ARC
     mv $KERNEL linux
+    cd linux
     echo === PATCHING ===
     #sed "s#%%%QSIM_INITRD_FILE%%%#\"$INITRD\"#" < ../$KERNEL.qsim.config > .config
     patch -p1 < ../$KERNEL.qsim.patch
+    cd ..
 fi
 
 echo === BUILDING LINUX ===
