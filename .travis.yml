@@ -14,6 +14,7 @@ addons:
         - qemu-user
         - qemu
 before_install:
+    - sudo apt-get -y build-dep qemu linux-meta
     - git submodule update --init --recursive
     - export QSIM_PREFIX=`pwd`
     - export LD_LIBRARY_PATH=$QSIM_PREFIX/lib:$LD_LIBRARY_PATH
