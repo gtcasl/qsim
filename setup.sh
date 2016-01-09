@@ -30,6 +30,23 @@ echo "Press any key to continue..."
 
 read inp
 
+# update submodules
+git submodule update --init
+echo "Building capstone disassembler..."
+cd capstone
+make -j4
+echo "Building distorm disassembler..."
+cd ../distorm/distorm64/build/linux
+make clib 2> /dev/null
+cd $QSIM_PREFIX
+
+# build linux kernel and initrd
+echo "Building Linux kernel..."
+cd linux
+./getkernel.sh
+./getkernel.sh arm64
+cd $QSIM_PREFIX
+
 # build qemu
 echo "\nConfiguring and building qemu...\n"
 ./build-qemu.sh release
@@ -41,6 +58,7 @@ make release install
 echo "\n\nDown QEMU OS images? This will take a while. (Y/n):"
 read inp
 if [ ! "$inp" != "y" ]; then
+  cd ..
   # get qemu images
   echo "\nDownloading arm QEMU images..."
   wget -c https://www.dropbox.com/s/2jplu61410tfime/arm64_images.tar.xz?dl=0 -O arm64_images.tar.xz
@@ -49,14 +67,11 @@ if [ ! "$inp" != "y" ]; then
   echo "\nUncompresssing images. This might take a while..."
   tar -xf arm64_images.tar.xz
   tar -xf x86_64_images.tar.xz
+  cd $QSIM_PREFIX
 fi
 
-echo "\n\nBuilding Linux kernel"
-cd linux
-./getkernel.sh $ARCH
-
 echo "\n\nBuilding busybox"
-cd ../initrd/
+cd initrd/
 ./getbusybox.sh $ARCH
 
 # run simple example
