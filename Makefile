@@ -81,7 +81,8 @@ release: all
 tests: release install x86_tests a64_tests
 
 x86_prep:
-	cd initrd && ./getbusybox.sh
+	if [ ! -e initrd/initrd.cpio.x86 ]; then \
+		cd initrd && ./getbusybox.sh; fi
 
 x86_tests: x86_prep
 	if [ ! -e state.1 ]; then \
@@ -94,7 +95,8 @@ x86_tests: x86_prep
 	diff x86/memory.out x86/memory_gold.out
 
 a64_prep:
-	cd initrd && ./getbusybox.sh arm64
+	if [ ! -e initrd/initrd.cpio.arm64 ]; then \
+		cd initrd && ./getbusybox.sh arm64; fi
 
 a64_tests: a64_prep
 	if [ ! -e state.1.a64 ]; then \

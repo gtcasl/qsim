@@ -21,5 +21,8 @@ dev proc sys data:
 arm64:
 	$(MAKE) CC=aarch64-linux-gnu-gcc QEMU=qemu-aarch64
 
+x86:
+	$(MAKE)
+
 clean: 
 	rm -f sbin/test_inst sbin/test_mem sbin/qsim_io sbin/test_threads sbin/mark_app initrd.cpio *~ \#*
