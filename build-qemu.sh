@@ -25,7 +25,7 @@ else
   cd $build_dir
 fi
 
-make -j16
+make -j4
 cd ..
 rm -f build
 ln -s $build_dir build

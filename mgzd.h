@@ -38,12 +38,18 @@ namespace Mgzd {
     const int buf_size = 1024; // 1KB
     char tmpfile[buf_size], buf[buf_size];
 
-    size_t size = sizeof(TMP_DIR);
+    size_t size = strlen(TMP_DIR);
     strncpy(tmpfile, TMP_DIR, size);
     strcat(tmpfile, TMP_PFX);
 
     int fd = mkstemp(tmpfile);
     FILE* fp = fdopen(fd, "wb");
+
+    if (!fp) {
+      std::cerr << "Cannot open tmp file " << tmpfile << std::endl;
+      exit(1);
+    }
+
     FILE* libfp = fopen(libfile, "r");
 
     if (!libfp) {
