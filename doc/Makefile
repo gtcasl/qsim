@@ -1,9 +1,9 @@
 user_guide.pdf: user_guide.tex qemu_diagram.pdf mod_qemu.pdf qsim_diagram.pdf \
-                translation.pdf simple_example.pdf \
-                ../VERSION ../arm-examples/simple.cpp
+                translation.pdf simple_example.pdf fast_forwarder.pdf \
+                ../VERSION ../examples/x86/simple.cpp
 	sed s/%%%VERSION%%%/`cat ../VERSION`/ user_guide.tex > \
           user_guide.tmp.tex
-	nl ../examples/simple.cpp > simple.cpp.num
+	nl ../examples/x86/simple.cpp > simple.cpp.num
 	pdflatex user_guide.tmp.tex
 	pdflatex user_guide.tmp.tex
 	mv user_guide.tmp.pdf user_guide.pdf

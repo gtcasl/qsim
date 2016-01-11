@@ -29,9 +29,9 @@
 
 \chapter*{Introduction}
 QSim is a thread safe multicore emulation library based on the QEMU emulator
-(version 2.2.0).  QSim provides instruction-level control of the emulated
+(version 2.4.0).  QSim provides instruction-level control of the emulated
 environment and detailed information about the executing instruction
-stream. ARM64 Linux guests are supported with multiple emulated hardware
+stream. X86 and ARM64 Linux guests are supported with multiple emulated hardware
 contexts. Applications of QSim include trace-gathering, multi-threaded software
 development, and its primary target: micro-architecture simulation.
 
@@ -45,14 +45,34 @@ been discussed at length elsewhere.
 %%%       looks fairly thin at 2 paragraphs.
 
 \section{Requirements}
-The following are needed to run QSim on your machine. Before you attempt to build and run QSim, make sure these are available:
+The following are needed to run QSim on your machine. Before you attempt to
+build and run QSim, make sure these are available:
 
 \begin{itemize}
   \item{x86 CPU and a Linux OS (tested on Ubuntu 14.04)}
-  \item{2GB of RAM, at least 4GB of swap and 10GB of disk space}
+  \item{2GB of RAM, 2GB of swap and 10GB of disk space}
   \item{Optional: Cross compiler tool chain to build ARM64 binaries}
   \item{The \texttt{git} version control tool (not installed by default on recent Ubuntu)}
 \end{itemize}
+
+\section{Installation and Setup}
+
+To ease the setup of the QSim project we have automated it in a
+single setup file hosted in the repository. The setup file in this
+repository installs all the required dependencies, downloads qsim, qemu and
+optionally the userland images. It also prompts to set up the required
+environment variables and builds qsim and qemu as libraries.
+
+This repository is hosted on github at
+\url{https://github.com/gtcasl/qsim}. Clone this repository using git as
+follows: \\
+\begin{lstlisting}[frame=none]
+ git clone https://github.com/gtcasl/qsim
+\end{lstlisting}
+
+Ensure that you have atleast 12 GB free disk space before you download the
+userland imagegs. Change directory to the cloned qsim directory and run
+$setup.sh$. This will setup the qsim project.
 
 \chapter{QSim Software Architecture} \label{chap:arch}
 QSim is an effort in combining several large and complex open source software
@@ -106,7 +126,6 @@ program are called.
 
 \subsection{The QSim Library}
 
-\begin{comment}
 \begin{figure}
 \begin{center}
 \includegraphics[width=4in]{qsim_diagram}
@@ -115,7 +134,6 @@ program are called.
 \label{fig:qsim}
 \end{center}
 \end{figure}
-\end{comment}
 
 Figure~\ref{fig:qsim} is an illustration of the fully-integrated
 QSim software architecture. The QSim library makes calls into the QEMU CPUs on
@@ -133,24 +151,28 @@ different callbacks are provided, including:
   \item{Instruction read for translation}
 \end{itemize}
 
-Support has been implemented for instruction and memory reads and writes. We
-plan to add support for the other types of callbacks in the near future.
-
-\begin{comment}
 The atomic memory operation and read/write callbacks are given in addition to
 the instruction callbacks for their corresponding instructions. Magic
 instructions are used to provide out-of-band communication between the guest and
 QSim, and are explained in detail in Section~\ref{sec:magic}.
-\end{comment}
 
 \subsection{Guest Environment}
 
-The QSim guest environment includes the Linux kernel, a debian 32-bit ARM
-userland, an init script, and an application binary. QSim provides emulation of
-disk and network devices. So you can read from mounted disks like sd cards and
-access interent from the guest system.
+The QSim guest environment as is the norm includes a kernel component and a
+userland component. We use Linux for our kernel, and either a busybox based
+userspace or a Debian based userspace. When using the busybox userland, an init
+script and an application binary need to be provided. QSim utilizes the emulation of
+disk and network devices in qemu. So you can read from mounted disks like sd
+cards and access the web from the guest system.
 
-\begin{comment}
+The debian based userland is provided in the form of disk images. The login
+credentials for the provided disk image are as follows:
+
+\begin{lstlisting}[frame=none]
+Username: qsim or root
+Password: qsim12
+\end{lstlisting}
+
 \subsection{QDB, The QSim Debugger}
 
 QDB provides a commandline interface to QSim that can be used to debug guest
@@ -173,29 +195,6 @@ files that represent the state of RAM after the machine has booted, but before
 the application has began running. This is so that the potentially very
 long time spent waiting for Linux to boot can be amortized over all simulations
 using a given \texttt{bzImage} and number of QEMU CPUs.
-\end{comment}
-
-\section{Installation and Setup}
-
-\subsection{qsim-setup}
-
-To ease the setup of the QSim project we have automated it in a
-single setup file hosted in a github repository. The setup file in this
-repository downloads qsim, qemu and the ARM 64-bit filesystem images. It sets up
-the required environment variables and builds qsim and qemu as libraries. It
-then runs a cache simulation example built using the qsim framework.
-
-This repository is hosted on github at
-\url{https://github.com/pranith/qsim-setup}. Clone this repository using git as
-follows: \\
-\begin{lstlisting}[frame=none]
- git clone https://github.com/pranith/qsim-setup
-\end{lstlisting}
-
-Ensure that you have atleast 12 GB free disk space before you run the setup file
-in the cloned repository. Change directory to the downloaded directory and run
-$setup.sh$. This will setup the qsim project in the current directory and run the
-cache simulator example.
 
 \section{QSim Directory Hierarchy}
 What follows is a tour of the directory structure of the QSim codebase. This is
@@ -218,10 +217,9 @@ provided as both a reference and an introduction.
     Makefile
 \end{verbatim}
 These files form the core of QSim. 
-\begin{comment}
 \texttt{qsim-regs.h} defines 
 \texttt{enum regs}, an important enumeration of guest register names shared
-between the modifications to QEMU and QSim. \end{comment}
+between the modifications to QEMU and QSim.
 \texttt{qsim-vm.h} defines the
 types of the basic callback functions that are called from within QEMU.
 \texttt{mgzd.h} and \texttt{qsim-context.h} provide the services necessary to
@@ -235,7 +233,6 @@ of QSim and \texttt{qsim.cpp} is the only source in what becomes
 building QSim. For more information on building QSim, see \texttt{INSTALL} in
 the QSim root directory. 
 
-\begin{comment}
 \subsection{Fast Forwarder}
 \begin{verbatim}
     fastforwarder.cpp
@@ -245,7 +242,6 @@ the QSim root directory.
 These files compile to a program called \texttt{qsim-fastforwarder}, which is 
 used as described in Section \ref{sec:fastforwarder} to eliminate the start-up
 portion of long simulations, especially ones with high core counts.
-\end{comment}
 
 \subsection{QEMU}
 \begin{verbatim}
@@ -255,7 +251,6 @@ This directory is the clone of the qemu repository which contains the callbacks
 branch containing the modified QEMU. The result of a successful compile of QEMU
 for QSim is a shared object file which will be used by the QSim library.
 
-\begin{comment}
 \subsection{Initial Ram Filesystem}
 \begin{verbatim}
     initrd/
@@ -263,7 +258,7 @@ for QSim is a shared object file which will be used by the QSim library.
     initrd/mark_app.c
     initrd/qsim_io.c
     initrd/test_threads.c
-    initrd/busybox-1.16.1
+    initrd/busybox-1.24.1
     initrd/etc
 \end{verbatim}
 The \texttt{initrd} directory contains the userspace portion of the guest
@@ -275,9 +270,9 @@ Chapter~\ref{chap:porting}.
 \begin{verbatim}
     linux/
     linux/getkernel.sh
-    linux/linux-2.6.34.qsim.patch
+    linux/linux-4.1.15.qsim.patch
     linux/bzImage
-    linux/linux-2.6.34/
+    linux/linux/
 \end{verbatim}
 A modified Linux kernel is used by QSim. The \texttt{getkernel.sh} script
 downloads the unomdified kernel from upstream and patches it with modifications
@@ -287,10 +282,12 @@ hardware services that QSim does not provide.
 \subsection{Disassembler}
 \begin{verbatim}
     distorm/
+    capstone/
 \end{verbatim}
 Several of the examples and the QSim Debugger require a disassembler. Distorm 
-was chosen as a simple, portable, open source disassembly library. Note that it
-is not part of QSim proper; it is just a utility library that the bundled
+was chosen as a simple, portable, open source disassembly library for x86 and
+capstone was chosen for ARM64 programs. Note that these libraries are
+not part of QSim proper; they are just utility libraries that the bundled
 applications happen to require that was considered uncommon enough to be
 included with the source distribution.
 
@@ -300,36 +297,33 @@ included with the source distribution.
 \end{verbatim}
 SimpleSim is an example multicore out-of-order CPU simulator.
 %TODO: Expand this section!
-\end{comment}
 
 \subsection{Examples}
 \begin{verbatim}
-    arm-examples/
-    arm-examples/simple.cpp
-    arm-examples/cachesim.cpp
+    examples/
+    examples/x86/simple.cpp
+    examples/x86/cachesim.cpp
 \end{verbatim}
-The ``arm-examples'' are example client program using the QSim library. One of
+The programs in ``examples/x86'' are example client program using the QSim library. One of
 these, \texttt{simple.cpp}, is examined in detail in Chapter~\ref{chap:example} 
 as an example client program using QSim.
 
-\begin{comment}
 \subsection{QDB: The QSim Debugger}
 \begin{verbatim}
     qdb/
     qdb/BUGS
 \end{verbatim}
-QDB provides a commandline interface to a QSim, running one guest CPU per host
-thread. QDB allows users to load in symbol tables for both the kernel and
-individual user address spaces. It also provides dynamic instruction count
-based flat profiling with uniform statistical sampling. The best documentation
-for QDB is its own built-in help system, which can be accessed at any time by
-typing \texttt{help}.
+QDB provides a commandline interface to a QSim. QDB allows users to load in
+symbol tables for both the kernel and individual user address spaces. It also
+provides dynamic instruction count based flat profiling with uniform statistical
+sampling. The best documentation for QDB is its own built-in help system, which
+can be accessed at any time by typing \texttt{help}.
 
 \section{Magic Instructions} \label{sec:magic}
 
 \begin{table}
 \begin{tabular}{c|l}
-  \textbf{Value in \texttt{\%rax}}&\textbf{Function}\\
+    \textbf{Value in \texttt{\%rax or pmcr\_el0}}&\textbf{Function}\\
   \texttt{0xc501e0xx}&Console output, character \texttt{x}.\\
   \texttt{0x1d1e1d1e}&Calling CPU now executing idle loop.\\
   \texttt{0xc75cxxxx}&Context switch to TID \texttt{x}.\\
@@ -350,9 +344,11 @@ typing \texttt{help}.
 
 QSim provides an interface for out-of-band communication between the guest
 environment, QSim library, and its client programs, through use of magic
-instructions. Magic instructions are QSim-defined regions of the CPUID address
-space that perform special functions. CPUID is ordinarily used by software to
-get information about the CPU on which it is running. A value is loaded into RAX
+instructions. Magic instructions are, on x86,  QSim-defined regions of the CPUID address
+space that perform special functions. On ARM64, we use the performance monitor
+counter register, \textbf{pmcr\_el0} accessed using the \textbf{MSR} instruction.
+CPUID is ordinarily used by software to get information about the CPU on which
+it is running. A value is loaded into \textbf{RAX} or the \textbf{pmcr\_el0} register
 and once the CPUID instruction has run, the registers are set according to the
 results. This is used ordinarily to query CPUs for features.
 
@@ -361,7 +357,6 @@ emulated hardware. Magic instruction callbacks can also be set by client
 programs to extend this interface. Table~\ref{table:magic} lists the magic
 instructions defined by QSim itself and used by the Linux kernel and some of the
 guest software.
-\end{comment}
 
 \chapter{A Sample Client Program} \label{chap:example}
 The use of QSim fundamentally boils down to a few simple steps that a client
@@ -377,7 +372,7 @@ program must take:
 The last step is purely optional, but there would not be much reason to use
 QSim without the instrumentation.
 
-For the purposes of this Chapter, we will examine \texttt{arm-examples/simple.cpp},
+For the purposes of this Chapter, we will examine \texttt{examples/x86/simple.cpp},
 the simple example; a multicore trace gathering utility.
 
 \section{Operation}
@@ -471,20 +466,18 @@ C code can be used, at the start and end of the ROI, respectively:
         qsim_magic_disable();
 \end{verbatim}
 
-\begin{comment}
 \section{Compiling for QSim}
-On a 64-bit host, creating 32-bit statically-linked binaries is a matter of 
-passing the \texttt{-m32} option to the GCC compiler and the \texttt{-static}
-option to the linker. In a typical GNU Autotools based build environment, this
-can be accomplished with:
+On a 64-bit host, creating statically-linked binaries is a matter of 
+the \texttt{-static} option to the linker. In a typical GNU Autotools based
+build environment, this can be accomplished with:
 
 \begin{verbatim}
-    $ CFLAGS=-m32 CXXFLAGS=-m32 LDFLAGS=-static ./configure
+    $ LDFLAGS=-static ./configure
     $ make
 \end{verbatim}
 
 The \texttt{file} command can be used to ensure that the resulting binary is
-actually a 32-bit statically-linked ELF.
+actually a statically-linked ELF.
 
 \section{Setting Up the Linux Initial Ramdisk}
 The \texttt{initrd} makefile is set up so that any files placed in 
@@ -536,21 +529,22 @@ application is multithreaded.
 
 \section{Compiling the Kernel Image}
 
+\subsection{ARM64 Kernel}
+
 Initially, the kernel image must be configured with the absolute path to the
 \texttt{initrd.cpio} file. The configuration system can be launched by changing
 to the kernel root and running:
 
 \begin{verbatim}
-    $ ARCH=i386 make menuconfig
+    $ make menuconfig
 \end{verbatim}
 
 The option to configure the path to the RAM disk CPIO file is under ``General
 Options''. After this initial configuration has been performed, subsuquent
-builds only require the second step of the process, running \texttt{make} with
-\texttt{ARCH} set to \texttt{i386}:
+builds only require the second step of the process, running \texttt{make}.
 
 \begin{verbatim}
-    $ ARCH=i386 make
+    $ make -j4
 \end{verbatim}
 
 \section{Using the Kernel with QSim}
@@ -560,7 +554,6 @@ the programs in \texttt{examples/}. QDB takes the path of the kernel image as a
 commandline option. Within client programs, the path to the kernel is an
 argument to the \texttt{OSDomain} constructor (see \texttt{OSDomain}, page 
 \pageref{class:OSDomain} for details).
-\end{comment}
 
 \chapter*{Glossary}
 
@@ -608,7 +601,8 @@ aspects of the guest system: ``host virtual address'',
 \item[magic instruction]
 An instruction that provides a service not found in current hardware,
 decoded using an unorthodox mechanism. In QSim, magic instructions are
-\texttt{CPUID} instructions initiated with invalid values in \texttt{\%rax}.
+\texttt{CPUID}(x86) or \texttt{msr pmcr\_el0}(ARM64) instructions initiated with
+invalid values in \texttt{\%rax}(x86) or \texttt{\%pmcr\_el0}(ARM64) registers.
 These can be tied to callbacks and used to implement new features or create
 debugging output.
 
@@ -989,7 +983,8 @@ callbacks, and new static callbacks disable these class member callbacks.
 The only way to set magic instruction callbacks in \texttt{OSDomain}, since
 \texttt{OSDomain}'s static magic instruction callback is already of central
 importance and cannot be overridden. Provides an easy way to add new magic
-instructions by intercepting \texttt{CPUID} instructions.
+instructions by intercepting \texttt{CPUID}(x86) or \texttt{MSR}(ARM64)
+instructions.
 
 \label{tf:set_io_cb} \begin{verbatim}
     template <typename T>

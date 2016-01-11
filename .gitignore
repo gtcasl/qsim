@@ -5,6 +5,7 @@ doc/*.pdf
 doc/*.aux
 doc/*.log
 doc/*.toc
+doc/*.tmp.out
 libqsim.so
 qcache/*.o
 qcache/qcache
