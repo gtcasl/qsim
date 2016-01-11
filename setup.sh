@@ -25,7 +25,7 @@ export QSIM_PREFIX=`pwd`
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$QSIM_PREFIX/lib
 echo "\n\nAdd the following lines to your bashrc:\n"
 echo "${bold}export QSIM_PREFIX=$QSIM_PREFIX${bold}"
-echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:\$QSIM_PREFIX/lib${normal}\n"
+echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$QSIM_PREFIX/lib${normal}\n"
 echo "Press any key to continue..."
 
 read inp
@@ -72,8 +72,12 @@ fi
 
 echo "\n\nBuilding busybox"
 cd initrd/
-./getbusybox.sh $ARCH
+./getbusybox.sh
+./getbusybox.sh arm64
+cd $QSIM_PREFIX
 
+# run tests
+make tests
 # run simple example
 # echo "Running the cache simulator example..."
 # cd qsim/arm-examples/
