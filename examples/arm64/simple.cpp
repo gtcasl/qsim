@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
     // Create new OSDomain from saved state.
     osd_p = new OSDomain(n_cpus, argv[3]);
   } else {
-    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64");
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64", QSIM_INTERACTIVE);
   }
   OSDomain &osd(*osd_p);
 
@@ -140,15 +140,11 @@ int main(int argc, char** argv) {
 
   tw.app_start_cb(0);
   // The main loop: run until 'finished' is true.
-  while (!tw.hasFinished()) {
-    for (unsigned i = 0; i < 100; i++) {
-      for (unsigned long j = 0; j < n_cpus; j++) {
-           osd.run(j, 10000000);
-           std::cout << "ran " << std::dec << j << " inner iter" << std::endl;
-      }
-      std::cout << "ran " << std::dec << i << " iter" << std::endl;
-      fflush(NULL);
-    }
+  unsigned long inst_per_iter = 1000000000, inst_run;
+  inst_run = inst_per_iter;
+  while (!(inst_per_iter - inst_run)) {
+    inst_run = 0;
+    inst_run = osd.run(0, inst_per_iter);
     osd.timer_interrupt();
   }
   

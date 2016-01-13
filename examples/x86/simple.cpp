@@ -171,8 +171,11 @@ int main(int argc, char** argv) {
   osd.connect_console(std::cout);
 
   // The main loop: run until 'finished' is true.
-  while (!tw.hasFinished()) {
-    osd.run(0, 1000000);
+  unsigned long inst_per_iter = 1000000000, inst_run;
+  inst_run = inst_per_iter;
+  while (!(inst_per_iter - inst_run)) {
+    inst_run = 0;
+    inst_run = osd.run(0, inst_per_iter);
     osd.timer_interrupt();
   }
   
