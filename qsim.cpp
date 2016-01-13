@@ -279,7 +279,6 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, const s
     "-append", "init=/init lpj=34920500 console=ttyAMA0 console=ttyS0"
     " nowatchdog rcupdate.rcu_cpu_stall_suppress=1 console=/dev/ttyS0",
     "-nographic",
-    "-redir", "tcp:2222::22",
     "-smp", ncpus,
     (mode == QSIM_KVM) ? "--enable-kvm" : NULL,
     NULL
