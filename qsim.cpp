@@ -451,9 +451,8 @@ Qsim::OSDomain::OSDomain(const char* filename)
 
 // Create an OSDomain from a saved state file.
 Qsim::OSDomain::OSDomain(int n_cpus, const char* filename)
+    : OSDomain(filename)
 {
-  // TODO: update this to use C++11 semantics once travis CI is fixed
-  new (this) OSDomain(filename);
   if (n != n_cpus) {
     cerr << "Error: State file passed has " << n << " cpus, but " << n_cpus <<
       " specified" << std::endl;
