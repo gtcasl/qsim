@@ -69,9 +69,9 @@ string get_qemu_lib(string cpu_type = "x86") {
 
   string suffix;
   if (cpu_type == "a64")
-	  suffix = "/lib/libqemu-qsim-a64.so";
+    suffix = "/lib/libqemu-qsim-a64.so";
   else
-	  suffix = "/lib/libqemu-qsim-x86.so";
+    suffix = "/lib/libqemu-qsim-x86.so";
   const char *qsim_prefix = getenv("QSIM_PREFIX");
 
   if (!qsim_prefix) qsim_prefix = "/usr/local";
