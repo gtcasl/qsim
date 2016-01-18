@@ -17,8 +17,8 @@ all: $(EXAMPLES)
 vistrace: vistrace.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS) -lImlib2
 
-simple: simple.cpp $(QSIM_PREFIX)/lib/libqsim.so
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
+simple: simple.cpp cs_disas.o $(QSIM_PREFIX)/lib/libqsim.so
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ cs_disas.o $< $(LDLIBS) -lcapstone
 
 cachesim: cachesim.cpp $(QSIM_PREFIX)/lib/libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
