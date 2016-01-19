@@ -1,6 +1,6 @@
-CXXFLAGS ?= -g -O2 -std=c++0x -Wall -I$(QSIM_PREFIX)/include
+CXXFLAGS ?= -g -O2 -std=c++11 -Wall -I$(QSIM_PREFIX)/include -Wl,--no-as-needed
 LDFLAGS ?= -L$(QSIM_PREFIX)/lib
-LDLIBS ?= -lpthread -ldl -lqsim -lrt
+LDLIBS ?= -pthread -ldl -lqsim -lrt
 
 TESTS = tester
 

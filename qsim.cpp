@@ -69,9 +69,9 @@ string get_qemu_lib(string cpu_type = "x86") {
 
   string suffix;
   if (cpu_type == "a64")
-	  suffix = "/lib/libqemu-qsim-a64.so";
+    suffix = "/lib/libqemu-qsim-a64.so";
   else
-	  suffix = "/lib/libqemu-qsim-x86.so";
+    suffix = "/lib/libqemu-qsim-x86.so";
   const char *qsim_prefix = getenv("QSIM_PREFIX");
 
   if (!qsim_prefix) qsim_prefix = "/usr/local";
@@ -451,9 +451,8 @@ Qsim::OSDomain::OSDomain(const char* filename)
 
 // Create an OSDomain from a saved state file.
 Qsim::OSDomain::OSDomain(int n_cpus, const char* filename)
+    : OSDomain(filename)
 {
-  // TODO: update this to use C++11 semantics once travis CI is fixed
-  new (this) OSDomain(filename);
   if (n != n_cpus) {
     cerr << "Error: State file passed has " << n << " cpus, but " << n_cpus <<
       " specified" << std::endl;

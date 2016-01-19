@@ -9,6 +9,8 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <future>
+#include <atomic>
 
 #include <qsim.h>
 #include <qsim-load.h>
@@ -41,19 +43,25 @@ public:
     return 0;
   }
 
-  int app_end_cb(int c)   { finished = true; return 1; }
+  int app_end_cb(int c)
+  {
+    for (auto &i: pending) {
+      i.wait();
+    }
+    finished = true;
+
+    return 1;
+  }
 
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b,
                enum inst_type t)
   {
-    if (!finished)
-      inst++;
+    pending.push_back(std::async([&]() { if (!finished) inst++;}));
   }
 
   void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
-    if (!finished)
-      mem++;
+    pending.push_back(std::async([&]() { if (!finished) mem++;}));
   }
 
   void print_stats(std::ofstream& out)
@@ -67,7 +75,8 @@ public:
 private:
   OSDomain &osd;
   bool finished;
-  int inst, mem;
+  std::atomic<int> inst, mem;
+  std::vector<std::future<void>> pending;
 };
 
 int main(int argc, char** argv) {

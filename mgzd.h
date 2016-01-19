@@ -40,6 +40,7 @@ namespace Mgzd {
 
     size_t size = strlen(TMP_DIR);
     strncpy(tmpfile, TMP_DIR, size);
+    tmpfile[size] = '\0';
     strcat(tmpfile, TMP_PFX);
 
     int fd = mkstemp(tmpfile);
@@ -66,7 +67,7 @@ namespace Mgzd {
 
     // Make temporary copy of libfile, so opening multiple copies of the same
     // file results in independent copies of global variables.
-    lib.file = tmpfile;
+    lib.file = strdup(tmpfile);
     std::cout << "Opening " << lib.file.c_str() << std::endl;
 
     lib.handle = dlopen(lib.file.c_str(), RTLD_NOW|RTLD_LOCAL);
