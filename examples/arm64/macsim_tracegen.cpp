@@ -363,7 +363,6 @@ class TraceWriter {
 
     ~TraceWriter()
     {
-      delete [] inst_handle;
     }
 
     bool hasFinished() { return finished; }
