@@ -22,12 +22,18 @@
 #include "cs_disas.h"
 #include "macsim_tracegen.h"
 
+#include "readerwriterqueue.h"
+
+using namespace moodycamel;
+
 #define DEBUG 0
 
 using Qsim::OSDomain;
 
 using std::ostream;
 ogzstream* debug_file;
+
+cs_disas dis(CS_ARCH_ARM64, CS_MODE_ARM);
 
 #define MILLION(x) (x * 1000000)
 
@@ -46,19 +52,85 @@ class InstHandler {
     void dumpInstInfo();
     void openDebugFile();
     void closeDebugFile();
+    void processInst(unsigned char *b, uint8_t len);
+    void processMem(uint64_t v, uint64_t p, uint8_t len, int w);
+    void processAll(void);
+    void finish(void) { finished = true; ithread->join();}
+
   private:
+
+    class instInfo {
+    public:
+      instInfo() {}
+      
+      instInfo(uint64_t v, uint64_t p, uint8_t s, int w) :
+        size(s), virt(v), phys(p), rw(w) {}
+
+      instInfo(unsigned char *b, uint8_t len) :
+        mem_ptr(b), size(len) { rw = -1; }
+
+      ~instInfo() {}
+      unsigned char *mem_ptr;
+      uint8_t  size;
+      uint64_t virt, phys;
+      int      rw;
+    };
 
     trace_info_a64_s *stream;
     int stream_idx;
     gzFile outfile;
     int m_fp_uop_table[ARM64_INS_ENDING];
     int m_int_uop_table[ARM64_INS_ENDING];
+    bool finished;
+    std::thread *ithread;
+
+    BlockingReaderWriterQueue<instInfo *> instructions;
 };
+
+void InstHandler::processInst(unsigned char *b, uint8_t len)
+{
+  instructions.enqueue(new instInfo(b, len));
+}
+
+void InstHandler::processMem(uint64_t v, uint64_t p, uint8_t len, int w)
+{
+  instructions.enqueue(new instInfo(v, p, len, w));
+}
+
+void InstHandler::processAll(void)
+{
+  while (!finished) {
+
+    instInfo *inst;
+    if (instructions.try_dequeue(inst) == false) {
+      std::this_thread::yield();
+      continue;
+    }
+
+    if (inst->rw != -1)
+      populateMemInfo(inst->virt, inst->phys, inst->size, inst->rw);
+    else {
+      cs_insn *insn = NULL;
+      uint8_t regs_read_count, regs_write_count;
+      cs_regs regs_read, regs_write;
+
+      int count = dis.decode((unsigned char *)inst->mem_ptr, inst->size, insn);
+      insn[0].address = inst->virt;
+      dis.get_regs_access(insn, regs_read, regs_write, &regs_read_count, &regs_write_count);
+      populateInstInfo(insn, regs_read, regs_write, regs_read_count, regs_write_count);
+      dis.free_insn(insn, count);
+    }
+
+    delete inst;
+  }
+}
 
 InstHandler::InstHandler()
 {
   stream = new trace_info_a64_s[STREAM_SIZE];
   stream_idx = 0;
+  finished = false;
+  ithread = new std::thread(&InstHandler::processAll, this);
 }
 
 void InstHandler::openDebugFile()
@@ -281,13 +353,17 @@ bool InstHandler::populateInstInfo(cs_insn *insn, cs_regs regs_read, cs_regs reg
 class TraceWriter {
   public:
     TraceWriter(OSDomain &osd, unsigned long max_inst) :
-      osd(osd), finished(false), dis(CS_ARCH_ARM64, CS_MODE_ARM)
+      osd(osd), finished(false)
     { 
-      inst_handle = new InstHandler[osd.get_n()];
       osd.set_app_start_cb(this, &TraceWriter::app_start_cb);
       trace_file_count = 0;
       finished = false;
       max_inst_n = max_inst;
+    }
+
+    ~TraceWriter()
+    {
+      delete [] inst_handle;
     }
 
     bool hasFinished() { return finished; }
@@ -302,6 +378,7 @@ class TraceWriter {
         osd.set_mem_cb(this, &TraceWriter::mem_cb);
         osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
       }
+      inst_handle = new InstHandler[osd.get_n()];
       for (int i = 0; i < n_cpus; i++) {
         gzFile tracefile  = gzopen(("trace_" + std::to_string(trace_file_count)
               + "-" + std::to_string(i) + ".log.gz").c_str(), "w");
@@ -323,11 +400,14 @@ class TraceWriter {
       std::cout << "App end cb called" << std::endl;
       finished = true;
 
-      for (int i = 0; i < osd.get_n(); i++)
+      for (int i = 0; i < osd.get_n(); i++) {
+        inst_handle[i].finish();
         inst_handle[i].closeOutFile();
+      }
 
       inst_handle[0].closeDebugFile();
 
+      delete [] inst_handle;
       return 0;
     }
 
@@ -337,18 +417,7 @@ class TraceWriter {
       if (!curr_inst_n)
         return;
 
-      cs_insn *insn = NULL;
-      uint8_t regs_read_count, regs_write_count;
-      cs_regs regs_read, regs_write;
-
-      int count = dis.decode((unsigned char *)b, l, insn);
-      insn[0].address = v;
-      dis.get_regs_access(insn, regs_read, regs_write, &regs_read_count, &regs_write_count);
-      inst_handle[c].populateInstInfo(insn, regs_read, regs_write, regs_read_count, regs_write_count);
-#if DEBUG
-      *debug_file << " Core: " << std::dec << c;
-#endif
-      dis.free_insn(insn, count);
+      inst_handle[c].processInst((unsigned char*)b, l);
 
       --curr_inst_n;
       if (!curr_inst_n) {
@@ -364,7 +433,7 @@ class TraceWriter {
       if (!curr_inst_n)
         return;
 
-      inst_handle[c].populateMemInfo(v, p, s, w);
+      inst_handle[c].processMem(v, p, s, w);
     }
 
   private:
@@ -372,7 +441,6 @@ class TraceWriter {
     bool finished;
     int  trace_file_count;
     InstHandler *inst_handle;
-    cs_disas dis;
     unsigned long max_inst_n;
     unsigned long curr_inst_n;
 };
@@ -418,7 +486,7 @@ int main(int argc, char** argv) {
   OSDomain *osd_p(NULL);
 
   if (!state_file)
-    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64");
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64", QSIM_INTERACTIVE);
   else
     osd_p = new OSDomain(n_cpus, state_file);
 
