@@ -12,13 +12,6 @@ normal=$(tput sgr0)
 
 ARCH=$1
 
-# Install dependencies
-echo "Installing dependencies..."
-echo "sudo apt-get -y build-dep qemu"
-sudo apt-get -y build-dep qemu
-sudo apt-get -y install gcc-aarch64-linux-gnu
-sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-
 # set the QSIM environment variable
 echo "Setting QSIM environment variable..."
 export QSIM_PREFIX=`pwd`
@@ -29,6 +22,28 @@ echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$QSIM_PREFIX/lib${normal}\n"
 echo "Press any key to continue..."
 
 read inp
+
+echo "\n\nDown QEMU OS images? This will take a while. (Y/n):"
+read inp
+
+# Install dependencies
+echo "Installing dependencies..."
+echo "sudo apt-get -y build-dep qemu"
+sudo apt-get -y build-dep qemu
+sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+if [ "$inp" = "y" -o "$inp" = "Y" ]; then
+  cd ..
+  # get qemu images
+  echo "\nDownloading arm QEMU images..."
+  wget -c https://www.dropbox.com/s/2jplu61410tfime/arm64_images.tar.xz?dl=0 -O arm64_images.tar.xz
+  wget -c https://www.dropbox.com/s/4ut7e4d5ygty020/x86_64_images.tar.xz?dl=0 -O x86_64_images.tar.xz
+
+  echo "\nUncompresssing images. This might take a while..."
+  tar -xf arm64_images.tar.xz
+  tar -xf x86_64_images.tar.xz
+  cd $QSIM_PREFIX
+fi
 
 # update submodules
 git submodule update --init
@@ -54,21 +69,6 @@ echo "\nConfiguring and building qemu...\n"
 # build qsim
 # copy header files to include directory
 make release install
-
-echo "\n\nDown QEMU OS images? This will take a while. (Y/n):"
-read inp
-if [ ! "$inp" != "y" ]; then
-  cd ..
-  # get qemu images
-  echo "\nDownloading arm QEMU images..."
-  wget -c https://www.dropbox.com/s/2jplu61410tfime/arm64_images.tar.xz?dl=0 -O arm64_images.tar.xz
-  wget -c https://www.dropbox.com/s/4ut7e4d5ygty020/x86_64_images.tar.xz?dl=0 -O x86_64_images.tar.xz
-
-  echo "\nUncompresssing images. This might take a while..."
-  tar -xf arm64_images.tar.xz
-  tar -xf x86_64_images.tar.xz
-  cd $QSIM_PREFIX
-fi
 
 echo "\n\nBuilding busybox"
 cd initrd/
