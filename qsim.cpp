@@ -787,6 +787,9 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     for (i = end_cbs.begin(); i != end_cbs.end(); ++i) {
       if ((**i)(cpu_id)) rval = 1;
     }
+    if (mode == QSIM_HEADLESS) {
+      for (unsigned i = 0; i < n; i++) running[i] = false;
+    }
   } else if ( (rax & 0xfffffff0) != 0x00000000 &&
               (rax & 0xfffffff0) != 0x80000000 &&
               (rax & 0xfffffff0) != 0x40000000 ) {
