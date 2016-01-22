@@ -82,3 +82,7 @@ make tests
 # echo "Running the cache simulator example..."
 # cd qsim/arm-examples/
 # make && ./cachesim
+
+if [ $? -eq "0" ]; then
+  echo "\n${bold}Setup finished successfully!${normal}"
+fi
