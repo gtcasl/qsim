@@ -22,7 +22,7 @@ using std::ostream;
 class Tester {
 public:
   Tester(OSDomain &osd):
-    osd(osd), finished(false), inst(0), mem(0)
+    osd(osd), finished(false), inst(0), mem(0), reg(0)
   {
     osd.set_app_start_cb(this, &Tester::app_start_cb);
   }
