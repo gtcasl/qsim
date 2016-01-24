@@ -35,6 +35,7 @@ public:
       ran = true;
       osd.set_inst_cb(this, &Tester::inst_cb);
       osd.set_mem_cb(this, &Tester::mem_cb);
+      osd.set_reg_cb(this, &Tester::reg_cb);
       osd.set_app_end_cb(this, &Tester::app_end_cb);
 
       return 0;
@@ -53,6 +54,11 @@ public:
     return 1;
   }
 
+  void reg_cb(int c, int r, uint8_t s, int type)
+  {
+    pending.push_back(std::async([&]() { if (!finished) reg++;}));
+  }
+
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b,
                enum inst_type t)
   {
@@ -68,14 +74,16 @@ public:
   {
     std::cout << "Inst: " << inst << std::endl;
     std::cout << "Mem : " << mem << std::endl;
+    std::cout << "Reg : " << reg << std::endl;
     out << "Inst: " << inst << std::endl;
     out << "Mem : " << mem << std::endl;
+    out << "Reg : " << reg << std::endl;
   }
 
 private:
   OSDomain &osd;
   bool finished;
-  std::atomic<int> inst, mem;
+  std::atomic<int> inst, mem, reg;
   std::vector<std::future<void>> pending;
 };
 

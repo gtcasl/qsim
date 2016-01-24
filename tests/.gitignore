@@ -5,6 +5,9 @@ x86/icount.out
 x86/memory
 x86/memory.out
 x86/memory.tar
+x86/reg
+x86/reg.out
+x86/reg.tar
 x86/runme.sh
 arm64/icount
 arm64/icount.tar

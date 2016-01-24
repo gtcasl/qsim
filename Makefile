@@ -92,7 +92,9 @@ x86_tests: x86_prep
 	./tester 1 ../state.1 x86/icount.tar && \
 	diff x86/icount.out x86/icount_gold.out && \
 	./tester 1 ../state.1 x86/memory.tar && \
-	diff x86/memory.out x86/memory_gold.out
+	diff x86/memory.out x86/memory_gold.out && \
+	./tester 1 ../state.1 x86/reg.tar && \
+	diff x86/reg.out x86/reg_gold.out
 
 a64_prep:
 	if [ ! -e initrd/initrd.cpio.arm64 ]; then \

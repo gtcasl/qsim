@@ -38,7 +38,7 @@ public:
       osd.set_mem_cb(this, &TraceWriter::mem_cb);
       osd.set_int_cb(this, &TraceWriter::int_cb);
       osd.set_io_cb(this, &TraceWriter::io_cb);
-      //osd.set_reg_cb(this, &TraceWriter::reg_cb);
+      osd.set_reg_cb(this, &TraceWriter::reg_cb);
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
 
       return 1;
