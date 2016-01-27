@@ -603,9 +603,9 @@ namespace Qsim {
     }
 
     // Get the number of CPUs
-    int get_n() const { return n; }
+    int get_n() const { return n_cpus; }
     // Set the number of CPUs
-    void set_n(int num) { n = num; }
+    void set_n(int num) { n_cpus = num; }
 
     // Get the QEMU RAM descriptor
     qemu_ramdesc_t get_ramdesc() const { return ramdesc; }
@@ -669,7 +669,7 @@ namespace Qsim {
     void assign_id();
 
     std::string linebuf;
-    uint16_t              n      ;       // Number of CPUs
+    uint16_t              n_cpus ;       // Number of CPUs
     std::vector<QemuCpu*> cpus   ;       // Vector of CPU objects
     std::vector<bool>     idlevec;       // Whether CPU is in idle loop.
     std::vector<uint16_t> tids   ;       // Current tid of each CPU

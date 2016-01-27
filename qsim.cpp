@@ -357,7 +357,7 @@ void Qsim::OSDomain::assign_id() {
 
 Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,
                          qsim_mode mode, unsigned ram_mb)
-   : n(n), waiting_for_eip(0)
+   : n_cpus(n), waiting_for_eip(0)
 {
   assign_id();
 
@@ -435,7 +435,7 @@ Qsim::OSDomain::OSDomain(const char* filename)
 
   cmd_argv = (const char **)cmd_args;
 
-  n = strtol(cmd_args[n_pos], NULL, 0);
+  n_cpus      = strtol(cmd_args[n_pos], NULL, 0);
   ram_size_mb = strtol(cmd_args[m_pos], NULL, 0);
 
   cpus.push_back(new QemuCpu(cmd_argv, arch));
@@ -450,7 +450,7 @@ Qsim::OSDomain::OSDomain(const char* filename)
 }
 
 // Create an OSDomain from a saved state file.
-Qsim::OSDomain::OSDomain(int n_cpus, const char* filename)
+Qsim::OSDomain::OSDomain(int n, const char* filename)
     : OSDomain(filename)
 {
   if (n != n_cpus) {
@@ -519,8 +519,8 @@ void Qsim::OSDomain::connect_console(std::ostream& s) {
 }
 
 void Qsim::OSDomain::timer_interrupt() {
-  if (n > 1 && running[0] && running[1]) {
-    for (unsigned i = 0; i < n; i++) if (running[i]) {
+  if (n_cpus > 1 && running[0] && running[1]) {
+    for (unsigned i = 0; i < n_cpus; i++) if (running[i]) {
       cpus[i]->interrupt(0xef);
     }
   } else {
@@ -770,7 +770,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     rval = cpus[cpu]->interrupt(vec);
   } else if ( (rax & 0xffffffff) == 0xc7c7c7c7 ) {
     // CPU count request
-    //cpus[cpu_id]->set_reg(QSIM_RAX, n);
+    cpus[cpu_id]->set_reg(cpu_id, QSIM_X86_RAX, (uint64_t)n_cpus);
   } else if ( (rax & 0xffffffff) == 0x512e512e ) {
     // RAM size request
     //cpus[cpu_id]->set_reg(QSIM_RAX, ram_size_mb);
@@ -788,7 +788,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
       if ((**i)(cpu_id)) rval = 1;
     }
     if (mode == QSIM_HEADLESS) {
-      for (unsigned i = 0; i < n; i++) running[i] = false;
+      for (unsigned i = 0; i < n_cpus; i++) running[i] = false;
     }
   } else if ( (rax & 0xfffffff0) != 0x00000000 &&
               (rax & 0xfffffff0) != 0x80000000 &&
