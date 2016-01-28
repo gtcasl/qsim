@@ -93,13 +93,13 @@ extern "C" {
     static struct { 
       const char* s; int i; 
     } reg_table[] = {
-      { "%rax", QSIM_RAX }, { "%rcx", QSIM_RCX }, { "%rdx", QSIM_RDX }, 
-      { "%rbx", QSIM_RBX }, { "%rsp", QSIM_RSP }, { "%rbp", QSIM_RBP },
-      { "%rsi", QSIM_RSI }, { "%rdi", QSIM_RDI }, { "%es",  QSIM_ES  },
-      { "%cs",  QSIM_CS  }, { "%ss",  QSIM_SS  }, { "%ds",  QSIM_DS  },
-      { "%fs",  QSIM_FS  }, { "%gs",  QSIM_GS  }, { "%rip", QSIM_RIP },
-      { "%cr0", QSIM_CR0 }, { "%cr2", QSIM_CR2 }, { "%cr3", QSIM_CR3 },
-      { "%rflags", QSIM_RFLAGS }, {NULL,0}
+      { "%rax", QSIM_X86_RAX }, { "%rcx", QSIM_X86_RCX }, { "%rdx", QSIM_X86_RDX },
+      { "%rbx", QSIM_X86_RBX }, { "%rsp", QSIM_X86_RSP }, { "%rbp", QSIM_X86_RBP },
+      { "%rsi", QSIM_X86_RSI }, { "%rdi", QSIM_X86_RDI }, { "%es",  QSIM_X86_ES  },
+      { "%cs",  QSIM_X86_CS  }, { "%ss",  QSIM_X86_SS  }, { "%ds",  QSIM_X86_DS  },
+      { "%fs",  QSIM_X86_FS  }, { "%gs",  QSIM_X86_GS  }, { "%rip", QSIM_X86_RIP },
+      { "%cr0", QSIM_X86_CR0 }, { "%cr2", QSIM_X86_CR2 }, { "%cr3", QSIM_X86_CR3 },
+      { "%rflags", QSIM_X86_RFLAGS }, {NULL,0}
     };
 
     for (int i = 0; reg_table[i].s != NULL; i++)
@@ -169,7 +169,7 @@ void prof_inst_cb(int cpu, uint64_t v, uint64_t p, uint8_t s, const uint8_t* b,
   prof_countdown = _rand(prof_mean_ibs * 2);
   //printf("Set new sample timeout to %u.\n", prof_countdown);
 
-  uint64_t cr3 = cd->get_reg(cpu, QSIM_CR3);
+  uint64_t cr3 = cd->get_reg(cpu, QSIM_X86_CR3);
   uint16_t tid = cd->get_tid(cpu);
 
   // Our values for %rip still must be updated.
@@ -278,10 +278,10 @@ void mem_dump(uint64_t paddr, uint64_t size) {
 // Print status of CPU i.
 void cpu_stat(unsigned i) {
   typedef unsigned long long ull;
-  ull rax = cd->get_reg(i, QSIM_RAX), rcx = cd->get_reg(i, QSIM_RCX), 
-      rdx = cd->get_reg(i, QSIM_RDX), rbx = cd->get_reg(i, QSIM_RBX), 
-      rsp = cd->get_reg(i, QSIM_RSP), rbp = cd->get_reg(i, QSIM_RBP), 
-      rip = rip_vec[i],               cr3 = cd->get_reg(i, QSIM_CR3);
+  ull rax = cd->get_reg(i, QSIM_X86_RAX), rcx = cd->get_reg(i, QSIM_X86_RCX),
+      rdx = cd->get_reg(i, QSIM_X86_RDX), rbx = cd->get_reg(i, QSIM_X86_RBX),
+      rsp = cd->get_reg(i, QSIM_X86_RSP), rbp = cd->get_reg(i, QSIM_X86_RBP),
+      rip = rip_vec[i],               cr3 = cd->get_reg(i, QSIM_X86_CR3);
   int tid = cd->get_tid(i);
   const char* sym = get_nearest_symbol_below(rip, cr3).c_str();
 
