@@ -39,33 +39,6 @@ enum qsim_mode {
   QSIM_NUM_MODES
 };
 
-/* The flags enum is used with the register access callback (size=0) to signal
-   condition code access. */
-enum flags {
-  QSIM_FLAG_OF = 0x01,
-  QSIM_FLAG_SF = 0x02,
-  QSIM_FLAG_ZF = 0x04,
-  QSIM_FLAG_AF = 0x08,
-  QSIM_FLAG_PF = 0x10,
-  QSIM_FLAG_CF = 0x20
-};
-
-/* Flags touched when the flags register is modified, and written by
-   add/subtract instructions. */
-#define QSIM_FLAG_ALL (QSIM_FLAG_OF|QSIM_FLAG_SF|QSIM_FLAG_ZF|QSIM_FLAG_AF|\
-                       QSIM_FLAG_PF|QSIM_FLAG_CF)
-
-/* Flags written by increment/decrement instructions: */
-#define QSIM_FLAG_INC (QSIM_FLAG_OF|QSIM_FLAG_SF|QSIM_FLAG_ZF|QSIM_FLAG_AF|\
-                       QSIM_FLAG_PF)
-
-/* Flags written by bitwise logic instructions: */
-#define QSIM_FLAG_LOG (QSIM_FLAG_OF|QSIM_FLAG_SF|QSIM_FLAG_ZF|QSIM_FLAG_PF|\
-                       QSIM_FLAG_CF)
-
-/* Flags written by rotate instructions: */
-#define QSIM_FLAG_ROT (QSIM_FLAG_OF|QSIM_FLAG_CF)
-
 typedef void (*inst_cb_t)(int cpu_id, uint64_t vaddr, uint64_t paddr,
                           uint8_t length, const uint8_t *bytes,
                           enum inst_type type);
