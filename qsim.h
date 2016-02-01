@@ -72,6 +72,7 @@ namespace Qsim {
 
     // Run for n instructions.
     virtual uint64_t run(unsigned n) = 0;
+    virtual uint64_t run(int cpu, unsigned n) = 0;
 
     // Trigger an interrupt with vector v.
     virtual int interrupt(uint8_t v) = 0;
@@ -99,6 +100,7 @@ namespace Qsim {
     // Function pointers into the qemu library                                 
     void     (*qemu_init)(const char** argv);
     uint64_t (*qemu_run)(uint64_t n);
+    uint64_t (*qemu_run_cpu)(int c, uint64_t n);
     int      (*qemu_interrupt)(uint8_t vec);
 
     void (*qemu_set_atomic_cb)(atomic_cb_t);
@@ -134,6 +136,7 @@ namespace Qsim {
     virtual ~QemuCpu();
  
     uint64_t run(unsigned n) { return qemu_run(n); }
+    uint64_t run(int c, unsigned n) { return qemu_run_cpu(c, n); }
 
     std::string getCpuType() { return cpu_type; }
     void setCpuType(std::string arch) { cpu_type = arch; }
@@ -269,6 +272,10 @@ namespace Qsim {
     // Run CPU i for n instructions, if it's ready. Otherwise, do nothing.
     // Returns the number of instructions the CPU ran for (either n or 0)
     unsigned run(uint16_t i, unsigned n);
+
+    // Run QEMU for n instructions
+    // Returns the number of instructions the CPU ran for (either n or 0)
+    unsigned run(unsigned n);
 
     // Send console output to a given C++ ostream
     void connect_console(std::ostream& s);

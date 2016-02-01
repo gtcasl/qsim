@@ -153,6 +153,7 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   //Get the symbols           
   Mgzd::sym(qemu_init,            qemu_lib, "qemu_init"           );
   Mgzd::sym(qemu_run,             qemu_lib, "run"                 );
+  Mgzd::sym(qemu_run_cpu,         qemu_lib, "run_cpu"             );
   Mgzd::sym(qemu_interrupt,       qemu_lib, "interrupt"           );
   Mgzd::sym(qemu_set_atomic_cb,   qemu_lib, "set_atomic_cb"       );
   Mgzd::sym(qemu_set_inst_cb,     qemu_lib, "set_inst_cb"         );
@@ -369,11 +370,13 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,
     cpus[0]->set_magic_cb(magic_cb_s);
 
     // Set master CPU state to "running"
-    running.push_back(true);
+    for (int i = 0; i < n_cpus; i++) {
+      running.push_back(true);
 
-    // Initialize Linux task ID to zero and idle to true
-    tids.push_back(0);
-    idlevec.push_back(true);
+      // Initialize Linux task ID to zero and idle to true
+      tids.push_back(0);
+      idlevec.push_back(true);
+    }
   }
   cmd_argv = get_qemu_args(kernel_path.c_str(), ram_mb, n, cpu_type, mode);
 }
@@ -442,9 +445,11 @@ Qsim::OSDomain::OSDomain(const char* filename)
   cpus[0]->set_magic_cb(magic_cb_s);
   cpus[0]->set_gen_cbs(true);
 
-  running.push_back(true);
-  tids.push_back(0);
-  idlevec.push_back(true);
+  for (int i = 0; i < n_cpus; i++) {
+    running.push_back(true);
+    tids.push_back(0);
+    idlevec.push_back(true);
+  }
 
   mode = QSIM_HEADLESS;
 }
@@ -507,8 +512,12 @@ string Qsim::OSDomain::getCpuType(uint16_t i) {
 }
 
 unsigned Qsim::OSDomain::run(uint16_t i, unsigned n) {
-  if(i != 0)            { return n;               }
+  if (running[i]) { return cpus[0]->run(i, n); }
 
+  return 0;
+}
+
+unsigned Qsim::OSDomain::run(unsigned n) {
   if (running[0]) { return cpus[0]->run(n); } 
 
   return 0;

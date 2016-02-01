@@ -99,5 +99,8 @@ static __attribute__((unused)) void getcontext(qsim_ucontext_t *p) {}
 #include <ucontext.h>
 typedef ucontext_t qsim_ucontext_t;
 
+void qsim_swap_ctx(void);
+void qsim_swap(void *opaque);
+
 #endif
 

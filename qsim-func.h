@@ -20,6 +20,7 @@ extern "C" {
 void qemu_init(const char* argv[]);
 
 uint64_t run(uint64_t n);
+uint64_t run_cpu(int i, uint64_t n);
 
 void set_atomic_cb(atomic_cb_t);
 void set_inst_cb  (inst_cb_t  );
