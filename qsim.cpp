@@ -370,10 +370,12 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,
     cpus[0]->set_magic_cb(magic_cb_s);
 
     // Set master CPU state to "running"
-    for (int i = 0; i < n_cpus; i++) {
-      running.push_back(true);
-
+    running.push_back(true);
+    tids.push_back(0);
+    idlevec.push_back(true);
+    for (int i = 1; i < n_cpus; i++) {
       // Initialize Linux task ID to zero and idle to true
+      running.push_back(false);
       tids.push_back(0);
       idlevec.push_back(true);
     }
@@ -530,7 +532,7 @@ void Qsim::OSDomain::connect_console(std::ostream& s) {
 void Qsim::OSDomain::timer_interrupt() {
   if (n_cpus > 1 && running[0] && running[1]) {
     for (unsigned i = 0; i < n_cpus; i++) if (running[i]) {
-      cpus[i]->interrupt(0xef);
+      cpus[0]->interrupt(0xef);
     }
   } else {
     cpus[0]->interrupt(0x30);
@@ -771,7 +773,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     tids[cpu_id] = rax & 0xffff;
   } else if ( (rax & 0xffff0000) == 0xb0070000 ) {
     // CPU bootstrap
-    waiting_for_eip = rax&0xffff;
+    running[rax&0xffff] = true;
   } else if ( (rax & 0xff000000) == 0x1d000000 ) {
     // Inter-processor interrupt
     uint16_t cpu = (rax & 0x00ffff00)>>8;
