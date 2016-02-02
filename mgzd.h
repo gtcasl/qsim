@@ -89,7 +89,7 @@ namespace Mgzd {
 					const char *sym) {
     (void*&)ret = dlsym(lib.handle, sym);
     if (char *err = dlerror()) {
-      std::cerr << "dlsym(\"" << lib.handle << "\", \"" << sym 
+      std::cerr << "dlsym(\"" << lib.file.c_str() << "\", \"" << sym 
                 << "\") failed:  " << err << '\n';
       exit(1);
     }
