@@ -357,8 +357,8 @@ void Qsim::OSDomain::assign_id() {
 }
 
 Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,
-                         qsim_mode mode, unsigned ram_mb)
-   : n_cpus(n), waiting_for_eip(0)
+                         qsim_mode mode_arg, unsigned ram_mb)
+  : n_cpus(n), waiting_for_eip(0), mode(mode_arg)
 {
   assign_id();
 
