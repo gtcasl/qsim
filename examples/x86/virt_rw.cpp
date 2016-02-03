@@ -122,7 +122,7 @@ int main(int argc, char** argv) {
   // The main loop: run until 'finished' is true.
   inst_run = inst_per_iter;
   while (!tw.hasFinished() && !(inst_per_iter - inst_run)) {
-    inst_run = osd.run(0, inst_per_iter);
+    inst_run = osd.run(inst_per_iter);
   }
   
   if (outfile) { outfile->close(); }

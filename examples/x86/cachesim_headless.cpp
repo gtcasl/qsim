@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
 
     // The main loop: run until 'finished' is true.
     while (!tw.hasFinished()) {
-      osd.run(0, 10000000);
+      osd.run(10000000);
       tw.print_stats();
     }
 
