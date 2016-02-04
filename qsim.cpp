@@ -496,17 +496,15 @@ int Qsim::OSDomain::get_tid(uint16_t i) {
 }
 
 Qsim::OSDomain::cpu_mode Qsim::OSDomain::get_mode(uint16_t i) {
-  //bool prot = (cpus[i]->get_reg(QSIM_CR0))&1;
+  bool prot = (cpus[0]->get_reg(i, QSIM_X86_CR0))&1;
 
-  //return prot?MODE_PROT:MODE_REAL;
-  return MODE_REAL;
+  return prot?MODE_PROT:MODE_REAL;
 }
 
 Qsim::OSDomain::cpu_prot Qsim::OSDomain::get_prot(uint16_t i) {
-  //bool user = (cpus[i]->get_reg(QSIM_CS))&1;
+  bool user = (cpus[0]->get_reg(i, QSIM_X86_CS))&1;
 
-  //return user?PROT_USER:PROT_KERN;
-  return PROT_KERN;
+  return user?PROT_USER:PROT_KERN;
 }
 
 string Qsim::OSDomain::getCpuType(uint16_t i) {
