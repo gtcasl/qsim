@@ -158,24 +158,24 @@ int main(int argc, char** argv) {
   }
   OSDomain &osd(*osd_p);
 
-  // Attach a TraceWriter if a trace file is given.
-  TraceWriter tw(osd, outfile?*outfile:std::cout);
-
   // If this OSDomain was created from a saved state, the app start callback was
   // received prior to the state being saved.
-  if (argc >= 4) {
+  if (argc >= 5) {
     Qsim::load_file(osd, argv[4]);
-    tw.app_start_cb(0);
   }
+
+  // Attach a TraceWriter if a trace file is given.
+  TraceWriter tw(osd, outfile?*outfile:std::cout);
+  tw.app_start_cb(0);
 
   osd.connect_console(std::cout);
 
   // The main loop: run until 'finished' is true.
-  unsigned long inst_per_iter = 1000000000, inst_run;
+  unsigned long inst_per_iter = 1000, inst_run;
   inst_run = inst_per_iter;
   while (!(inst_per_iter - inst_run)) {
     inst_run = 0;
-    inst_run = osd.run(0, inst_per_iter);
+    inst_run = osd.run(inst_per_iter);
     osd.timer_interrupt();
   }
   

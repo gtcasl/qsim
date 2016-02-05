@@ -153,6 +153,7 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   //Get the symbols           
   Mgzd::sym(qemu_init,            qemu_lib, "qemu_init"           );
   Mgzd::sym(qemu_run,             qemu_lib, "run"                 );
+  Mgzd::sym(qemu_run_cpu,         qemu_lib, "run_cpu"             );
   Mgzd::sym(qemu_interrupt,       qemu_lib, "interrupt"           );
   Mgzd::sym(qemu_set_atomic_cb,   qemu_lib, "set_atomic_cb"       );
   Mgzd::sym(qemu_set_inst_cb,     qemu_lib, "set_inst_cb"         );
@@ -356,8 +357,8 @@ void Qsim::OSDomain::assign_id() {
 }
 
 Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,
-                         qsim_mode mode, unsigned ram_mb)
-   : n_cpus(n), waiting_for_eip(0)
+                         qsim_mode mode_arg, unsigned ram_mb)
+  : n_cpus(n), waiting_for_eip(0), mode(mode_arg)
 {
   assign_id();
 
@@ -370,10 +371,14 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,
 
     // Set master CPU state to "running"
     running.push_back(true);
-
-    // Initialize Linux task ID to zero and idle to true
     tids.push_back(0);
     idlevec.push_back(true);
+    for (int i = 1; i < n_cpus; i++) {
+      // Initialize Linux task ID to zero and idle to true
+      running.push_back(false);
+      tids.push_back(0);
+      idlevec.push_back(true);
+    }
   }
   cmd_argv = get_qemu_args(kernel_path.c_str(), ram_mb, n, cpu_type, mode);
 }
@@ -442,9 +447,11 @@ Qsim::OSDomain::OSDomain(const char* filename)
   cpus[0]->set_magic_cb(magic_cb_s);
   cpus[0]->set_gen_cbs(true);
 
-  running.push_back(true);
-  tids.push_back(0);
-  idlevec.push_back(true);
+  for (int i = 0; i < n_cpus; i++) {
+    running.push_back(true);
+    tids.push_back(0);
+    idlevec.push_back(true);
+  }
 
   mode = QSIM_HEADLESS;
 }
@@ -489,17 +496,15 @@ int Qsim::OSDomain::get_tid(uint16_t i) {
 }
 
 Qsim::OSDomain::cpu_mode Qsim::OSDomain::get_mode(uint16_t i) {
-  //bool prot = (cpus[i]->get_reg(QSIM_CR0))&1;
+  bool prot = (cpus[0]->get_reg(i, QSIM_X86_CR0))&1;
 
-  //return prot?MODE_PROT:MODE_REAL;
-  return MODE_REAL;
+  return prot?MODE_PROT:MODE_REAL;
 }
 
 Qsim::OSDomain::cpu_prot Qsim::OSDomain::get_prot(uint16_t i) {
-  //bool user = (cpus[i]->get_reg(QSIM_CS))&1;
+  bool user = (cpus[0]->get_reg(i, QSIM_X86_CS))&1;
 
-  //return user?PROT_USER:PROT_KERN;
-  return PROT_KERN;
+  return user?PROT_USER:PROT_KERN;
 }
 
 string Qsim::OSDomain::getCpuType(uint16_t i) {
@@ -507,8 +512,12 @@ string Qsim::OSDomain::getCpuType(uint16_t i) {
 }
 
 unsigned Qsim::OSDomain::run(uint16_t i, unsigned n) {
-  if(i != 0)            { return n;               }
+  if (running[i]) { return cpus[0]->run(i, n); }
 
+  return 0;
+}
+
+unsigned Qsim::OSDomain::run(unsigned n) {
   if (running[0]) { return cpus[0]->run(n); } 
 
   return 0;
@@ -521,7 +530,7 @@ void Qsim::OSDomain::connect_console(std::ostream& s) {
 void Qsim::OSDomain::timer_interrupt() {
   if (n_cpus > 1 && running[0] && running[1]) {
     for (unsigned i = 0; i < n_cpus; i++) if (running[i]) {
-      cpus[i]->interrupt(0xef);
+      cpus[0]->interrupt(0xef);
     }
   } else {
     cpus[0]->interrupt(0x30);
@@ -762,7 +771,7 @@ int Qsim::OSDomain::magic_cb(int cpu_id, uint64_t rax) {
     tids[cpu_id] = rax & 0xffff;
   } else if ( (rax & 0xffff0000) == 0xb0070000 ) {
     // CPU bootstrap
-    waiting_for_eip = rax&0xffff;
+    running[rax&0xffff] = true;
   } else if ( (rax & 0xff000000) == 0x1d000000 ) {
     // Inter-processor interrupt
     uint16_t cpu = (rax & 0x00ffff00)>>8;

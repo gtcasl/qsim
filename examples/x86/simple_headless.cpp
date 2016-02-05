@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
 
   // The main loop: run until 'finished' is true.
   while (!tw.hasFinished()) {
-    osd.run(0, 10000);
+    osd.run(10000);
   }
   
   if (outfile) { outfile->close(); }

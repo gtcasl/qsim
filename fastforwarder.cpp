@@ -95,10 +95,10 @@ int main(int argc, char** argv) {
       for (int j = 0; j < cpus && !magic_cb_s.app_started; j++) {
         if (osd.runnable(j)) {
           if (osd.idle(j) && !slow_cycles[j]) {
-              osd.run(j, 100);
+              osd.run(100);
           } else {
             if (osd.idle(j)) --slow_cycles[j];
-            osd.run(j, 10000);
+            osd.run(10000);
           }
         }
 
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
   for (unsigned i = 0; i < 1; ++i) {
     for (unsigned j = 0; j < 100; ++j) {
       for (int k = 0; k < cpus; ++k) {
-        osd.run(k, runfor);
+        osd.run(runfor);
       }
 #ifndef LOAD
       runfor = 10000;
