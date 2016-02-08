@@ -33,10 +33,10 @@ public:
     
     // The main loop: run until 'finished' is true.                            
     while (!finished) {
-      for (int i = 0; i < osd.get_n(); i++)
-        osd.run(i, 100);
-      if (!finished) osd.timer_interrupt();
+      osd.run(100 * osd.get_n());
     }
+
+    osd.run(finished_core, 1);
 
     // Unset the callbacks.
     osd.unset_magic_cb(magic_handle);
@@ -47,9 +47,11 @@ private:
   OSDomain &osd;  
   ifstream &infile;
   bool finished;
+  int finished_core;
 
-  int app_start_cb(int) {
+  int app_start_cb(int c) {
     finished = true;
+    finished_core = c;
     return 1;
   }
 
