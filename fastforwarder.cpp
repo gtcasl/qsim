@@ -124,21 +124,9 @@ int main(int argc, char** argv) {
   std::cout << "Tracing 1M instructions.\n";
 #endif
 
-#ifdef LOAD
-  int runfor = 10000;
-#else
-  int runfor = 9999;
-#endif
-  for (unsigned i = 0; i < 1; ++i) {
-    for (unsigned j = 0; j < 100; ++j) {
-      for (int k = 0; k < cpus; ++k) {
-        osd.run(runfor);
-      }
-#ifndef LOAD
-      runfor = 10000;
-#endif
-    }
-    osd.timer_interrupt();
+  int runfor = 10000, ran = runfor;
+  while (ran == runfor) {
+    ran = osd.run(runfor);
   }
 
   std::cout << "Finished.\n";
