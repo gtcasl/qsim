@@ -6,7 +6,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2. See the    #
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
-CXXFLAGS ?= -g -Wall -Idistorm/ -std=c++11
+CXXFLAGS ?= -g -Wall -Idistorm/ -std=c++11 -march=native
 QSIM_PREFIX ?= /usr/local
 LDFLAGS = -L./
 LDLIBS = -lqsim -ldl -lrt
@@ -17,7 +17,7 @@ all: libqsim.so qsim-fastforwarder
 
 debug: CXXFLAGS += -O0
 debug: BUILD_DIR = .dbg_build
-release: CXXFLAGS += -O2
+release: CXXFLAGS += -O3
 release: BUILD_DIR = .opt_build
 
 statesaver.o: statesaver.cpp statesaver.h qsim.h
