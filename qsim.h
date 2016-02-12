@@ -614,9 +614,6 @@ namespace Qsim {
     // Set the number of CPUs
     void set_n(int num) { n_cpus = num; }
 
-    // Get the QEMU RAM descriptor
-    qemu_ramdesc_t get_ramdesc() const { return ramdesc; }
-
     // Retreive/set register contents.
     uint64_t get_reg(int c, int r) { return cpus[0]->get_reg(c, r); }
     void     set_reg(int c, int r, uint64_t v) { cpus[0]->set_reg(c, r, v); }
@@ -661,8 +658,7 @@ namespace Qsim {
       }
     }
 
-    uint8_t *mem_ptr() { return ramdesc.mem_ptr; }
-    size_t   mem_sz()  { return ramdesc.sz; }
+    size_t   mem_sz()  { return ram_size_mb; }
 
     void lock_addr(uint64_t pa);
     void unlock_addr(uint64_t pa);
@@ -687,7 +683,6 @@ namespace Qsim {
 
     std::vector<std::ostream *>       consoles;
    
-    qemu_ramdesc_t ramdesc;
     unsigned ram_size_mb;
     
     static int magic_cb_s(int cpu_id, uint64_t rax);

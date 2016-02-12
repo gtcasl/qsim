@@ -33,12 +33,12 @@ qsim-fastforwarder: fastforwarder.cpp statesaver.o statesaver.h libqsim.so
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -I ./ -L ./ -pthread \
                -o qsim-fastforwarder fastforwarder.cpp statesaver.o $(LDLIBS)
 
-libqsim.so: qsim.cpp qsim-load.o qsim-prof.o qsim.h qsim-vm.h qsim-lock.h mgzd.h \
-            qsim-regs.h qsim-rwlock.h qsim-x86-regs.h qsim-arm64-regs.h
+libqsim.so: qsim.cpp qsim-load.o qsim-prof.o qsim.h qsim-vm.h mgzd.h \
+            qsim-regs.h qsim-x86-regs.h qsim-arm64-regs.h
 	$(CXX) $(CXXFLAGS) -shared -fPIC -o $@ $< qsim-load.o qsim-prof.o -ldl -lrt
 
 install: libqsim.so qsim-fastforwarder qsim.h qsim-vm.h mgzd.h \
-	 qsim-load.h qsim-prof.h qsim-lock.h qsim-rwlock.h qsim-regs.h \
+	 qsim-load.h qsim-prof.h qsim-regs.h \
 	 qsim-arm-regs.h qsim-x86-regs.h qsim-arm64-regs.h qsim_magic.h
 	mkdir -p $(QSIM_PREFIX)/lib
 	mkdir -p $(QSIM_PREFIX)/include
@@ -47,7 +47,7 @@ install: libqsim.so qsim-fastforwarder qsim.h qsim-vm.h mgzd.h \
 	cp capstone/libcapstone.so $(QSIM_PREFIX)/lib
 	cp qsim.h qsim-vm.h mgzd.h qsim-load.h qsim-prof.h 		\
 	 qsim-regs.h qsim-arm-regs.h qsim-x86-regs.h qsim-arm64-regs.h 	\
-	 qsim-lock.h qsim-rwlock.h qsim_magic.h $(QSIM_PREFIX)/include/
+	 qsim_magic.h $(QSIM_PREFIX)/include/
 	cp capstone/include/capstone/*.h $(QSIM_PREFIX)/include
 	cp qsim-fastforwarder $(QSIM_PREFIX)/bin/
 	cp $(QEMU_BUILD_DIR)/x86_64-softmmu/qemu-system-x86_64 		\
@@ -64,8 +64,6 @@ uninstall: $(QSIM_PREFIX)/lib/libqsim.so
 	      $(QSIM_PREFIX)/include/qsim-regs.h                          \
               $(QSIM_PREFIX)/include/qsim-load.h                          \
               $(QSIM_PREFIX)/include/qsim-prof.h                          \
-              $(QSIM_PREFIX)/include/qsim-lock.h                          \
-	      $(QSIM_PREFIX)/include/qsim-rwlock.h                        \
 	      $(QSIM_PREFIX)/bin/qsim-fastforwarder
 
 .PHONY: debug

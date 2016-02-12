@@ -14,8 +14,6 @@ extern "C" {
 #include <stdint.h>
 #include <pthread.h>
 
-#include "qsim-lock.h"
-
 /* Possible values for "type" field of instruction callbacks. */
 enum inst_type {
   QSIM_INST_NULL,     /* NOP or load/store only. */
@@ -52,13 +50,6 @@ typedef int (*magic_cb_t) (int cpu_id, uint64_t rax);
 typedef int (*atomic_cb_t)(int cpu_id);
 typedef void (*reg_cb_t)(int cpu_id, int reg, uint8_t  val, int type);
 typedef void (*trans_cb_t)(int cpu_id);
-
-typedef struct {
-  uint8_t *mem_ptr;
-  size_t   sz;
-  qsim_lockstruct *l;
-} qemu_ramdesc_t;
-
 
 #ifdef __cplusplus
 };
