@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <pthread.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -319,10 +318,6 @@ Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
     // Load the Linux kernel
     load_linux(kernel);
   }
-
-  // Initialize mutexes.
-  pthread_mutex_init(&irq_mutex, NULL);
-  pthread_mutex_init(&cb_mutex, NULL);
 }
 
 // Create QemuCpu from saved state file
@@ -341,19 +336,13 @@ void Qsim::QemuCpu::save_state(const char *filename)
 Qsim::QemuCpu::~QemuCpu() {
   // Close the library file
   Mgzd::close(qemu_lib);
-
-  // Destroy the interrupt mutex.
-  pthread_mutex_destroy(&irq_mutex);
 }
 
 vector<OSDomain*> Qsim::OSDomain::osdomains;
-pthread_mutex_t Qsim::OSDomain::osdomains_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void Qsim::OSDomain::assign_id() {
-  pthread_mutex_lock(&osdomains_lock);
   id = osdomains.size();
   osdomains.push_back(this);
-  pthread_mutex_unlock(&osdomains_lock);
 }
 
 Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,

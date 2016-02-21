@@ -15,7 +15,6 @@
 #include <queue>
 #include <stdint.h>
 #include <string.h>
-#include <pthread.h>
 
 #include "qsim-vm.h"
 #include "qsim-regs.h"
@@ -93,10 +92,6 @@ namespace Qsim {
     // The qemu library object                                                 
     Mgzd::lib_t qemu_lib;
 
-    // Mutexes.
-    pthread_mutex_t irq_mutex;
-    pthread_mutex_t cb_mutex;
-
     // Function pointers into the qemu library                                 
     void     (*qemu_init)(const char** argv);
     uint64_t (*qemu_run)(uint64_t n);
@@ -145,62 +140,42 @@ namespace Qsim {
     void save_state(const char *file);
 
     virtual void set_atomic_cb(atomic_cb_t cb) { 
-      pthread_mutex_lock(&cb_mutex); 
       qemu_set_atomic_cb(cb); 
-      pthread_mutex_unlock(&cb_mutex); 
     }
 
     virtual void set_inst_cb  (inst_cb_t  cb) { 
-      pthread_mutex_lock(&cb_mutex); 
       qemu_set_inst_cb  (cb); 
-      pthread_mutex_unlock(&cb_mutex); 
     }
 
     virtual void set_mem_cb   (mem_cb_t   cb) { 
-      pthread_mutex_lock(&cb_mutex); 
       qemu_set_mem_cb   (cb);
-      pthread_mutex_unlock(&cb_mutex); 
     }
     virtual void set_int_cb   (int_cb_t   cb) { 
-      pthread_mutex_lock(&cb_mutex); 
       qemu_set_int_cb   (cb);
-      pthread_mutex_unlock(&cb_mutex); 
     }
 
     virtual void set_magic_cb (magic_cb_t cb) { 
-      pthread_mutex_lock(&cb_mutex); 
       qemu_set_magic_cb (cb);
-      pthread_mutex_unlock(&cb_mutex);
     }
 
     virtual void set_io_cb    (io_cb_t    cb) { 
-      pthread_mutex_lock(&cb_mutex); 
       qemu_set_io_cb    (cb);
-      pthread_mutex_unlock(&cb_mutex);
     }
 
     virtual void set_reg_cb(reg_cb_t cb) {
-      pthread_mutex_lock(&cb_mutex);
       qemu_set_reg_cb(cb);
-      pthread_mutex_unlock(&cb_mutex);
     }
 
     virtual void set_trans_cb(trans_cb_t cb) {
-      pthread_mutex_lock(&cb_mutex);
       qemu_set_trans_cb(cb);
-      pthread_mutex_unlock(&cb_mutex);
     }
 
     virtual void set_gen_cbs(bool state) {
-      pthread_mutex_lock(&cb_mutex);
       qemu_set_gen_cbs(state);
-      pthread_mutex_unlock(&cb_mutex);
     }
 
     virtual void set_sys_cbs(bool state) {
-      pthread_mutex_lock(&cb_mutex);
       qemu_set_sys_cbs(state);
-      pthread_mutex_unlock(&cb_mutex);
     }
 
     // Read memory at given physical address
@@ -220,9 +195,7 @@ namespace Qsim {
 
     virtual int  interrupt    (uint8_t   vec)   { 
       int r;
-      pthread_mutex_lock(&irq_mutex);
       r = qemu_interrupt(vec);
-      pthread_mutex_unlock(&irq_mutex);
       return r;
     }
 
@@ -712,7 +685,6 @@ namespace Qsim {
     void trans_cb(int cpu_id);
 
     static std::vector<OSDomain *> osdomains;
-    static pthread_mutex_t osdomains_lock;
 
     qsim_mode mode;
 
