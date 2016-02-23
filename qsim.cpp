@@ -411,8 +411,8 @@ Qsim::OSDomain::OSDomain(const char* filename)
     exit(1);
   }
 
-  // allocate space for args + incoming fd
-  char **cmd_args = (char **)malloc((argc+3)*sizeof(char*));
+  // allocate space for args + incoming fd(2) + icount(2)
+  char **cmd_args = (char **)malloc((argc+5)*sizeof(char*));
 
   // go to the beginning of the arg list
   cmd_file.clear();
@@ -425,7 +425,9 @@ Qsim::OSDomain::OSDomain(const char* filename)
 
   cmd_args[argc] = strdup("-incoming");
   cmd_args[argc+1] = fd_arg;
-  cmd_args[argc+2] = NULL;
+  cmd_args[argc+2] = strdup("-icount");
+  cmd_args[argc+3] = strdup("1");
+  cmd_args[argc+4] = NULL;
 
   cmd_argv = (const char **)cmd_args;
 
