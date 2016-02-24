@@ -1,4 +1,4 @@
-From 78ed77adc60f4b6d6512cdd3b685c68778143143 Mon Sep 17 00:00:00 2001
+From b56dc62f1908b6a65c46765c47ef66afb6b04008 Mon Sep 17 00:00:00 2001
 From: Pranith Kumar <bobby.prani@gmail.com>
 Date: Tue, 8 Dec 2015 13:57:13 -0500
 Subject: [PATCH 1/1] Qsim specific changes to the linux kernel
@@ -8,22 +8,33 @@ Subject: [PATCH 1/1] Qsim specific changes to the linux kernel
 
 Signed-off-by: Pranith Kumar <bobby.prani@gmail.com>
 ---
- arch/arm64/include/asm/mmu_context.h |  2 +-
+ arch/arm64/include/asm/mmu_context.h |  6 +++++-
  arch/arm64/kernel/smp.c              |  8 ++++++--
  arch/x86/kernel/smpboot.c            | 10 ++++++++++
- kernel/sched/core.c                  | 15 +++++++++++++++
- 4 files changed, 32 insertions(+), 3 deletions(-)
+ kernel/sched/core.c                  | 19 +++++++++++++++++++
+ 4 files changed, 40 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/include/asm/mmu_context.h b/arch/arm64/include/asm/mmu_context.h
-index 8ec41e5..ac22f01 100644
+index 8ec41e5..a8ac574 100644
 --- a/arch/arm64/include/asm/mmu_context.h
 +++ b/arch/arm64/include/asm/mmu_context.h
-@@ -42,7 +42,7 @@ static inline void contextidr_thread_switch(struct task_struct *next)
+@@ -35,6 +35,8 @@ extern unsigned int cpu_last_asid;
+ void __init_new_context(struct task_struct *tsk, struct mm_struct *mm);
+ void __new_context(struct mm_struct *mm);
+ 
++extern void do_cpuid(uint32_t val);
++
+ #ifdef CONFIG_PID_IN_CONTEXTIDR
+ static inline void contextidr_thread_switch(struct task_struct *next)
+ {
+@@ -42,7 +44,9 @@ static inline void contextidr_thread_switch(struct task_struct *next)
  	"	msr	contextidr_el1, %0\n"
  	"	isb"
  	:
 -	: "r" (task_pid_nr(next)));
 +	: "r" (task_tgid_nr(next)));
++
++	do_cpuid(0xc75c0000 | (u16)task_tgid_nr(next));
  }
  #else
  static inline void contextidr_thread_switch(struct task_struct *next)
@@ -82,10 +93,27 @@ index 50e547e..11af828 100644
  	atomic_set(&init_deasserted, 1);
  
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 4d870eb..f8dd7ea 100644
+index 4d870eb..0b304de 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -2302,6 +2302,21 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -2293,6 +2293,16 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
+ 		put_user(task_pid_vnr(current), current->set_child_tid);
+ }
+ 
++void do_cpuid(uint32_t val)
++{
++#if defined(__aarch64__)
++	asm volatile("msr pmcr_el0, %0" :: "r" (val));
++#else
++	asm("cpuid;\n":: "a"(val) : "%ebx", "%ecx", "%edx");
++#endif
++}
++EXPORT_SYMBOL(do_cpuid);
++
+ /*
+  * context_switch - switch to the new MM and the new thread's register state.
+  */
+@@ -2302,6 +2312,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
  {
  	struct mm_struct *mm, *oldmm;
  
@@ -93,20 +121,14 @@ index 4d870eb..f8dd7ea 100644
 +	 */
 +	if (IS_ENABLED(CONFIG_X86)) {
 +		if (next == rq->idle)
-+			asm volatile("cpuid\n"
-+				     :
-+				     : "a"(0x1d1e1d1e)
-+				     : "ebx", "ecx", "edx");
++			do_cpuid(0x1d1e1d1e);
 +		else
-+			asm volatile("cpuid\n"
-+				     :
-+				     : "a"(0xc75c0000 | (u16)task_tgid_nr(next))
-+				     : "ebx", "ecx", "edx");
++			do_cpuid(0xc75c0000 | (u16)task_tgid_nr(next));
 +	}
 +
  	prepare_task_switch(rq, prev, next);
  
  	mm = next->mm;
 -- 
-2.7.0
+2.7.1
 
