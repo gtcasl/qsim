@@ -1,7 +1,7 @@
-CXXFLAGS ?= -g -O2 -static -std=c++0x -Wall -I$(QSIM_PREFIX)/include
+CXXFLAGS ?= -g -O2 -static -fopenmp -std=c++0x -Wall -I$(QSIM_PREFIX)/include
 LDFLAGS ?= -ldl -lpthread
 
-TESTS = icount memory
+TESTS = icount memory threads
 
 all: $(TESTS)
 
