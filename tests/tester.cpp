@@ -46,9 +46,6 @@ public:
 
   int app_end_cb(int c)
   {
-    for (auto &i: pending) {
-      i.wait();
-    }
     finished = true;
 
     return 1;
@@ -56,18 +53,21 @@ public:
 
   void reg_cb(int c, int r, uint8_t s, int type)
   {
-    pending.push_back(std::async([&]() { if (!finished) reg++;}));
+    if (!finished)
+      reg++;
   }
 
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b,
                enum inst_type t)
   {
-    pending.push_back(std::async([&]() { if (!finished) inst++;}));
+    if (!finished)
+      inst++;
   }
 
   void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
-    pending.push_back(std::async([&]() { if (!finished) mem++;}));
+    if (!finished)
+      mem++;
   }
 
   void print_stats(std::ofstream& out)
@@ -83,8 +83,7 @@ public:
 private:
   OSDomain &osd;
   bool finished;
-  std::atomic<int> inst, mem, reg;
-  std::vector<std::future<void>> pending;
+  uint64_t inst, mem, reg;
 };
 
 int main(int argc, char** argv) {

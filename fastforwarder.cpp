@@ -54,7 +54,7 @@ struct Magic_cb_s {
 int main(int argc, char** argv) {
   if (argc < 5) {
     std::cout << "Usage:\n  " << argv[0] 
-              << " <bzImage> <# CPUs> <ram size (MB)> <output state file> <{x86/arm64}>\n";
+              << " <bzImage> <# CPUs> <ram size (MB)> <output state file> <{x86/a64}>\n";
     return 1;
   }
 

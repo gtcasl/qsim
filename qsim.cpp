@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <pthread.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -319,10 +318,6 @@ Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
     // Load the Linux kernel
     load_linux(kernel);
   }
-
-  // Initialize mutexes.
-  pthread_mutex_init(&irq_mutex, NULL);
-  pthread_mutex_init(&cb_mutex, NULL);
 }
 
 // Create QemuCpu from saved state file
@@ -341,19 +336,13 @@ void Qsim::QemuCpu::save_state(const char *filename)
 Qsim::QemuCpu::~QemuCpu() {
   // Close the library file
   Mgzd::close(qemu_lib);
-
-  // Destroy the interrupt mutex.
-  pthread_mutex_destroy(&irq_mutex);
 }
 
 vector<OSDomain*> Qsim::OSDomain::osdomains;
-pthread_mutex_t Qsim::OSDomain::osdomains_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void Qsim::OSDomain::assign_id() {
-  pthread_mutex_lock(&osdomains_lock);
   id = osdomains.size();
   osdomains.push_back(this);
-  pthread_mutex_unlock(&osdomains_lock);
 }
 
 Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,
@@ -422,8 +411,8 @@ Qsim::OSDomain::OSDomain(const char* filename)
     exit(1);
   }
 
-  // allocate space for args + incoming fd
-  char **cmd_args = (char **)malloc((argc+3)*sizeof(char*));
+  // allocate space for args + incoming fd(2) + icount(2)
+  char **cmd_args = (char **)malloc((argc+5)*sizeof(char*));
 
   // go to the beginning of the arg list
   cmd_file.clear();
@@ -436,7 +425,9 @@ Qsim::OSDomain::OSDomain(const char* filename)
 
   cmd_args[argc] = strdup("-incoming");
   cmd_args[argc+1] = fd_arg;
-  cmd_args[argc+2] = NULL;
+  cmd_args[argc+2] = strdup("-icount");
+  cmd_args[argc+3] = strdup("1");
+  cmd_args[argc+4] = NULL;
 
   cmd_argv = (const char **)cmd_args;
 

@@ -16,3 +16,5 @@ arm64/memory
 arm64/memory.out
 arm64/memory.tar
 arm64/runme.sh
+arm64/threads.tar
+arm64/threads
