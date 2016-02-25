@@ -862,7 +862,7 @@ void Qsim::Queue::inst_cb(int cpu_id,
                           const uint8_t *bytes,
                           enum inst_type type)
 {
-  (*queues)[cpu_id]->push(QueueItem(vaddr, paddr, len, bytes));
+  (*queues)[cpu_id]->push(QueueItem(cpu_id, vaddr, paddr, len, bytes, type));
 }
 
 void Qsim::Queue::inst_cb_hlt(int cpu_id,
@@ -873,7 +873,7 @@ void Qsim::Queue::inst_cb_hlt(int cpu_id,
                               enum inst_type type)
 {
   if (len == 1 && *bytes == 0xf4) (*queues)[cpu_id]->cd->timer_interrupt();
-  (*queues)[cpu_id]->push(QueueItem(vaddr, paddr, len, bytes));
+  (*queues)[cpu_id]->push(QueueItem(cpu_id, vaddr, paddr, len, bytes, type));
 }
 
 void Qsim::Queue::inst_cb_flt(int cpu_id,
@@ -896,7 +896,7 @@ void Qsim::Queue::inst_cb_flt(int cpu_id,
          (flt_user      && cd->get_prot(cpu) == OSDomain::PROT_USER) ||
          (flt_prot      && cd->get_mode(cpu) == OSDomain::MODE_PROT) ||
          (flt_real      && cd->get_mode(cpu) == OSDomain::MODE_REAL)))
-    (*queues)[cpu_id]->push(QueueItem(vaddr, paddr, len, bytes));
+    (*queues)[cpu_id]->push(QueueItem(cpu_id, vaddr, paddr, len, bytes, type));
   if (q->hlt && len == 1 && *bytes == 0xf4) cd->timer_interrupt();
 }
 
@@ -906,7 +906,7 @@ void Qsim::Queue::mem_cb(int cpu_id,
                          uint8_t size,
                          int type)
 {
-  (*queues)[cpu_id]->push(QueueItem(vaddr, paddr, size, type));
+  (*queues)[cpu_id]->push(QueueItem(cpu_id, vaddr, paddr, size, type));
 }
 
 void Qsim::Queue::mem_cb_flt(int cpu_id,
@@ -928,12 +928,12 @@ void Qsim::Queue::mem_cb_flt(int cpu_id,
          (flt_user      && cd->get_prot(cpu) == OSDomain::PROT_USER) ||
          (flt_prot      && cd->get_mode(cpu) == OSDomain::MODE_PROT) ||
 	 (flt_real      && cd->get_mode(cpu) == OSDomain::MODE_REAL)))
-    (*queues)[cpu_id]->push(QueueItem(vaddr, paddr, size, type));
+    (*queues)[cpu_id]->push(QueueItem(cpu_id, vaddr, paddr, size, type));
 }
 
 int Qsim::Queue::int_cb(int cpu_id, uint8_t vec)
 {
-  (*queues)[cpu_id]->push(QueueItem(vec));
+  (*queues)[cpu_id]->push(QueueItem(cpu_id, vec));
   return 0;
 }
 
@@ -952,6 +952,6 @@ int Qsim::Queue::int_cb_flt(int cpu_id, uint8_t vec)
          (flt_user      && cd->get_prot(cpu) == OSDomain::PROT_USER) ||
          (flt_prot      && cd->get_mode(cpu) == OSDomain::MODE_PROT) ||
          (flt_real      && cd->get_mode(cpu) == OSDomain::MODE_REAL)))
-    (*queues)[cpu_id]->push(QueueItem(vec));
+    (*queues)[cpu_id]->push(QueueItem(cpu_id, vec));
   return 0;
 }

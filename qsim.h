@@ -24,43 +24,63 @@ namespace Qsim {
   struct QueueItem {
     // Constructors for use within Queue; automatically set type field to
     // appropriate value.
-    QueueItem(uint64_t vadr, uint64_t padr, uint8_t len, const uint8_t *bytes):
-      type(INST)
+    QueueItem() { id = -1; } 
+
+    QueueItem(int core, uint64_t vadr, uint64_t padr, uint8_t len, const uint8_t *bytes, enum inst_type type):
+      cb_type(INST)
     {
       data.inst.vaddr = vadr;
       data.inst.paddr = padr;
       data.inst.len   = len;
       memcpy((void *)data.inst.bytes, (const void *)bytes, len);
+      data.inst.type  = type;
+      id = core;
     }
 
-    QueueItem(uint64_t vaddr, uint64_t paddr, uint8_t size, int      type ):
-      type(MEM)
+    QueueItem(int core, uint64_t vaddr, uint64_t paddr, uint8_t size, int type):
+      cb_type(MEM)
     {
       data.mem.vaddr  = vaddr;
       data.mem.paddr  = paddr;
       data.mem.size   = size;
       data.mem.type   = type;
+      id = core;
     }
 
-    QueueItem(uint8_t vec):
-      type(INTR)
+    QueueItem(int core, uint8_t vec):
+      cb_type(INTR)
     {
       data.intr.vec   = vec;
-      type            = INTR;
+      id = core;
     }
 
-    enum {INST, MEM, INTR} type;
+    QueueItem(int core, int reg, uint8_t size, int type):
+      cb_type(REG)
+    {
+      data.reg.reg    = reg;
+      data.reg.size   = size;
+      data.reg.type   = type;
+      id = core;
+    }
+
+    // TERMINATED/IDEL are used by qsim_proxy in Manifold
+    enum {INST, MEM, INTR, REG, TERMINATED, IDLE} cb_type;
     union {
       struct {
-        uint64_t vaddr; uint64_t paddr; uint8_t len ; uint8_t  bytes[15];
+        uint64_t vaddr; uint64_t paddr; uint8_t len ; uint8_t  bytes[15]; enum inst_type type; 
       } inst;
       struct {
-        uint64_t vaddr; uint64_t paddr; uint8_t size; int      type ;
+        uint64_t vaddr; uint64_t paddr; uint8_t size; int type ;
       } mem;
       struct {
         uint8_t    vec;
       } intr;
+      struct {
+          int reg; uint8_t size; int type;
+      } reg;
     } data;
+
+    int id;
   };
 
   class Cpu {
