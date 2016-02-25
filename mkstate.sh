@@ -23,12 +23,15 @@ fi
 
 # Truncate our log file
 echo > mkstate.log
+echo > mkstate.a64.log
 
 for i in `seq $LOG2MINCPUS $LOG2MAXCPUS`; do
   n=`echo 2 $i ^ p | dc`
   echo "-- running qsim-fastforwarder for $n core(s) --"
   $FF linux/bzImage $n $RAMSIZE state.$n 2>&1 >> mkstate.log
-
+  if [ "$n" -le 8 ]; then
+    $FF linux/Image $n $RAMSIZE state.$n.a64 a64 2>&1 >> mkstate.a64.log
+  fi
 #  examples/io-test \
 #    $n TRACE state.$n ../benchmarks/splash2-tar/fft.tar > state.$n.testout &
 done
