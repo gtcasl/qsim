@@ -33,7 +33,7 @@ public:
     
     // The main loop: run until 'finished' is true.                            
     while (!finished) {
-      osd.run(100 * osd.get_n());
+      osd.run(10000000);
     }
 
     osd.run(finished_core, 1);
