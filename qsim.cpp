@@ -436,7 +436,6 @@ Qsim::OSDomain::OSDomain(const char* filename)
 
   cpus.push_back(new QemuCpu(cmd_argv, arch));
   cpus[0]->set_magic_cb(magic_cb_s);
-  cpus[0]->set_gen_cbs(true);
 
   for (int i = 0; i < n_cpus; i++) {
     running.push_back(true);

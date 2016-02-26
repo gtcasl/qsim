@@ -7,6 +7,7 @@ int main(int argc, char *argv[])
   int *p;
   p = new int[argc];
   qsim_magic_enable();
+  asm volatile("cmp %eax, %eax;\nje label\nlabel:");
   asm volatile("movl $1, (%1)\n"
                "movl $1, (%1)\n"
                "movl $1, (%1)\n"

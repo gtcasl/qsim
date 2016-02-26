@@ -5,6 +5,7 @@
 int main()
 {
   qsim_magic_enable();
+  asm volatile("cbz %0, 1f\n1:"::"r"(0));
   asm volatile("dmb ishst;\n"
                "dmb ishst;\n"
                "dmb ishst;\n"
