@@ -12,25 +12,38 @@ normal=$(tput sgr0)
 
 ARCH=$1
 
+# setup the aarch64 toolchain
+aarch64_tool=$PWD/gcc-linaro-5.1-2015.08-x86_64_aarch64-linux-gnu
+
+if [ ! -d "$aarch64_tool" ]; then
+    echo "\nAARCH64 toolchain is not set, download from linaro website..."
+    echo "Press any key to continue..."
+    read inp
+    wget -c "https://releases.linaro.org/components/toolchain/binaries/latest-5.1/aarch64-linux-gnu/gcc-linaro-5.1-2015.08-x86_64_aarch64-linux-gnu.tar.xz" -O aarch64_toolchain.tar.xz
+    echo "\nUncompressing the toolchain to $PWD"
+    tar -xf aarch64_toolchain.tar.xz
+fi
+
 # set the QSIM environment variable
 echo "Setting QSIM environment variable..."
 export QSIM_PREFIX=`pwd`
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$QSIM_PREFIX/lib
+export PATH="$PATH:$aarch64_tool/bin"
 echo "\n\nAdd the following lines to your bashrc:\n"
 echo "${bold}export QSIM_PREFIX=$QSIM_PREFIX${bold}"
 echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$QSIM_PREFIX/lib${normal}\n"
+echo "${bold}export PATH=\$PATH:\$QSIM_PREFIX/gcc-linaro-5.1-2015.08-x86_64_aarch64-linux-gnu/bin${normal}"
 echo "Press any key to continue..."
-
-read inp
-
-echo "\n\nDown QEMU OS images? This will take a while. (Y/n):"
 read inp
 
 # Install dependencies
 echo "Installing dependencies..."
 echo "sudo apt-get -y build-dep qemu"
 sudo apt-get -y build-dep qemu
-sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+#sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+echo "\n\nDown QEMU OS images? This will take a while. (Y/n):"
+read inp
 
 if [ "$inp" = "y" -o "$inp" = "Y" ]; then
   cd ..
