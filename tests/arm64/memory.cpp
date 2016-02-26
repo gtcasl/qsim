@@ -9,6 +9,7 @@ int main(int argc, char *argv[])
   p = new char[10];
   p[0] = 'a';
   qsim_magic_enable();
+  asm volatile("cbz %0, 1f\n1:"::"r"(0));
   asm volatile("ldr x1, [%0, #0]\n"
                "ldr x1, [%0, #1]\n"
                "ldr x1, [%0, #2]\n"
