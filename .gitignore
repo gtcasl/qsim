@@ -41,3 +41,5 @@ initrd/initrd.cpio.arm64
 include/
 .dbg_build
 .opt_build
+tools
+images
