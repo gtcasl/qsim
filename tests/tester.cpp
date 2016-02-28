@@ -25,6 +25,15 @@ public:
     osd(osd), finished(false), inst(0), mem(0), reg(0)
   {
     osd.set_app_start_cb(this, &Tester::app_start_cb);
+    inst = (uint64_t *)malloc(osd.get_n() * sizeof(uint64_t));
+    mem  = (uint64_t *)malloc(osd.get_n() * sizeof(uint64_t));
+    reg  = (uint64_t *)malloc(osd.get_n() * sizeof(uint64_t));
+
+    for (int i = 0; i < osd.get_n(); i++) {
+      inst[i] = 0;
+      mem[i]  = 0;
+      reg[i]  = 0;
+    }
   }
 
   bool hasFinished() { return finished; }
@@ -54,36 +63,36 @@ public:
   void reg_cb(int c, int r, uint8_t s, int type)
   {
     if (!finished)
-      reg++;
+      reg[c]++;
   }
 
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b,
                enum inst_type t)
   {
     if (!finished)
-      inst++;
+      inst[c]++;
+
+    //std::cout << "inst: " << inst << "\r";
   }
 
   void mem_cb(int c, uint64_t v, uint64_t p, uint8_t s, int w)
   {
     if (!finished)
-      mem++;
+      mem[c]++;
   }
 
   void print_stats(std::ofstream& out)
   {
-    std::cout << "Inst: " << inst << std::endl;
-    std::cout << "Mem : " << mem << std::endl;
-    std::cout << "Reg : " << reg << std::endl;
-    out << "Inst: " << inst << std::endl;
-    out << "Mem : " << mem << std::endl;
-    out << "Reg : " << reg << std::endl;
+    for (int i = 0; i < osd.get_n(); i++) {
+      std::cout << i << ": " << inst[i] << ", " << mem[i] << ", " << reg[i] << std::endl;
+      out       << i << ": " << inst[i] << ", " << mem[i] << ", " << reg[i] << std::endl;
+    }
   }
 
 private:
   OSDomain &osd;
   bool finished;
-  uint64_t inst, mem, reg;
+  uint64_t *inst, *mem, *reg;
 };
 
 int main(int argc, char** argv) {
