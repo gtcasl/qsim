@@ -167,7 +167,6 @@ int main(int argc, char** argv) {
 
   // Create a runnable OSDomain.
   OSDomain *cdp = NULL;
-  OSDomain &cd(*cdp);
   if (argc < 3) {
     cdp = new OSDomain(MAX_CPUS, qsim_prefix + "/../x86_64_images/vmlinuz", "x86");
     //cd.connect_console(cout);
@@ -175,9 +174,10 @@ int main(int argc, char** argv) {
     cdp = new OSDomain(MAX_CPUS, argv[1]);
     //cd.connect_console(cout);
     cout << "Loaded state. Reading benchmark.\n";
-    Qsim::load_file(cd, argv[2]);
+    Qsim::load_file(*cdp, argv[2]);
     cout << "Loaded benchmark .tar file.\n";
   }
+  OSDomain &cd(*cdp);
   cd.set_inst_cb(&cb_obj, &cb_struct::inst_cb);
   cd.set_int_cb(&cb_obj, &cb_struct::int_cb);
   cd.set_app_end_cb(&cb_obj, &cb_struct::end_cb);
