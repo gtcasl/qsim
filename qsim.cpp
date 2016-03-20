@@ -426,7 +426,7 @@ Qsim::OSDomain::OSDomain(const char* filename)
   cmd_args[argc] = strdup("-incoming");
   cmd_args[argc+1] = fd_arg;
   cmd_args[argc+2] = strdup("-icount");
-  cmd_args[argc+3] = strdup("1,sleep=off");
+  cmd_args[argc+3] = strdup("7,sleep=off");
   cmd_args[argc+4] = NULL;
 
   cmd_argv = (const char **)cmd_args;

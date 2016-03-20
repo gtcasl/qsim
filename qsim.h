@@ -658,10 +658,14 @@ namespace Qsim {
 
     void qsim_qemu_mode(qsim_mode _mode) { mode = _mode; }
 
+    int get_bench_pid(void) { return bench_pid; }
+    void set_bench_pid(int pid) { bench_pid = pid; }
+
     ~OSDomain();
 
   private:
     int id;
+    int bench_pid;
     void assign_id();
 
     std::string linebuf;
