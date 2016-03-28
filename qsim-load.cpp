@@ -52,6 +52,7 @@ private:
   int app_start_cb(int c) {
     finished = true;
     finished_core = c;
+    osd.set_bench_pid(osd.get_tid(c));
     return 1;
   }
 
@@ -102,6 +103,11 @@ private:
 
 void Qsim::load_file(OSDomain &osd, const char *filename) {
   ifstream infile(filename);
+  if (infile.fail()) {
+	  std::cerr << "Error: Could not open benchmark tar " << filename << std::endl;
+	  exit(1);
+  }
+
   QsimLoadHelper qlh(osd, infile);
   infile.close();
 }
