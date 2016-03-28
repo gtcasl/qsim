@@ -13,20 +13,17 @@
 
 
 volatile int value;
-
-int threads = 2;
+volatile int threads = 2;
 
 void *thread1(void *arg)
 {
   if (__sync_fetch_and_sub(&threads, 1) == 1)
     qsim_magic_enable();
 
-  while(threads) {
-    printf("%d\r", threads);
-  }
+  while(threads);
 
   for (uint64_t i = 0; i < 10000; i++)
-    value += i;
+    __sync_fetch_and_add(&value, i);
 
   return 0;
 }
@@ -36,12 +33,10 @@ void *thread2(void *arg)
   if (__sync_fetch_and_sub(&threads, 1) == 1)
     qsim_magic_enable();
 
-  while(threads) {
-    printf("%d\r", threads);
-  }
+  while(threads);
 
   for (uint64_t i = 0; i < 10000; i++)
-    value += i;
+    __sync_fetch_and_add(&value, i);
 
   return 0;
 }
