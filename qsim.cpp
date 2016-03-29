@@ -262,7 +262,7 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, const s
     "-m", ramsize,
     "-kernel", strdup(kernel),
     "-initrd", strdup((initrd_path_s+".x86").c_str()),
-    "-append", "init=/init lpj=34920500 console=ttyS0 console=/dev/ttyS0"
+    "-append", "init=/init lpj=34920500 console=ttyS0 console=/dev/ttyS0 notsc"
     " nowatchdog rcupdate.rcu_cpu_stall_suppress=1",
     "-nographic",
     "-smp", ncpus,
