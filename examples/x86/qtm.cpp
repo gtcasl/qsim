@@ -31,6 +31,7 @@ const unsigned BRS_PER_MILN = 1  ;
 const unsigned MAX_CPUS     = 16;
 
 pthread_mutex_t   output_mutex      = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t   running_mutex      = PTHREAD_MUTEX_INITIALIZER;
 pthread_barrier_t cpu_barrier1;
 pthread_barrier_t cpu_barrier2;
 
@@ -67,7 +68,9 @@ void *cpu_thread_main(void* thread_arg) {
   unsigned i = 0;
   while (!do_exit)
   {
+    pthread_mutex_lock(&running_mutex);
     arg->cd->run(arg->cpu, 1000000/BRS_PER_MILN);
+    pthread_mutex_unlock(&running_mutex);
     arg->icount += 1000000/BRS_PER_MILN;
       
     uint64_t last_rip = arg->cd->get_reg(arg->cpu, QSIM_X86_RIP);
