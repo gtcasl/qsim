@@ -107,6 +107,10 @@ a64_tests: a64_prep
 	diff arm64/icount.out arm64/icount_gold.out && \
 	./tester 1 ../state.1.a64 arm64/memory.tar && \
 	diff arm64/memory.out arm64/memory_gold.out
+	if [ ! -e state.2.a64 ]; then \
+		./qsim-fastforwarder linux/Image 2 512 state.2.a64 a64; fi;
+	cd tests && make &&			\
+	./tester 2 ../state.2.a64 arm64/contention.tar
 
 clean:
 	rm -f *~ \#*\# libqsim.so *.o test qtm qsim-fastforwarder build

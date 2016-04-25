@@ -23,7 +23,7 @@ else
     read inp
     mkdir -p tools
     cd tools 
-    wget -c "https://releases.linaro.org/components/toolchain/binaries/latest-5.1/aarch64-linux-gnu/gcc-linaro-5.1-2015.08-x86_64_aarch64-linux-gnu.tar.xz" -O aarch64_toolchain.tar.xz
+    wget -c "https://releases.linaro.org/components/toolchain/binaries/latest-5/aarch64-linux-gnu/gcc-linaro-5.3-2016.02-x86_64_aarch64-linux-gnu.tar.xz" -O aarch64_toolchain.tar.xz
     echo "\nUncompressing the toolchain..."
     tar -xf aarch64_toolchain.tar.xz
     export PATH="$PATH:$aarch64_tool/bin"
