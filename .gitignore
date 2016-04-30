@@ -43,3 +43,4 @@ include/
 .opt_build
 tools
 images
+build
