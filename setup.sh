@@ -23,14 +23,12 @@ else
     read inp
     mkdir -p tools
     cd tools 
-    wget -c "https://releases.linaro.org/components/toolchain/binaries/latest-5/aarch64-linux-gnu/gcc-linaro-5.3-2016.02-x86_64_aarch64-linux-gnu.tar.xz" -O aarch64_toolchain.tar.xz
+    wget -c "https://github.com/gtcasl/qsim_prebuilt/releases/download/v0.1/aarch64_toolchain.tar.xz"
     echo "\nUncompressing the toolchain..."
     tar -xf aarch64_toolchain.tar.xz
     export PATH="$PATH:$aarch64_tool/bin"
     echo "\n\nAdd the following lines to your bashrc:\n"
-    echo "${bold}export PATH=\$PATH:\$QSIM_PREFIX/gcc-linaro-5.1-2015.08-x86_64_aarch64-linux-gnu/bin${normal}"
-    echo "Press any key to continue..."
-    read inp
+    echo "${bold}export PATH=\$PATH:\$QSIM_PREFIX/tools/gcc-linaro-5.3-2016.02-x86_64_aarch64-linux-gnu/bin${normal}"
     cd ..
 fi
 
@@ -59,8 +57,8 @@ if [ "$inp" = "y" -o "$inp" = "Y" ]; then
   echo "\nDownloading arm QEMU images..."
   mkdir -p images
   cd images
-  wget -c https://www.dropbox.com/s/2jplu61410tfime/arm64_images.tar.xz?dl=0 -O arm64_images.tar.xz
-  wget -c https://www.dropbox.com/s/4ut7e4d5ygty020/x86_64_images.tar.xz?dl=0 -O x86_64_images.tar.xz
+  wget -c https://github.com/gtcasl/qsim_prebuilt/releases/download/v0.1/arm64_images.tar.xz
+  wget -c https://github.com/gtcasl/qsim_prebuilt/releases/download/v0.1/x86_64_images.tar.xz
 
   echo "\nUncompresssing images. This might take a while..."
   tar -xf arm64_images.tar.xz
