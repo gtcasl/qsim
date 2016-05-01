@@ -13,7 +13,7 @@ normal=$(tput sgr0)
 ARCH=$1
 
 # setup the aarch64 toolchain
-aarch64_tool=$PWD/tools/gcc-linaro-5.1-2015.08-x86_64_aarch64-linux-gnu
+aarch64_tool=$PWD/tools/gcc-linaro-5.3-2016.02-x86_64_aarch64-linux-gnu
 
 if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1 ; then
     echo "AARCH64 toolchain is already installed!"
@@ -46,10 +46,16 @@ echo "\n\nDown QEMU OS images? This will take a while. (Y/n):"
 read inp
 
 # Install dependencies
-echo "Installing dependencies..."
-echo "sudo apt-get -y build-dep qemu"
-sudo apt-get -y build-dep qemu
-#sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+if hash apt-get 2>/dev/null; then
+    echo "Installing dependencies..."
+    echo "sudo apt-get -y build-dep qemu"
+    sudo apt-get -y build-dep qemu
+    #sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+else 
+    echo "please refer to Qsim manual for installation dependencies"
+    echo "Press any key to continue..."
+    read dump
+fi
 
 if [ "$inp" = "y" -o "$inp" = "Y" ]; then
   cd ..
