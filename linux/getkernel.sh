@@ -1,6 +1,6 @@
 #!/bin/sh
 # Download and patch Linux kernel
-KERNEL=linux-4.1.18
+KERNEL=linux-4.1.23
 KERNEL_ARC=$KERNEL.tar.xz
 KERNEL_URL=https://www.kernel.org/pub/linux/kernel/v4.x/$KERNEL_ARC
 UNPACKAGE="tar -xf"
