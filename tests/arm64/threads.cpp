@@ -4,7 +4,7 @@
 #include <omp.h>
 
 #define NUM_THREADS 5
-#define NUM_ELEM 100000
+#define NUM_ELEM 1000
 
 int main()
 {

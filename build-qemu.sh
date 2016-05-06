@@ -7,12 +7,12 @@ else
   exit 0;
 fi
 
-if [ $1 = "debug" ]; then
+if [[ $1 = "debug" ]]; then
   debug_flags="--enable-debug --enable-debug-tcg --enable-debug-info"
   build_dir=.dbg_build
 fi
 
-if [ $1 = "release" ]; then
+if [[ $1 = "release" ]]; then
   build_dir=.opt_build
 fi
 
