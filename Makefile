@@ -6,7 +6,7 @@
 # This work is licensed under the terms of the GNU GPL, version 2. See the    #
 # COPYING file in the top-level directory.                                    #
 ###############################################################################
-CXXFLAGS ?= -g -Wall -Idistorm/ -std=c++11 -march=native
+CXXFLAGS ?= -g -Wall -Idistorm/ -std=c++0x -march=native
 QSIM_PREFIX ?= /usr/local
 LDFLAGS = -L./
 LDLIBS = -lqsim -ldl -lrt
