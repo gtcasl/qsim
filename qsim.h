@@ -668,6 +668,8 @@ namespace Qsim {
     int bench_pid;
     void assign_id();
 
+    void init(const char* filename);
+
     std::string linebuf;
     uint16_t              n_cpus ;       // Number of CPUs
     std::vector<QemuCpu*> cpus   ;       // Vector of CPU objects

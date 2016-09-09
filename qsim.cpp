@@ -372,8 +372,7 @@ Qsim::OSDomain::OSDomain(uint16_t n, string kernel_path, const string& cpu_type,
   cmd_argv = get_qemu_args(kernel_path.c_str(), ram_mb, n, cpu_type, mode);
 }
 
-// Create an OSDomain from a saved state file
-Qsim::OSDomain::OSDomain(const char* filename)
+void Qsim::OSDomain::init(const char* filename)
 {
   assign_id();
 
@@ -449,10 +448,16 @@ Qsim::OSDomain::OSDomain(const char* filename)
   mode = QSIM_HEADLESS;
 }
 
+// Create an OSDomain from a saved state file
+Qsim::OSDomain::OSDomain(const char* filename)
+{
+  init(filename);
+}
+
 // Create an OSDomain from a saved state file.
 Qsim::OSDomain::OSDomain(int n, const char* filename)
-    : OSDomain(filename)
 {
+  init(filename);
   if (n != n_cpus) {
     cerr << "Error: State file passed has " << n << " cpus, but " << n_cpus <<
       " specified" << std::endl;
