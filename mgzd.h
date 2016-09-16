@@ -64,6 +64,7 @@ namespace Mgzd {
         exit(1);
       }
     }
+    fclose(fp);
 
     // Make temporary copy of libfile, so opening multiple copies of the same
     // file results in independent copies of global variables.
