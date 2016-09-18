@@ -1,4 +1,4 @@
-From b56dc62f1908b6a65c46765c47ef66afb6b04008 Mon Sep 17 00:00:00 2001
+From 4ba6c030b471f9070fb4cc0f12d5bd824ac7e2cc Mon Sep 17 00:00:00 2001
 From: Pranith Kumar <bobby.prani@gmail.com>
 Date: Tue, 8 Dec 2015 13:57:13 -0500
 Subject: [PATCH 1/1] Qsim specific changes to the linux kernel
@@ -15,19 +15,19 @@ Signed-off-by: Pranith Kumar <bobby.prani@gmail.com>
  4 files changed, 40 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/include/asm/mmu_context.h b/arch/arm64/include/asm/mmu_context.h
-index 8ec41e5..a8ac574 100644
+index 2416578..12c1735 100644
 --- a/arch/arm64/include/asm/mmu_context.h
 +++ b/arch/arm64/include/asm/mmu_context.h
-@@ -35,6 +35,8 @@ extern unsigned int cpu_last_asid;
- void __init_new_context(struct task_struct *tsk, struct mm_struct *mm);
- void __new_context(struct mm_struct *mm);
+@@ -28,6 +28,8 @@
+ #include <asm/cputype.h>
+ #include <asm/pgtable.h>
  
 +extern void do_cpuid(uint32_t val);
 +
  #ifdef CONFIG_PID_IN_CONTEXTIDR
  static inline void contextidr_thread_switch(struct task_struct *next)
  {
-@@ -42,7 +44,9 @@ static inline void contextidr_thread_switch(struct task_struct *next)
+@@ -35,7 +37,9 @@ static inline void contextidr_thread_switch(struct task_struct *next)
  	"	msr	contextidr_el1, %0\n"
  	"	isb"
  	:
@@ -39,10 +39,10 @@ index 8ec41e5..a8ac574 100644
  #else
  static inline void contextidr_thread_switch(struct task_struct *next)
 diff --git a/arch/arm64/kernel/smp.c b/arch/arm64/kernel/smp.c
-index d3a202b..cfd98cf 100644
+index f3c3d8f..971dca9 100644
 --- a/arch/arm64/kernel/smp.c
 +++ b/arch/arm64/kernel/smp.c
-@@ -76,10 +76,14 @@ enum ipi_msg_type {
+@@ -78,10 +78,14 @@ enum ipi_msg_type {
   */
  static int boot_secondary(unsigned int cpu, struct task_struct *idle)
  {
@@ -60,10 +60,10 @@ index d3a202b..cfd98cf 100644
  
  static DECLARE_COMPLETION(cpu_running);
 diff --git a/arch/x86/kernel/smpboot.c b/arch/x86/kernel/smpboot.c
-index 50e547e..11af828 100644
+index fbabe4f..085ed7b 100644
 --- a/arch/x86/kernel/smpboot.c
 +++ b/arch/x86/kernel/smpboot.c
-@@ -552,11 +552,19 @@ wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
+@@ -574,11 +574,19 @@ wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
  	return (send_status | accept_status);
  }
  
@@ -77,26 +77,26 @@ index 50e547e..11af828 100644
  static int
  wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
  {
- 	unsigned long send_status, accept_status = 0;
+ 	unsigned long send_status = 0, accept_status = 0;
  	int maxlvt, num_starts, j;
 +	static u16 cur_cpu = 1;
  
  	maxlvt = lapic_get_maxlvt();
  
-@@ -594,6 +602,8 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
+@@ -616,6 +624,8 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
  	pr_debug("Waiting for send to finish...\n");
  	send_status = safe_apic_wait_icr_idle();
  
 +	QSIM_BOOTSTRAP(cur_cpu++);
 +
  	mb();
- 	atomic_set(&init_deasserted, 1);
  
+ 	/*
 diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 4d870eb..0b304de 100644
+index ea863bc..4076b12 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -2293,6 +2293,16 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
+@@ -2662,6 +2662,16 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
  		put_user(task_pid_vnr(current), current->set_child_tid);
  }
  
@@ -113,7 +113,7 @@ index 4d870eb..0b304de 100644
  /*
   * context_switch - switch to the new MM and the new thread's register state.
   */
-@@ -2302,6 +2312,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -2671,6 +2681,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
  {
  	struct mm_struct *mm, *oldmm;
  
@@ -130,5 +130,5 @@ index 4d870eb..0b304de 100644
  
  	mm = next->mm;
 -- 
-2.7.1
+2.9.3
 
