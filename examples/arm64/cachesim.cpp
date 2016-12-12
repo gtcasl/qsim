@@ -233,6 +233,9 @@ int main(int argc, char** argv) {
     if (argc >= 2) {
         istringstream s(argv[1]);
         s >> n_cpus;
+    } else {
+        fprintf(stderr, "Usage: %s <num_cpus> -state <state_file>\n", argv[0]);
+        exit(0);
     }
 
     OSDomain *osd_p(NULL);
