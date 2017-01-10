@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # Run this script to set up the qsim environment for the first time.
 # You can read the following steps to see what each is doing.
@@ -45,7 +45,20 @@ read inp
 echo "\n\nDown QEMU OS images? This will take a while. (Y/n):"
 read inp
 
+# Install dependencies
+if hash apt-get 2>/dev/null; then
+    echo "Installing dependencies..."
+    echo "sudo apt-get -y build-dep qemu"
+    sudo apt-get -y build-dep qemu
+    #sudo apt-get -y install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+else 
+    echo "please refer to Qsim manual for installation dependencies"
+    echo "Press any key to continue..."
+    read dump
+fi
+
 if [ "$inp" = "y" -o "$inp" = "Y" ]; then
+  cd ..
   # get qemu images
   echo "\nDownloading arm QEMU images..."
   mkdir -p images
