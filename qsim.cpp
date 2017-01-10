@@ -194,9 +194,9 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, const s
   else if (cpu_type == "x86")
     image_prefix = "x86_64";
 
-  string kernel_path_s = qsim_prefix + "../" + image_prefix + "_images/vmlinuz";
-  string initrd_path_s = qsim_prefix + "../" + image_prefix + "_images/initrd.img";
-  string disk_path_s   = qsim_prefix + "../" + image_prefix + "_images/" +
+  string kernel_path_s = qsim_prefix + "images/" + image_prefix + "_images/vmlinuz";
+  string initrd_path_s = qsim_prefix + "images/" + image_prefix + "_images/initrd.img";
+  string disk_path_s   = qsim_prefix + "images/" + image_prefix + "_images/" +
                                                   image_prefix + "disk.img";
 
   char* kernel_path = strdup(kernel_path_s.c_str());
