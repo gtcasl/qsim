@@ -10,7 +10,7 @@ QSIM_PREFIX ?= /usr/local
 CXXFLAGS ?= -g -O2 -std=c++0x -Wall -I$(QSIM_PREFIX)/distorm/ -I$(QSIM_PREFIX)/include -L$(QSIM_PREFIX)/lib
 LDLIBS ?= -lqsim -pthread -ldl
 
-EXAMPLES = qtm simple io-test cachesim headless cachesim_headless virt_rw
+EXAMPLES = qtm simple io-test cachesim virt_rw
 
 all: $(EXAMPLES)
 
