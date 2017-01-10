@@ -42,7 +42,7 @@ echo -e "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:\$QSIM_PREFIX/lib${normal}\n"
 echo -e "Press any key to continue..."
 read inp
 
-echo -e "\n\nDown QEMU OS images? This will take a while. (Y/n):"
+echo -e "\n\nDown QEMU OS images? This will take a while. (y/N):"
 read inp
 
 if [ "$inp" = "y" -o "$inp" = "Y" ]; then
