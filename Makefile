@@ -9,7 +9,7 @@
 CXXFLAGS ?= -g -Wall -Idistorm/ -std=c++0x -march=native
 QSIM_PREFIX ?= /usr/local
 LDFLAGS = -L./
-LDLIBS = -lqsim -ldl -lrt
+LDLIBS = -lqsim -ldl -lrt -pthread
 
 QEMU_BUILD_DIR=build
 

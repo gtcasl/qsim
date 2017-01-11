@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
     // Create new OSDomain from saved state.
     osd_p = new OSDomain(n_cpus, argv[2]);
   } else {
-    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../x86_64_images/vmlinuz", "x86", QSIM_INTERACTIVE);
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/images/x86_64_images/vmlinuz", "x86", QSIM_INTERACTIVE);
   }
   OSDomain &osd(*osd_p);
 

@@ -13,6 +13,7 @@
 #include <thread>
 
 #include <qsim.h>
+#include <qsim-load.h>
 #include <capstone.h>
 
 #include "cs_disas.h"
@@ -123,6 +124,11 @@ int main(int argc, char** argv) {
   if (argc >= 2) {
     istringstream s(argv[1]);
     s >> n_cpus;
+  } else {
+    fprintf(stderr, "Usage:\n INTERACTIVE: %s <num_cpus>\n"
+            " HEADLESS: %s <num_cpus> -state <state_file> -bench <benchmark.tar>\n",
+            argv[0], argv[0]);
+    exit(0);
   }
 
   // Read trace file as a parameter.
@@ -137,7 +143,7 @@ int main(int argc, char** argv) {
     // Create new OSDomain from saved state.
     osd_p = new OSDomain(n_cpus, argv[3]);
   } else {
-    osd_p = new OSDomain(n_cpus, qsim_prefix + "/../arm64_images/vmlinuz", "a64", QSIM_INTERACTIVE);
+    osd_p = new OSDomain(n_cpus, qsim_prefix + "/images/arm64_images/vmlinuz", "a64", QSIM_INTERACTIVE);
   }
   OSDomain &osd(*osd_p);
 
@@ -146,7 +152,10 @@ int main(int argc, char** argv) {
 
   // If this OSDomain was created from a saved state, the app start callback was
   // received prior to the state being saved.
-  //if (argc >= 4) tw.app_start_cb(0);
+  if (argc >= 6) {
+    Qsim::load_file(osd, argv[5]);
+    tw.app_start_cb(0);
+  }
 
   osd.connect_console(std::cout);
 
