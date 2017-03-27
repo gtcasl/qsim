@@ -143,14 +143,16 @@ int main(int argc, char** argv) {
     s >> n_cpus;
   } else {
     fprintf(stderr, "Usage:\n INTERACTIVE: %s <num_cpus>\n"
-            " HEADLESS: %s <num_cpus> -state <state_file> -bench <benchmark.tar>\n",
+            " HEADLESS: %s <num_cpus> -state <state_file> -bench <benchmark.tar> -out <trace_file>\n",
             argv[0], argv[0]);
     exit(0);
   }
 
   // Read trace file as a parameter.
-  if (argc >= 3) {
-    outfile = new ofstream(argv[2]);
+  if (argc >= 7) {
+    outfile = new ofstream(argv[7]);
+  } else {
+    outfile = new ofstream("trace.log");
   }
 
   OSDomain *osd_p(NULL);
