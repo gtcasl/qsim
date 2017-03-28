@@ -113,13 +113,13 @@ index 4d870eb..0b304de 100644
  /*
   * context_switch - switch to the new MM and the new thread's register state.
   */
-@@ -2302,6 +2312,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -2302,7 +2312,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
  {
  	struct mm_struct *mm, *oldmm;
  
 +	/* tell qsim the pid of the next task or that it is idle
 +	 */
-+	if (IS_ENABLED(CONFIG_X86)) {
++	if (IS_ENABLED(CONFIG_X86) || IS_ENABLED(CONFIG_ARM64)) {
 +		if (next == rq->idle)
 +			do_cpuid(0x1d1e1d1e);
 +		else
