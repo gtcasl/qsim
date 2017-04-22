@@ -19,7 +19,7 @@ dev proc sys data:
 
 .PHONY: arm64
 arm64:
-	$(MAKE) CC=aarch64-linux-gnu-gcc QEMU=qemu-aarch64
+	$(MAKE) CC=aarch64-linux-gnu-gcc
 
 x86:
 	$(MAKE)
