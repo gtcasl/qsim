@@ -96,7 +96,7 @@ diff --git a/kernel/sched/core.c b/kernel/sched/core.c
 index 4d870eb..0b304de 100644
 --- a/kernel/sched/core.c
 +++ b/kernel/sched/core.c
-@@ -2293,6 +2293,16 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
+@@ -2293,6 +2293,16 @@
  		put_user(task_pid_vnr(current), current->set_child_tid);
  }
  
@@ -113,7 +113,7 @@ index 4d870eb..0b304de 100644
  /*
   * context_switch - switch to the new MM and the new thread's register state.
   */
-@@ -2302,7 +2312,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
+@@ -2302,6 +2312,15 @@
  {
  	struct mm_struct *mm, *oldmm;
  
