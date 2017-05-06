@@ -64,6 +64,8 @@ public:
   {
     if (!finished)
       reg[c]++;
+
+    //std::cout << "reg: " << r << " type: " << type << "\n";
   }
 
   void inst_cb(int c, uint64_t v, uint64_t p, uint8_t l, const uint8_t *b,
@@ -131,9 +133,10 @@ int main(int argc, char** argv) {
 
   // The main loop: run until 'finished' is true.
   while (!tw.hasFinished()) {
-    for (unsigned i = 0; i < n_cpus; i++)
+    for (unsigned i = 0; i < n_cpus; i++) {
       osd.run(i, 1000);
-    osd.timer_interrupt();
+      osd.timer_interrupt();
+    }
   }
 
   tw.print_stats(out);
