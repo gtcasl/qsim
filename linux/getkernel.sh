@@ -1,7 +1,8 @@
 #!/bin/sh
 # Download and patch Linux kernel
-KERNEL=linux-4.1.23
-KERNEL_ARC=$KERNEL.tar.xz
+KERNEL_MAJOR=linux-4.1
+KERNEL_MINOR=39
+KERNEL_ARC=$KERNEL_MAJOR.$KERNEL_MINOR.tar.xz
 KERNEL_URL=https://www.kernel.org/pub/linux/kernel/v4.x/$KERNEL_ARC
 UNPACKAGE="tar -xf"
 
@@ -17,21 +18,20 @@ fi
 if [ ! -e linux ]; then
     echo === UNPACKING ARCHIVE ===
     $UNPACKAGE $KERNEL_ARC
-    mv $KERNEL linux
+    mv $KERNEL_MAJOR.$KERNEL_MINOR linux
     cd linux
     echo === PATCHING ===
-    #sed "s#%%%QSIM_INITRD_FILE%%%#\"$INITRD\"#" < ../$KERNEL.qsim.config > .config
-    patch -p1 < ../$KERNEL.qsim.patch
+    patch -p1 < ../$KERNEL_MAJOR.qsim.patch
     cd ..
 fi
 
 echo === BUILDING LINUX ===
 if [ ! -z "$1" ]; then
-  cp $KERNEL.qsim-arm64.config linux/.config
+  cp $KERNEL_MAJOR.qsim-arm64.config linux/.config
   cd linux
   make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j4
 else
-  cp $KERNEL.qsim.config linux/.config
+  cp $KERNEL_MAJOR.qsim-x86.config linux/.config
   cd linux
   make -j4
 fi
