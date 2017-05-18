@@ -1,7 +1,7 @@
 #!/bin/sh
 # Download and patch Linux kernel
 KERNEL_MAJOR=linux-4.1
-KERNEL_MINOR=23
+KERNEL_MINOR=39
 KERNEL_ARC=$KERNEL_MAJOR.$KERNEL_MINOR.tar.xz
 KERNEL_URL=https://www.kernel.org/pub/linux/kernel/v4.x/$KERNEL_ARC
 UNPACKAGE="tar -xf"
