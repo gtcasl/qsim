@@ -29,9 +29,9 @@ echo === BUILDING LINUX ===
 if [ ! -z "$1" ]; then
   cp $KERNEL_MAJOR.qsim-arm64.config linux/.config
   cd linux
-  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j4
+  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j4 KCPPFLAGS="-fno-pic -Wno-pointer-sign"
 else
   cp $KERNEL_MAJOR.qsim-x86.config linux/.config
   cd linux
-  make -j4
+  make -j4 KCPPFLAGS="-fno-pic -Wno-pointer-sign"
 fi
