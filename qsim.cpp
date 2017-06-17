@@ -410,8 +410,8 @@ void Qsim::OSDomain::init(const char* filename)
     exit(1);
   }
 
-  // allocate space for args + incoming fd(2) + icount(2)
-  char **cmd_args = (char **)malloc((argc+5)*sizeof(char*));
+  // allocate space for args + incoming fd(2) + icount(2) + clock(2)
+  char **cmd_args = (char **)malloc((argc+7)*sizeof(char*));
 
   // go to the beginning of the arg list
   cmd_file.clear();
@@ -428,8 +428,10 @@ void Qsim::OSDomain::init(const char* filename)
   if (arch == "x86")
       cmd_args[argc+3] = strdup("1,sleep=off");
   else
-      cmd_args[argc+3] = strdup("7,sleep=off");
-  cmd_args[argc+4] = NULL;
+      cmd_args[argc+3] = strdup("1,sleep=off");
+  cmd_args[argc+4]= strdup("-rtc");
+  cmd_args[argc+5]= strdup("clock=vm");
+  cmd_args[argc+6] = NULL;
 
   cmd_argv = (const char **)cmd_args;
 
