@@ -1,6 +1,8 @@
 [submodule "qemu"]
 	path = qemu
-	url = https://github.com/pranith/qemu
+	url = https://github.com/B-Bimmermann/qemu-1.git
+	branch = qsim_v25_qemu_26
 [submodule "capstone"]
 	path = capstone
 	url = https://github.com/pranith/capstone
+

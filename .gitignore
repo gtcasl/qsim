@@ -38,9 +38,11 @@ initrd/test_inst
 initrd/test_mem
 initrd/initrd.cpio.x86
 initrd/initrd.cpio.arm64
+initrd/busybox-1.26.2
 include/
 .dbg_build
 .opt_build
 tools
 images
 build
+

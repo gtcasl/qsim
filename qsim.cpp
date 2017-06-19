@@ -270,6 +270,12 @@ const char** get_qemu_args(const char* kernel, int ram_size, int n_cpus, const s
     NULL
   };
 
+  /*
+  "-s",
+  "-S",
+  "-gdb", "tcp::1234",
+  */
+
   static const char *argv_headless_a64[] = {
     "qemu",
     "-m", ramsize, "-M", "virt",
@@ -311,6 +317,13 @@ Qsim::QemuCpu::QemuCpu(int id, const char* kernel, unsigned ram_mb,
   load_and_grab_pointers(get_qemu_lib(cpu_type).c_str());
 
   const char **cmd_argv = get_qemu_args(kernel, ram_mb, n_cpus, type, mode);
+
+  // print the Qemu args
+  /*
+  for(unsigned int i=0;cmd_argv[i]!=NULL;i++)
+      std::cout << "argv[" << i << "] = " << cmd_argv[i] << std::endl;
+  */
+
   // Initialize Qemu library
   qemu_init(cmd_argv);
 

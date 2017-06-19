@@ -68,6 +68,11 @@ echo -e "Building distorm disassembler..."
 cd ../distorm/distorm64/build/linux
 make clib 2> /dev/null
 cd $QSIM_PREFIX
+echo -e "Get qemu submodules..."
+cd qemu
+git submodule update --init pixman
+git submodule update --init dtc
+cd $QSIM_PREFIX
 
 # build linux kernel and initrd
 echo -e "Building Linux kernel..."
