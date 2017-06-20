@@ -430,9 +430,9 @@ void Qsim::OSDomain::init(const char* filename)
   cmd_args[argc+1] = fd_arg;
   cmd_args[argc+2] = strdup("-icount");
   if (arch == "x86")
-      cmd_args[argc+3] = strdup("1,sleep=off");
+      cmd_args[argc+3] = strdup("7,sleep=off");
   else
-      cmd_args[argc+3] = strdup("1,sleep=off");
+      cmd_args[argc+3] = strdup("7,sleep=off");
   cmd_args[argc+4]= strdup("-rtc");
   cmd_args[argc+5]= strdup("clock=vm");
   cmd_args[argc+6] = NULL;
