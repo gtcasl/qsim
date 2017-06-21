@@ -1,15 +1,11 @@
 Installation Instructions
 -------------------------
 
-If you are on Ubuntu (>= 14.04) just run setup.sh script in the qsim
-directory.  This will set up the entire QSim infrastructure. On other
-distributions, comment the apt-get lines, install build dependencies
-for QEMU and run the script.
+If you are on Ubuntu (>= 14.04), run sudo_setup.sh script in the qsim
+directory. Otherwise run setup.sh This will set up the entire QSim
+infrastructure. On other distributions, comment the apt-get lines,
+install build dependencies for QEMU and run the script.
 
-You will need an ARM64 cross compiler if you plan to use QSim for
-ARM64. Once you have the requisite cross compiler set up, invoke
-setup.sh with arm64 argument:
+$ ./setup.sh
 
-$ ./setup.sh arm64
-
-This will set up qsim suitable to collect ARM64 information.
+Please note that download OS images needs atleast 10G space.
