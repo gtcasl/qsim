@@ -85,10 +85,15 @@ public:
 
   void print_stats(std::ofstream& out)
   {
+    uint64_t total_inst = 0, total_mem = 0, total_reg = 0;
     for (int i = 0; i < osd.get_n(); i++) {
+      total_inst += inst[i];
+      total_mem  += mem[i];
+      total_reg  += reg[i];
       std::cout << i << ": " << inst[i] << ", " << mem[i] << ", " << reg[i] << std::endl;
       out       << i << ": " << inst[i] << ", " << mem[i] << ", " << reg[i] << std::endl;
     }
+      std::cout << "Total" << ": " << total_inst << ", " << total_mem << ", " << total_reg << std::endl;
   }
 
 private:
