@@ -41,7 +41,7 @@ public:
       osd.set_reg_cb(this, &TraceWriter::reg_cb);
       osd.set_app_end_cb(this, &TraceWriter::app_end_cb);
 
-      return 1;
+      return 0;
     }
 
     return 0;
