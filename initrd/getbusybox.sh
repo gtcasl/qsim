@@ -5,7 +5,8 @@
 # work perfectly adequately.
 
 ARCH=x86
-if [ ! -z "$1" ]; then
+HOST=`uname -m`
+if [ "$HOST" != "aarch64" ]; then
   CROSS=aarch64-linux-gnu-
   ARCH=arm64
 fi
