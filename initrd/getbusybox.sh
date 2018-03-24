@@ -45,5 +45,10 @@ cd $BBOX
 make -j4 CROSS_COMPILE=$CROSS
 cp busybox ../sbin/
 cd ../
-make clean && make $ARCH
-cp -f initrd.cpio initrd.cpio.$ARCH
+if [ -z "$1" ]; then
+  make clean && make $ARCH
+  cp -f initrd.cpio initrd.cpio.$ARCH
+else
+  make clean && make arm64
+  cp -f initrd.cpio initrd.cpio.arm64
+fi
