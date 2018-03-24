@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Download and patch Linux kernel
 KERNEL_MAJOR=linux-4.1
 KERNEL_MINOR=39
@@ -39,7 +39,7 @@ if [ -z "$1" ]; then
   cd linux
   make -j4 KCPPFLAGS="-fno-pic -Wno-pointer-sign"
 else
-  cp $KERNEL_MAJOR.qsim-$ARCH.config linux/.config
+  cp $KERNEL_MAJOR.qsim-arm64.config linux/.config
   cd linux
-  make -j4 ARCH=$ARCH CROSS_COMPILE=$CROSS KCPPFLAGS="-fno-pic -Wno-pointer-sign"
+  make -j4 ARCH=arm64 CROSS_COMPILE=$CROSS KCPPFLAGS="-fno-pic -Wno-pointer-sign"
 fi
