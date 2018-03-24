@@ -9,10 +9,11 @@ UNPACKAGE="tar -xf"
 INITRD=`pwd`/../initrd/initrd.cpio
 
 ARCH=x86
+CROSS=aarch64-linux-gnu-
 HOST=`uname -m`
-if [ "$HOST" != "aarch64" ]; then
-  CROSS=aarch64-linux-gnu-
+if [ "$HOST" == "aarch64" ]; then
   ARCH=arm64
+  CROSS=
 fi
 
 # Only download the archive if we don't alreay have it.

@@ -5,10 +5,11 @@
 # work perfectly adequately.
 
 ARCH=x86
+CROSS=aarch64-linux-gnu-
 HOST=`uname -m`
-if [ "$HOST" != "aarch64" ]; then
-  CROSS=aarch64-linux-gnu-
+if [ "$HOST" == "aarch64" ]; then
   ARCH=arm64
+  CROSS=
 fi
 
 BBOX=busybox-1.26.2
