@@ -42,13 +42,16 @@ sed "s#\\%LINUX_DIR\\%#$LINUX_DIR#g" < busybox-config \
 
 echo == BUILDING ==
 cd $BBOX
-make -j4 CROSS_COMPILE=$CROSS
-cp busybox ../sbin/
-cd ../
 if [ -z "$1" ]; then
+  make -j4
+  cp busybox ../sbin/
+  cd ../
   make clean && make $ARCH
   cp -f initrd.cpio initrd.cpio.$ARCH
 else
+  make -j4 CROSS_COMPILE=$CROSS
+  cp busybox ../sbin/
+  cd ../
   make clean && make arm64
   cp -f initrd.cpio initrd.cpio.arm64
 fi
