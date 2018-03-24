@@ -15,7 +15,7 @@ QEMU_BUILD_DIR=build
 UNAMEM := $(shell uname -m)
 run_tests=a64_tests
 ifneq ($(UNAMEM), aarch64)
-	run_tests += a64_tests
+	run_tests += x86_tests
 endif
 
 all: libqsim.so qsim-fastforwarder
