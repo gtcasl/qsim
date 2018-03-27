@@ -124,9 +124,14 @@ int main(int argc, char** argv) {
   std::cout << "Tracing 1M instructions.\n";
 #endif
 
-  int runfor = 10000, ran = runfor;
+ retry:
+  int runfor = 1, ran = runfor;
   while (ran == runfor) {
     ran = osd.run(runfor);
+  }
+
+  if (access(argv[4], F_OK) == -1) {
+    goto retry;
   }
 
   std::cout << "Finished.\n";
