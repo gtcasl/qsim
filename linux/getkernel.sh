@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Download and patch Linux kernel
 KERNEL_MAJOR=linux-4.1
 KERNEL_MINOR=39
@@ -7,6 +7,14 @@ KERNEL_URL=https://www.kernel.org/pub/linux/kernel/v4.x/$KERNEL_ARC
 UNPACKAGE="tar -xf"
 
 INITRD=`pwd`/../initrd/initrd.cpio
+
+ARCH=x86
+CROSS=aarch64-linux-gnu-
+HOST=`uname -m`
+if [ "$HOST" == "aarch64" ]; then
+  ARCH=arm64
+  CROSS=
+fi
 
 # Only download the archive if we don't alreay have it.
 if [ ! -e $KERNEL_ARC ]; then
@@ -26,12 +34,12 @@ if [ ! -e linux ]; then
 fi
 
 echo === BUILDING LINUX ===
-if [ ! -z "$1" ]; then
-  cp $KERNEL_MAJOR.qsim-arm64.config linux/.config
-  cd linux
-  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j4 KCPPFLAGS="-fno-pic -Wno-pointer-sign"
-else
-  cp $KERNEL_MAJOR.qsim-x86.config linux/.config
+if [ -z "$1" ]; then
+  cp $KERNEL_MAJOR.qsim-$ARCH.config linux/.config
   cd linux
   make -j4 KCPPFLAGS="-fno-pic -Wno-pointer-sign"
+else
+  cp $KERNEL_MAJOR.qsim-arm64.config linux/.config
+  cd linux
+  make -j4 ARCH=arm64 CROSS_COMPILE=$CROSS KCPPFLAGS="-fno-pic -Wno-pointer-sign"
 fi

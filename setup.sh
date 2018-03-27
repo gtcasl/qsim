@@ -10,7 +10,7 @@
 bold=$(tput bold)
 normal=$(tput sgr0)
 
-ARCH=$1
+ARCH=`uname -m`
 
 # setup the aarch64 toolchain
 aarch64_tool=$PWD/tools/gcc-linaro-5.3-2016.02-x86_64_aarch64-linux-gnu
@@ -78,7 +78,9 @@ cd $QSIM_PREFIX
 echo -e "Building Linux kernel..."
 cd linux
 ./getkernel.sh
-./getkernel.sh arm64
+if [ "$HOST" != "aarch64" ]; then
+  ./getkernel.sh arm64
+fi
 cd $QSIM_PREFIX
 
 # build qemu
@@ -92,7 +94,9 @@ make release install
 echo -e "\n\nBuilding busybox"
 cd initrd/
 ./getbusybox.sh
-./getbusybox.sh arm64
+if [ "$HOST" != "aarch64" ]; then
+  ./getbusybox.sh arm64
+fi
 cd $QSIM_PREFIX
 
 # run tests
