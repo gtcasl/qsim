@@ -1,6 +1,6 @@
 [submodule "qemu"]
 	path = qemu
-	url = https://github.com/pranith/qemu
+	url = https://github.com/gtcasl/qemu
 [submodule "capstone"]
 	path = capstone
 	url = https://github.com/pranith/capstone
