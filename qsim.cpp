@@ -545,6 +545,10 @@ void Qsim::OSDomain::set_inst_cb  (inst_cb_t   cb) {
   cpus[0]->set_inst_cb  (cb);
 }
 
+void Qsim::OSDomain::set_brinst_cb  (brinst_cb_t cb) {
+  cpus[0]->set_brinst_cb  (cb);
+}
+
 void Qsim::OSDomain::set_mem_cb   (mem_cb_t    cb) {
   cpus[0]->set_mem_cb   (cb);
 }
@@ -613,6 +617,10 @@ void Qsim::OSDomain::unset_inst_cb(inst_cb_handle_t h) {
   inst_cbs.erase(h);
 }
 
+void Qsim::OSDomain::unset_brinst_cb(brinst_cb_handle_t h) {
+  brinst_cbs.erase(h);
+}
+
 void Qsim::OSDomain::unset_reg_cb(reg_cb_handle_t h) {
   reg_cbs.erase(h);
 }
@@ -654,6 +662,24 @@ void Qsim::OSDomain::inst_cb_s(int cpu_id, uint64_t va, uint64_t pa,
                                enum inst_type type)
 {
   osdomains[cpu_id >> 16]->inst_cb(cpu_id & 0xffff, va, pa, l, bytes, type);
+}
+
+void Qsim::OSDomain::brinst_cb_s(int cpu_id, uint64_t va, uint64_t pa,
+                               uint8_t l, const uint8_t *bytes,
+                               enum inst_type type)
+{
+  osdomains[cpu_id >> 16]->brinst_cb(cpu_id & 0xffff, va, pa, l, bytes, type);
+}
+
+void Qsim::OSDomain::brinst_cb(int cpu_id, uint64_t va, uint64_t pa, 
+                             uint8_t l, const uint8_t *bytes, 
+                             enum inst_type type)
+{
+  std::vector<brinst_cb_obj_base*>::iterator i;
+
+  // Just iterate through the callbacks and call them all.
+  for (i = brinst_cbs.begin(); i != brinst_cbs.end(); ++i)
+    (**i)(cpu_id, va, pa, l, bytes, type);
 }
 
 void Qsim::OSDomain::inst_cb(int cpu_id, uint64_t va, uint64_t pa, 
@@ -824,6 +850,7 @@ Qsim::Queue::Queue(OSDomain &cd, int cpu, bool h): cd(&cd), cpu(cpu), hlt(h) {
   (*queues)[cpu] = this;
   // Connect the callbacks
   cd.set_inst_cb(cpu, h?inst_cb_hlt:inst_cb);
+  cd.set_brinst_cb(cpu, h?brinst_cb_hlt:brinst_cb);
   cd.set_mem_cb (cpu, mem_cb               );
   cd.set_int_cb (cpu, int_cb               );
 }
@@ -858,10 +885,12 @@ void Qsim::Queue::set_filt(bool user, bool krnl, bool prot,
   // Set callbacks appropriately
   if (flt_krnl && flt_prot && flt_real && flt_user && flt_tid == -1) {
     cd->set_inst_cb(cpu, hlt?inst_cb_hlt:inst_cb);
+    cd->set_brinst_cb(cpu, hlt?brinst_cb_hlt:brinst_cb);
     cd->set_mem_cb (cpu, mem_cb                 );
     cd->set_int_cb (cpu, int_cb                 );
   } else {
     cd->set_inst_cb(cpu, inst_cb_flt            );
+    cd->set_brinst_cb(cpu, brinst_cb_flt         );
     cd->set_mem_cb (cpu, mem_cb_flt             );
     cd->set_int_cb (cpu, int_cb_flt             );
   }
@@ -869,6 +898,16 @@ void Qsim::Queue::set_filt(bool user, bool krnl, bool prot,
 
 
 void Qsim::Queue::inst_cb(int cpu_id,
+                          uint64_t vaddr,
+                          uint64_t paddr,
+                          uint8_t len,
+                          const uint8_t *bytes,
+                          enum inst_type type)
+{
+  (*queues)[cpu_id]->push(QueueItem(cpu_id, vaddr, paddr, len, bytes, type));
+}
+
+void Qsim::Queue::brinst_cb(int cpu_id,
                           uint64_t vaddr,
                           uint64_t paddr,
                           uint8_t len,
@@ -889,7 +928,44 @@ void Qsim::Queue::inst_cb_hlt(int cpu_id,
   (*queues)[cpu_id]->push(QueueItem(cpu_id, vaddr, paddr, len, bytes, type));
 }
 
+void Qsim::Queue::brinst_cb_hlt(int cpu_id,
+                              uint64_t vaddr,
+                              uint64_t paddr,
+                              uint8_t len,
+                              const uint8_t *bytes,
+                              enum inst_type type)
+{
+  if (len == 1 && *bytes == 0xf4) (*queues)[cpu_id]->cd->timer_interrupt();
+  (*queues)[cpu_id]->push(QueueItem(cpu_id, vaddr, paddr, len, bytes, type));
+}
+
+
+
 void Qsim::Queue::inst_cb_flt(int cpu_id,
+                              uint64_t vaddr,
+                              uint64_t paddr,
+                              uint8_t len,
+                              const uint8_t *bytes,
+                              enum inst_type type)
+{
+  Queue   *q        = (*queues)[cpu_id];
+  OSDomain *cd       = q->cd      ;
+  int      cpu      = q->cpu     ;
+  int      flt_tid  = q->flt_tid ;
+  bool     flt_krnl = q->flt_krnl;
+  bool     flt_user = q->flt_user;
+  bool     flt_prot = q->flt_prot;
+  bool     flt_real = q->flt_real;
+  if ( (flt_tid == -1 || cd->get_tid (cpu) == flt_tid           ) && (
+         (flt_krnl      && cd->get_prot(cpu) == OSDomain::PROT_KERN) ||
+         (flt_user      && cd->get_prot(cpu) == OSDomain::PROT_USER) ||
+         (flt_prot      && cd->get_mode(cpu) == OSDomain::MODE_PROT) ||
+         (flt_real      && cd->get_mode(cpu) == OSDomain::MODE_REAL)))
+    (*queues)[cpu_id]->push(QueueItem(cpu_id, vaddr, paddr, len, bytes, type));
+  if (q->hlt && len == 1 && *bytes == 0xf4) cd->timer_interrupt();
+}
+
+void Qsim::Queue::brinst_cb_flt(int cpu_id,
                               uint64_t vaddr,
                               uint64_t paddr,
                               uint8_t len,

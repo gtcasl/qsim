@@ -101,6 +101,7 @@ namespace Qsim {
     virtual void set_magic_cb (magic_cb_t  cb) = 0;
     virtual void set_int_cb   (int_cb_t    cb) = 0;
     virtual void set_inst_cb  (inst_cb_t   cb) = 0;
+    virtual void set_brinst_cb(brinst_cb_t cb) = 0;
     virtual void set_mem_cb   (mem_cb_t    cb) = 0;
     virtual void set_reg_cb   (reg_cb_t    cb) = 0;
   };
@@ -120,6 +121,7 @@ namespace Qsim {
 
     void (*qemu_set_atomic_cb)(atomic_cb_t);
     void (*qemu_set_inst_cb)  (inst_cb_t  );
+    void (*qemu_set_brinst_cb)(brinst_cb_t);
     void (*qemu_set_int_cb)   (int_cb_t   );
     void (*qemu_set_mem_cb)   (mem_cb_t   );
     void (*qemu_set_magic_cb) (magic_cb_t );
@@ -165,6 +167,10 @@ namespace Qsim {
 
     virtual void set_inst_cb  (inst_cb_t  cb) { 
       qemu_set_inst_cb  (cb); 
+    }
+
+    virtual void set_brinst_cb (brinst_cb_t  cb) { 
+      qemu_set_brinst_cb(cb); 
     }
 
     virtual void set_mem_cb   (mem_cb_t   cb) { 
@@ -296,6 +302,8 @@ namespace Qsim {
     void set_atomic_cb(atomic_cb_t cb);
     void set_inst_cb  (uint16_t i, inst_cb_t cb)  {cpus[i]->set_inst_cb  (cb);}
     void set_inst_cb  (inst_cb_t   cb);
+    void set_brinst_cb  (uint16_t i, brinst_cb_t cb)  {cpus[i]->set_brinst_cb(cb);}
+    void set_brinst_cb  (brinst_cb_t cb);
     void set_mem_cb   (uint16_t i, mem_cb_t  cb)  {cpus[i]->set_mem_cb   (cb);}
     void set_mem_cb   (mem_cb_t    cb);
     void set_int_cb   (uint16_t i, int_cb_t  cb)  {cpus[i]->set_int_cb   (cb);}
@@ -339,6 +347,13 @@ namespace Qsim {
 
     struct inst_cb_obj_base {
       virtual ~inst_cb_obj_base() {}
+      virtual 
+      void operator()(int, uint64_t, uint64_t, uint8_t, const uint8_t*, 
+                      enum inst_type)=0;
+    };
+
+    struct brinst_cb_obj_base {
+      virtual ~brinst_cb_obj_base() {}
       virtual 
       void operator()(int, uint64_t, uint64_t, uint8_t, const uint8_t*, 
                       enum inst_type)=0;
@@ -424,6 +439,21 @@ namespace Qsim {
       }
     };
 
+    template <typename T> struct brinst_cb_obj : public brinst_cb_obj_base {
+      typedef void(T::*brinst_cb_t)(int, uint64_t, uint64_t,
+                                  uint8_t, const uint8_t*, enum inst_type);
+      T* p; brinst_cb_t f;
+      brinst_cb_obj(T* p, brinst_cb_t f) : p(p), f(f) {}
+      void operator()(int cpu_id,
+                      uint64_t va,
+                      uint64_t pa,
+                      uint8_t l,
+                      const uint8_t* b,
+                      enum inst_type t) {
+        ((p)->*(f))(cpu_id, va, pa, l, b, t);
+      }
+    };
+
     template <typename T> struct reg_cb_obj : public reg_cb_obj_base {
       typedef void(T::*reg_cb_t)(int, int, uint8_t, int);
       T* p; reg_cb_t f;
@@ -483,6 +513,7 @@ namespace Qsim {
     std::vector<io_cb_obj_base*>     io_cbs;
     std::vector<mem_cb_obj_base*>    mem_cbs;
     std::vector<int_cb_obj_base*>    int_cbs;
+    std::vector<brinst_cb_obj_base*> brinst_cbs;
     std::vector<inst_cb_obj_base*>   inst_cbs;
     std::vector<reg_cb_obj_base*>    reg_cbs;
     std::vector<start_cb_obj_base*>  start_cbs;
@@ -495,6 +526,7 @@ namespace Qsim {
     typedef std::vector<mem_cb_obj_base*>::iterator    mem_cb_handle_t;
     typedef std::vector<int_cb_obj_base*>::iterator    int_cb_handle_t;
     typedef std::vector<inst_cb_obj_base*>::iterator   inst_cb_handle_t;
+    typedef std::vector<brinst_cb_obj_base*>::iterator brinst_cb_handle_t;
     typedef std::vector<reg_cb_obj_base*>::iterator    reg_cb_handle_t;
     typedef std::vector<start_cb_obj_base*>::iterator  start_cb_handle_t;
     typedef std::vector<end_cb_obj_base*>::iterator    end_cb_handle_t;
@@ -550,6 +582,14 @@ namespace Qsim {
     }
 
     template <typename T>
+      brinst_cb_handle_t set_brinst_cb(T* p, typename brinst_cb_obj<T>::brinst_cb_t f)
+    {
+      brinst_cbs.push_back(new brinst_cb_obj<T>(p, f));
+      set_brinst_cb(brinst_cb_s);
+      return brinst_cbs.end() - 1;
+    }
+
+    template <typename T>
       reg_cb_handle_t set_reg_cb(T* p, typename reg_cb_obj<T>::reg_cb_t f)
     {
       reg_cbs.push_back(new reg_cb_obj<T>(p, f));
@@ -586,6 +626,7 @@ namespace Qsim {
     void unset_io_cb(io_cb_handle_t);
     void unset_mem_cb(mem_cb_handle_t);
     void unset_inst_cb(inst_cb_handle_t);
+    void unset_brinst_cb(brinst_cb_handle_t);
     void unset_reg_cb(reg_cb_handle_t);
     void unset_app_start_cb(start_cb_handle_t);
     void unset_app_end_cb(end_cb_handle_t);
@@ -693,7 +734,12 @@ namespace Qsim {
     static void inst_cb_s(int cpu_id, uint64_t va, uint64_t pa, 
                           uint8_t l, const uint8_t *bytes,
                           enum inst_type type);
+    static void brinst_cb_s(int cpu_id, uint64_t va, uint64_t pa, 
+                          uint8_t l, const uint8_t *bytes,
+                          enum inst_type type);
     void inst_cb(int cpu_id, uint64_t va, uint64_t pa,
+                 uint8_t l, const uint8_t *bytes, enum inst_type type);
+    void brinst_cb(int cpu_id, uint64_t va, uint64_t pa,
                  uint8_t l, const uint8_t *bytes, enum inst_type type);
     static void mem_cb_s(int cpu_id, uint64_t va, uint64_t pa,
                         uint8_t size, int type);
@@ -745,6 +791,14 @@ namespace Qsim {
     static void inst_cb_hlt(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
                             enum inst_type);
     static void inst_cb    (int, uint64_t, uint64_t, uint8_t, const uint8_t *,
+                            enum inst_type);
+
+
+    static void brinst_cb_flt(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
+                            enum inst_type);
+    static void brinst_cb_hlt(int, uint64_t, uint64_t, uint8_t, const uint8_t *,
+                            enum inst_type);
+    static void brinst_cb    (int, uint64_t, uint64_t, uint8_t, const uint8_t *,
                             enum inst_type);
 
     static void mem_cb     (int, uint64_t, uint64_t, uint8_t, int            );

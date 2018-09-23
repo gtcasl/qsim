@@ -24,6 +24,7 @@ uint64_t run_cpu(int i, uint64_t n);
 
 void set_atomic_cb(atomic_cb_t);
 void set_inst_cb  (inst_cb_t  );
+void set_brinst_cb(brinst_cb_t);
 void set_int_cb   (int_cb_t   );
 void set_mem_cb   (mem_cb_t   );
 void set_magic_cb (magic_cb_t );
