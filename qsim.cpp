@@ -156,6 +156,7 @@ void Qsim::QemuCpu::load_and_grab_pointers(const char* libfile) {
   Mgzd::sym(qemu_interrupt,       qemu_lib, "interrupt"           );
   Mgzd::sym(qemu_set_atomic_cb,   qemu_lib, "set_atomic_cb"       );
   Mgzd::sym(qemu_set_inst_cb,     qemu_lib, "set_inst_cb"         );
+  Mgzd::sym(qemu_set_brinst_cb,   qemu_lib, "set_brinst_cb"       );
   Mgzd::sym(qemu_set_int_cb,      qemu_lib, "set_int_cb"          );
   Mgzd::sym(qemu_set_mem_cb,      qemu_lib, "set_mem_cb"          );
   Mgzd::sym(qemu_set_magic_cb,    qemu_lib, "set_magic_cb"        );
