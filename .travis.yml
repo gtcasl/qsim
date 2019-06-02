@@ -1,0 +1,9 @@
+apt:
+    update: true
+language: cpp
+before_script:
+- ./build.sh
+script:
+- make -C qemu/plugins/qsimPlugin
+- make -C qemu/plugins/testPlugin
+- make -C debugTool && make -C debugTool/testcases

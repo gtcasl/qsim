@@ -1,0 +1,7 @@
+{
+    "drive": "arm64disk.img",
+    "kernel": "vmlinuz",
+    "initrd": "initrd.img",
+    "username" : "qsim",
+    "password" : "qsim12"
+}
