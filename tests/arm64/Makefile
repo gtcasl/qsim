@@ -1,7 +1,7 @@
 CXXFLAGS ?= -g -O2 -static -fopenmp -lpthread -std=c++0x -Wall -I$(QSIM_PREFIX)/include
 LDFLAGS ?= -ldl -lpthread
 
-TESTS = icount memory threads contention
+TESTS = memtest icount memory threads contention
 
 all: $(TESTS)
 
